@@ -1,0 +1,27 @@
+{
+  "name": "sunflower-axe-adventure",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kenilc/sunflower-axe-adventure.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/kenilc/sunflower-axe-adventure/issues"
+  },
+  "homepage": "https://github.com/kenilc/sunflower-axe-adventure#readme",
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.9"
+  }
+}
