@@ -3,6 +3,7 @@ import { createCave } from "./cave.js?v=20261001-climb";
 import { createGameAudio } from "./audio.js";
 import { createCompanion } from "./companion.js?v=20261001-lake";
 import { createHearts } from "./hearts.js?v=20261001-climb";
+import { createTreeVisibility } from "./tree-visibility.js";
 import {
   createLakeside,
   createBenchMoment,
@@ -104,6 +105,7 @@ function rock(x, z, s) {
   r.rotation.set(rand(), rand() * 5, rand());
   blockers.push({ x, z, r: s * 0.8 });
 }
+const treeVisibility = createTreeVisibility();
 function tree(x, z, s = 1) {
   const g = new THREE.Group();
   scene.add(g);
@@ -124,6 +126,7 @@ function tree(x, z, s = 1) {
     a.rotation.y = j * 0.6;
   }
   blockers.push({ x, z, r: 0.5 * s });
+  treeVisibility.add(g);
 }
 for (let i = 0; i < 170; i++) {
   let a = rand() * Math.PI * 2,
@@ -946,6 +949,8 @@ function frame() {
   camera.position.lerp(desired, 1 - Math.exp(-dt * 5));
   camera.lookAt(hero.position.x, hero.position.y + 1, hero.position.z);
   hearts.update(paused ? 0 : dt, camera);
+  if (!insideCave)
+    treeVisibility.update(camera, [hero, companion.character], dt);
   sun.position.set(hero.position.x - 18, 30, hero.position.z + 12);
   sun.target.position.copy(hero.position);
   if (performance.now() > toastUntil) $("#toast").style.opacity = 0;
