@@ -2,6 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 import { createCave } from "./cave.js";
 import { createGameAudio } from "./audio.js";
 import { createCompanion } from "./companion.js";
+import { createHearts } from "./hearts.js";
 const $ = (s) => document.querySelector(s);
 let renderer;
 try {
@@ -21,6 +22,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.2;
 $("#game").appendChild(renderer.domElement);
 const scene = new THREE.Scene();
+const hearts = createHearts(scene);
 scene.background = new THREE.Color("#96c4b0");
 scene.fog = new THREE.FogExp2("#96c4b0", 0.018);
 const camera = new THREE.PerspectiveCamera(
@@ -408,6 +410,7 @@ let insideCave = false,
   outsideObjective = "";
 function usePassage(enter) {
   if (enter === insideCave) return;
+  hearts.clear();
   if (enter) {
     outsideView = { yaw, pitch, zoom };
     outsideObjective = $("#objective").textContent;
@@ -429,6 +432,7 @@ function usePassage(enter) {
     zoom = 20;
   } else {
     hero.position.set(0, 0, -38.5);
+    companion.reset(hero.position, companionObstacles);
     hero.rotation.y = 0;
     if (outsideView) ({ yaw, pitch, zoom } = outsideView);
   }
@@ -609,6 +613,7 @@ $("#restart").onclick = () => {
   if (insideCave) usePassage(false);
   hero.position.set(0, 0, 7);
   companion.reset();
+  hearts.clear();
   yaw = 0;
   hero.rotation.y = 0;
   camera.position
@@ -648,7 +653,6 @@ function frame() {
   cooldown = Math.max(0, cooldown - dt);
   throwAnim = Math.max(0, throwAnim - dt);
   if (!paused) {
-    if (!insideCave) companion.update(dt, companionObstacles, hero.position);
     passageCooldown = Math.max(0, passageCooldown - dt);
     yaw += ((keys.KeyQ ? 1 : 0) - (keys.KeyE ? 1 : 0)) * dt * 1.4;
     pitch = THREE.MathUtils.clamp(
@@ -682,6 +686,19 @@ function frame() {
     }
     if (insideCave) cave.constrain(hero.position);
     else if (hero.position.length() > 49) hero.position.setLength(49);
+    if (!insideCave) {
+      const playerBump = companion.blocksPlayer(hero.position, old);
+      const companionBump = companion.update(
+        dt,
+        companionObstacles,
+        hero.position,
+      );
+      hearts.contact(
+        playerBump || companionBump,
+        hero.position,
+        companion.character.position,
+      );
+    }
     isMoving = movement.length() > 0.05;
     if (isMoving) {
       walk += dt * speed * 2;
@@ -791,6 +808,7 @@ function frame() {
     .add(hero.position);
   camera.position.lerp(desired, 1 - Math.exp(-dt * 5));
   camera.lookAt(hero.position.x, 1, hero.position.z);
+  hearts.update(paused ? 0 : dt, camera);
   sun.position.set(hero.position.x - 18, 30, hero.position.z + 12);
   sun.target.position.copy(hero.position);
   if (performance.now() > toastUntil) $("#toast").style.opacity = 0;

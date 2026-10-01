@@ -90,13 +90,35 @@ export function createCompanion({ ball, box, cyl, mesh }) {
   box(0.2, 0.12, 0.035, "#c8c7bd", -0.19, 2.47, 0.553, body);
 
   const destination = new THREE.Vector3();
+  const contactDistance = 1.2;
+  const wanderRadius = 7;
+  const maxDistance = 10;
   let wait = 0,
     walking = false,
     gait = 0,
     travelTime = 0;
-  const speed = 1.05;
-  function reset() {
-    character.position.set(2.7, 0, 7.4);
+  function clear(x, z, obstacles) {
+    return (
+      Math.hypot(x, z) < 48 &&
+      obstacles.every((b) => Math.hypot(x - b.x, z - b.z) > b.r + 0.65)
+    );
+  }
+  function reset(center = new THREE.Vector3(0, 0, 7), obstacles = []) {
+    // Rejoin beside her after returning from the cave or getting separated.
+    for (let distance = 2.7; distance < maxDistance; distance += 0.7) {
+      let found = false;
+      for (let i = 0; i < 24; i++) {
+        const angle = (i * Math.PI) / 12;
+        const x = center.x + Math.cos(angle) * distance;
+        const z = center.z + Math.sin(angle) * distance;
+        if (clear(x, z, obstacles)) {
+          character.position.set(x, 0, z);
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+    }
     character.rotation.y = 0;
     destination.copy(character.position);
     wait = 0.8;
@@ -107,27 +129,38 @@ export function createCompanion({ ball, box, cyl, mesh }) {
       limb.rotation.x = 0;
     });
   }
-  function clear(x, z, obstacles, heroPosition) {
-    return (
-      Math.hypot(x, z - 7) < 13 &&
-      Math.hypot(x - heroPosition.x, z - heroPosition.z) > 1.25 &&
-      obstacles.every((b) => Math.hypot(x - b.x, z - b.z) > b.r + 0.65)
-    );
-  }
   function pause() {
     walking = false;
     wait = 1 + Math.random() * 2.5;
   }
+  function blocksPlayer(position, previous) {
+    if (position.distanceTo(character.position) >= contactDistance)
+      return false;
+    position.copy(previous);
+    return true;
+  }
   function update(dt, obstacles, heroPosition) {
+    let separation = character.position.distanceTo(heroPosition);
+    // Catch up promptly when she leaves; wandering stays centered on her.
+    if (separation > maxDistance) {
+      reset(heroPosition, obstacles);
+      separation = character.position.distanceTo(heroPosition);
+    }
+    const following = separation > 5;
+    if (following) {
+      destination.copy(heroPosition);
+      walking = true;
+      travelTime = 0;
+    } else if (destination.distanceTo(heroPosition) > wanderRadius) pause();
     if (!walking) {
       wait -= dt;
       if (wait <= 0) {
         for (let i = 0; i < 20; i++) {
           const angle = Math.random() * Math.PI * 2;
-          const distance = 2 + Math.random() * 4;
-          const x = character.position.x + Math.sin(angle) * distance;
-          const z = character.position.z + Math.cos(angle) * distance;
-          if (clear(x, z, obstacles, heroPosition)) {
+          const distance = 2 + Math.random() * 2.5;
+          const x = heroPosition.x + Math.sin(angle) * distance;
+          const z = heroPosition.z + Math.cos(angle) * distance;
+          if (clear(x, z, obstacles)) {
             destination.set(x, 0, z);
             walking = true;
             travelTime = 0;
@@ -137,7 +170,8 @@ export function createCompanion({ ball, box, cyl, mesh }) {
         if (!walking) wait = 1;
       }
     }
-    let moved = 0;
+    let moved = 0,
+      bumped = false;
     if (walking) {
       const dx = destination.x - character.position.x;
       const dz = destination.z - character.position.z;
@@ -149,16 +183,40 @@ export function createCompanion({ ball, box, cyl, mesh }) {
           Math.sin(heading - character.rotation.y),
           Math.cos(heading - character.rotation.y),
         );
-        character.rotation.y += THREE.MathUtils.clamp(turn, -dt * 2, dt * 2);
-        // Turn before stepping, then follow the current facing direction.
-        const step = speed * dt * Math.max(0, Math.cos(turn));
-        const x = character.position.x + Math.sin(character.rotation.y) * step;
-        const z = character.position.z + Math.cos(character.rotation.y) * step;
-        if (clear(x, z, obstacles, heroPosition)) {
+        character.rotation.y += THREE.MathUtils.clamp(
+          turn,
+          -dt * (following ? 6 : 2),
+          dt * (following ? 6 : 2),
+        );
+        const speed = following
+          ? Math.min(8.8, 1.05 + (separation - 5) * 2.5)
+          : 1.05;
+        const step =
+          speed * dt * (following ? 1 : Math.abs(turn) < 0.35 ? 1 : 0);
+        // Try nearby headings to go around rocks rather than getting stuck.
+        for (const offset of step > 0 ? [0, 0.5, -0.5, 1, -1, 1.5, -1.5] : []) {
+          const angle = (following ? heading : character.rotation.y) + offset;
+          const x = character.position.x + Math.sin(angle) * step;
+          const z = character.position.z + Math.cos(angle) * step;
+          if (!clear(x, z, obstacles)) continue;
+          if (
+            Math.hypot(x - heroPosition.x, z - heroPosition.z) < contactDistance
+          ) {
+            bumped = true;
+            pause();
+            break;
+          }
+          if (
+            !following &&
+            Math.hypot(x - heroPosition.x, z - heroPosition.z) > wanderRadius
+          )
+            continue;
           character.position.set(x, 0, z);
           moved = step;
           travelTime += dt;
-        } else pause();
+          break;
+        }
+        if (step > 0 && !moved && !bumped) pause();
       }
     }
     gait += moved * 5;
@@ -177,7 +235,8 @@ export function createCompanion({ ball, box, cyl, mesh }) {
       moved > 0 ? Math.abs(Math.sin(gait)) * 0.035 : 0,
       blend,
     );
+    return bumped;
   }
   reset();
-  return { character, update, reset };
+  return { character, update, reset, blocksPlayer, contactDistance };
 }
