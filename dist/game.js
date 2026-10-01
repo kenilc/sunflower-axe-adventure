@@ -4,6 +4,7 @@ import { createGameAudio } from "./audio.js";
 import { createCompanion } from "./companion.js?v=20261001-lake";
 import { createHearts } from "./hearts.js?v=20261001-climb";
 import { createTreeVisibility } from "./tree-visibility.js";
+import { bindCameraDrag } from "./camera-drag.js";
 import {
   createLakeside,
   createBenchMoment,
@@ -543,7 +544,7 @@ function usePassage(enter) {
     companion.reset(hero.position, cave.blockers, cave);
     hero.rotation.y = Math.PI;
     yaw = 0;
-    pitch = THREE.MathUtils.degToRad(28);
+    pitch = THREE.MathUtils.degToRad(16);
     zoom = 20;
   } else {
     garden.add(companion.character);
@@ -586,11 +587,9 @@ function usePassage(enter) {
 }
 const keys = {};
 let yaw = 0,
-  pitch = THREE.MathUtils.degToRad(28),
+  pitch = THREE.MathUtils.degToRad(16),
   zoom = 20,
   isMoving = false,
-  drag = false,
-  lastX = 0,
   cooldown = 0,
   score = 0,
   collected = 0,
@@ -674,22 +673,17 @@ addEventListener("keydown", (e) => {
 });
 addEventListener("keyup", (e) => (keys[e.code] = false));
 addEventListener("blur", () => {
+  cameraDrag.reset();
   Object.keys(keys).forEach((k) => (keys[k] = false));
   joy.set(0, 0);
 });
-renderer.domElement.addEventListener("pointermove", (e) => {
-  if (drag) {
-    yaw -= (e.clientX - lastX) * 0.006;
-    lastX = e.clientX;
-  }
+const cameraDrag = bindCameraDrag(renderer.domElement, {
+  rotate(dx) {
+    yaw -= dx * 0.006;
+  },
+  throwAxe: fire,
+  paused: () => $("#guide").open,
 });
-renderer.domElement.addEventListener("pointerdown", (e) => {
-  if (e.button === 2) {
-    drag = true;
-    lastX = e.clientX;
-  } else if (e.pointerType === "mouse") fire();
-});
-addEventListener("pointerup", () => (drag = false));
 renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
 renderer.domElement.addEventListener(
   "wheel",
@@ -700,6 +694,7 @@ renderer.domElement.addEventListener(
   { passive: false },
 );
 $("#help").onclick = () => {
+  cameraDrag.reset();
   $("#guide").showModal();
   Object.keys(keys).forEach((k) => (keys[k] = false));
 };
@@ -730,12 +725,14 @@ $("#stick").onpointerup = $("#stick").onpointercancel = () => {
   $("#knob").style.transform = "";
 };
 $("#restart").onclick = () => {
+  cameraDrag.reset();
   benchMoment.stand();
   if (insideCave) usePassage(false);
   hero.position.set(0, 0, 7);
   companion.reset();
   hearts.clear();
   yaw = 0;
+  pitch = THREE.MathUtils.degToRad(16);
   hero.rotation.y = 0;
   camera.position
     .set(0, 1 + Math.sin(pitch) * zoom, Math.cos(pitch) * zoom)
@@ -779,7 +776,7 @@ function frame() {
     yaw += ((keys.KeyQ ? 1 : 0) - (keys.KeyE ? 1 : 0)) * dt * 1.4;
     pitch = THREE.MathUtils.clamp(
       pitch + ((keys.KeyR ? 1 : 0) - (keys.KeyF ? 1 : 0)) * dt * 0.65,
-      THREE.MathUtils.degToRad(12),
+      THREE.MathUtils.degToRad(6),
       THREE.MathUtils.degToRad(70),
     );
     let dx =
@@ -984,7 +981,7 @@ addEventListener("resize", () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
-toast("WASD to face & move · Click to throw forward · R / F to tilt");
+toast("WASD to move · Drag to look around · Click to throw");
 frame();
 if (document.modelContext?.registerTool) {
   const lifecycle = new AbortController();
