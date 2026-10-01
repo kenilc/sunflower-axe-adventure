@@ -1,8 +1,14 @@
 import * as THREE from "./vendor/three.module.js";
 import { createCave } from "./cave.js?v=20261001-climb";
 import { createGameAudio } from "./audio.js";
-import { createCompanion } from "./companion.js?v=20261001-climb";
+import { createCompanion } from "./companion.js?v=20261001-lake";
 import { createHearts } from "./hearts.js?v=20261001-climb";
+import {
+  createLakeside,
+  createBenchMoment,
+  inLake,
+  reservedLakeside,
+} from "./lakeside.js?v=20261001-kept-pose";
 const $ = (s) => document.querySelector(s);
 let renderer;
 try {
@@ -85,6 +91,13 @@ path(0, 0, 64, 4);
 path(-12, -12, 4, 28, -0.7);
 path(13, 10, 4, 28, -0.8);
 const blockers = [];
+const lakeside = createLakeside({ mesh, box, cyl, ball });
+scene.add(lakeside.group);
+blockers.push({ x: 6.4, z: 9.6, r: 1.5 });
+const gardenTerrain = {
+  contains: (x, z) => Math.hypot(x, z) < 48 && !inLake(x, z, 0.65),
+  heightAt: () => 0,
+};
 function rock(x, z, s) {
   const r = ball(s, "#718974", x, s * 0.36, z);
   r.scale.set(1, 0.7, 0.9);
@@ -117,18 +130,32 @@ for (let i = 0; i < 170; i++) {
     r = 15 + rand() * 35,
     x = Math.cos(a) * r,
     z = Math.sin(a) * r;
-  if (Math.abs(x) < 4 || Math.abs(z) < 3) continue;
+  if (
+    Math.abs(x) < 4 ||
+    Math.abs(z) < 3 ||
+    reservedLakeside(x, z) ||
+    inLake(x, z, 4) ||
+    Math.hypot(x - 6.4, z - 9.6) < 7
+  )
+    continue;
   tree(x, z, 0.65 + rand() * 0.8);
 }
 for (let i = 0; i < 45; i++) {
   let x = (rand() - 0.5) * 88,
     z = (rand() - 0.5) * 88;
-  if (Math.abs(x) > 5 && Math.abs(z) > 5) rock(x, z, 0.4 + rand() * 1.1);
+  if (Math.abs(x) > 5 && Math.abs(z) > 5 && !reservedLakeside(x, z))
+    rock(x, z, 0.4 + rand() * 1.1);
 }
 for (let i = 0; i < 550; i++) {
   const x = (rand() - 0.5) * 96,
     z = (rand() - 0.5) * 96;
-  if (Math.hypot(x, z) > 49 || Math.abs(x) < 3 || Math.abs(z) < 2.4) continue;
+  if (
+    Math.hypot(x, z) > 49 ||
+    Math.abs(x) < 3 ||
+    Math.abs(z) < 2.4 ||
+    reservedLakeside(x, z)
+  )
+    continue;
   const g = new THREE.Group();
   g.position.set(x, 0, z);
   scene.add(g);
@@ -150,6 +177,7 @@ for (let i = 0; i < 550; i++) {
 }
 // Small patches of sunflowers echo the adventurer's hood.
 function sunflower(x, z, size = 1) {
+  if (reservedLakeside(x, z)) return;
   const flower = new THREE.Group();
   flower.position.set(x, 0, z);
   flower.scale.setScalar(size);
@@ -473,12 +501,25 @@ const companionObstacles = [
   ...targetPositions.map(([x, z]) => ({ x, z, r: 0.7 })),
   ...gemPositions.map(([x, z]) => ({ x, z, r: 0.8 })),
 ];
+const benchMoment = createBenchMoment({
+  bench: lakeside.bench,
+  hero,
+  heroRig: { body, legs, arms, held },
+  companion,
+  hearts,
+  toast,
+});
+$("#benchAction").onclick = () => {
+  if (!insideCave) benchMoment.sit();
+};
+$("#benchStand").onclick = () => benchMoment.stand();
 let insideCave = false,
   passageCooldown = 0,
   outsideView = null,
   outsideObjective = "";
 function usePassage(enter) {
   if (enter === insideCave) return;
+  benchMoment.stand();
   hearts.clear();
   if (enter) {
     outsideView = { yaw, pitch, zoom };
@@ -504,7 +545,7 @@ function usePassage(enter) {
   } else {
     garden.add(companion.character);
     hero.position.set(0, 0, -38.5);
-    companion.reset(hero.position, companionObstacles);
+    companion.reset(hero.position, companionObstacles, gardenTerrain);
     hero.rotation.y = 0;
     if (outsideView) ({ yaw, pitch, zoom } = outsideView);
   }
@@ -597,7 +638,7 @@ async function setSound(value) {
 // Enable audio now; the existing gesture listeners resume it if autoplay is blocked.
 void setSound(true);
 function fire() {
-  if (cooldown > 0 || $("#guide").open) return;
+  if (cooldown > 0 || $("#guide").open || benchMoment.seated) return;
   cooldown = 0.46;
   throwAnim = 0.3;
   const dir = new THREE.Vector3(
@@ -622,6 +663,10 @@ addEventListener("keydown", (e) => {
   )
     e.preventDefault();
   keys[e.code] = true;
+  if (e.code === "KeyB" && !e.repeat && !$("#guide").open && !insideCave) {
+    if (benchMoment.seated) benchMoment.stand();
+    else benchMoment.sit();
+  }
   if (e.code === "Space") fire();
 });
 addEventListener("keyup", (e) => (keys[e.code] = false));
@@ -682,6 +727,7 @@ $("#stick").onpointerup = $("#stick").onpointercancel = () => {
   $("#knob").style.transform = "";
 };
 $("#restart").onclick = () => {
+  benchMoment.stand();
   if (insideCave) usePassage(false);
   hero.position.set(0, 0, 7);
   companion.reset();
@@ -725,6 +771,7 @@ function frame() {
   cooldown = Math.max(0, cooldown - dt);
   throwAnim = Math.max(0, throwAnim - dt);
   if (!paused) {
+    benchMoment.update(dt);
     passageCooldown = Math.max(0, passageCooldown - dt);
     yaw += ((keys.KeyQ ? 1 : 0) - (keys.KeyE ? 1 : 0)) * dt * 1.4;
     pitch = THREE.MathUtils.clamp(
@@ -741,12 +788,17 @@ function frame() {
         (keys.KeyW || keys.ArrowUp ? 1 : 0) +
         joy.y;
     let movement = new THREE.Vector3(dx, 0, dz);
+    if (benchMoment.seated) movement.set(0, 0, 0);
     if (movement.length() > 1) movement.normalize();
     movement.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
     const speed = keys.ShiftLeft || keys.ShiftRight ? 7.8 : 4.7;
     const old = hero.position.clone();
     hero.position.addScaledVector(movement, dt * speed);
-    for (const b of insideCave ? cave.blockers : blockers) {
+    for (const b of benchMoment.seated
+      ? []
+      : insideCave
+        ? cave.blockers
+        : blockers) {
       const vx = hero.position.x - b.x,
         vz = hero.position.z - b.z,
         d = Math.hypot(vx, vz),
@@ -759,14 +811,18 @@ function frame() {
     if (insideCave) {
       cave.constrain(hero.position);
       hero.position.y = cave.heightAt(hero.position.x, hero.position.z);
-    } else if (hero.position.length() > 49) hero.position.setLength(49);
-    {
+    } else {
+      if (hero.position.length() > 49) hero.position.setLength(49);
+      if (!benchMoment.seated && inLake(hero.position.x, hero.position.z, 0.4))
+        hero.position.copy(old);
+    }
+    if (!benchMoment.seated) {
       const playerBump = companion.blocksPlayer(hero.position, old);
       const companionBump = companion.update(
         dt,
         insideCave ? cave.blockers : companionObstacles,
         hero.position,
-        insideCave ? cave : undefined,
+        insideCave ? cave : gardenTerrain,
       );
       hearts.contact(
         playerBump || companionBump,
@@ -775,7 +831,7 @@ function frame() {
       );
     }
     isMoving = movement.length() > 0.05;
-    if (isMoving) {
+    if (!benchMoment.seated && isMoving) {
       walk += dt * speed * 2;
       body.position.y = Math.abs(Math.sin(walk)) * 0.055;
       legs[0].rotation.x = Math.sin(walk) * 0.5;
@@ -783,15 +839,17 @@ function frame() {
       const facing = hero.position.clone().sub(old);
       if (facing.lengthSq() > 0.000001)
         hero.rotation.y = Math.atan2(facing.x, facing.z);
-    } else {
+    } else if (!benchMoment.seated) {
       legs.forEach((l) => (l.rotation.x *= 0.8));
       body.position.y = Math.sin(time * 2) * 0.018;
     }
-    arms[1].rotation.x =
-      throwAnim > 0
-        ? -Math.sin((throwAnim / 0.3) * Math.PI) * 2
-        : Math.sin(walk) * 0.12;
-    arms[0].rotation.x = -legs[0].rotation.x * 0.5;
+    if (!benchMoment.seated) {
+      arms[1].rotation.x =
+        throwAnim > 0
+          ? -Math.sin((throwAnim / 0.3) * Math.PI) * 2
+          : Math.sin(walk) * 0.12;
+      arms[0].rotation.x = -legs[0].rotation.x * 0.5;
+    }
     for (let i = axes.length - 1; i >= 0; i--) {
       const a = axes[i];
       a.life -= dt;
@@ -853,6 +911,10 @@ function frame() {
     }
   }
   updateHudVisibility(isMoving, dt, paused);
+  $("#benchAction").hidden =
+    insideCave || paused || benchMoment.seated || !benchMoment.nearby();
+  $("#benchStand").hidden = !benchMoment.seated || paused;
+  lakeside.update(time);
   for (let i = particles.length - 1; i >= 0; i--) {
     let p = particles[i];
     p.life -= dt;
@@ -895,13 +957,15 @@ function frame() {
       ? "Treasure cave entrance"
       : z < -20
         ? "The sun shrine"
-        : x > 16
-          ? "Whispering grove"
-          : x < -16
-            ? "Old garden ruins"
-            : z > 16
-              ? "Wildflower trail"
-              : "Petal clearing";
+        : Math.hypot(x - 8, z - 12) < 7
+          ? "Sunflower lake"
+          : x > 16
+            ? "Whispering grove"
+            : x < -16
+              ? "Old garden ruins"
+              : z > 16
+                ? "Wildflower trail"
+                : "Petal clearing";
   if ($("#region").firstChild.textContent !== region)
     $("#region").firstChild.textContent = region;
   cave.update(time, camera);

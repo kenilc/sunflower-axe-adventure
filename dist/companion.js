@@ -248,5 +248,12 @@ export function createCompanion({ ball, box, cyl, mesh }) {
     return bumped;
   }
   reset();
-  return { character, update, reset, blocksPlayer, contactDistance };
+  return {
+    character,
+    update,
+    reset,
+    blocksPlayer,
+    contactDistance,
+    rig: { body, legs, arms },
+  };
 }

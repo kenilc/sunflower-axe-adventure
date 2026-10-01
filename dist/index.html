@@ -17,7 +17,7 @@
       content="Explore a 3D garden as a flower-hooded adventurer. Throw axes, smash targets and find eight sunstones."
     />
     <title>Sunflower — Axe & Adventure</title>
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="style.css?v=20261001-lake" />
   </head>
   <body>
     <main id="game" aria-label="3D adventure game"></main>
@@ -40,12 +40,19 @@
       <span class="eyebrow">THE SUNKEN GARDEN</span>
       <h1>A little wander.<br />A mighty axe.</h1>
       <p id="objective">Break the wooden targets and find the sunstones.</p>
-      <p id="caveHint">Treasure cave: north path, beyond the shrine.</p>
+      <p id="caveHint">
+        Treasure cave: north path beyond the shrine. Lake &amp; bench: southeast
+        of the clearing.
+      </p>
       <div class="counts">
         <span>◇ <b id="gems">0</b><i>/ 8 sunstones</i></span
         ><span>⊕ <b id="targets">0</b><i>/ 12 targets</i></span>
       </div>
     </section>
+    <div id="benchControls">
+      <button id="benchAction" hidden>Sit &amp; hug · B</button>
+      <button id="benchStand" hidden>Stand up · B</button>
+    </div>
     <div id="toast" role="status">Welcome to the garden</div>
     <div class="compass">N<span>✧</span>S</div>
     <footer>
@@ -82,8 +89,9 @@
         — rotate camera<br /><b>R</b> — raise view · <b>F</b> — lower view<br /><b
           >Sound</b
         >
-        — background music and effects<br /><b>Scroll</b> — zoom · <b>Esc</b> —
-        close help
+        — background music and effects<br /><b>B near the lakeside bench</b> —
+        sit and hug / stand up<br /><b>Scroll</b> — zoom · <b>Esc</b> — close
+        help
       </p>
       <p>
         Move to face a direction. She keeps that heading when you stop, and axes
@@ -95,6 +103,6 @@
       WebGL could not start. Please open this game in a browser with hardware
       acceleration enabled.
     </div>
-    <script type="module" src="game.js"></script>
+    <script type="module" src="game.js?v=20261001-lake"></script>
   </body>
 </html>
