@@ -1,6 +1,7 @@
 import * as THREE from "./vendor/three.module.js";
 import { createCave } from "./cave.js";
 import { createGameAudio } from "./audio.js";
+import { createCompanion } from "./companion.js";
 const $ = (s) => document.querySelector(s);
 let renderer;
 try {
@@ -394,6 +395,13 @@ scene.add(cave.interior);
 blockers.push({ x: -4, z: -43, r: 2.2 }, { x: 4, z: -43, r: 2.2 });
 const cavePath = box(4, 0.04, 10, pathMat, 0, 0.025, -39);
 garden.add(cavePath);
+const companion = createCompanion({ ball, box, cyl, mesh });
+garden.add(companion.character);
+const companionObstacles = [
+  ...blockers,
+  ...targetPositions.map(([x, z]) => ({ x, z, r: 0.7 })),
+  ...gemPositions.map(([x, z]) => ({ x, z, r: 0.8 })),
+];
 let insideCave = false,
   passageCooldown = 0,
   outsideView = null,
@@ -600,6 +608,7 @@ $("#stick").onpointerup = $("#stick").onpointercancel = () => {
 $("#restart").onclick = () => {
   if (insideCave) usePassage(false);
   hero.position.set(0, 0, 7);
+  companion.reset();
   yaw = 0;
   hero.rotation.y = 0;
   camera.position
@@ -639,6 +648,7 @@ function frame() {
   cooldown = Math.max(0, cooldown - dt);
   throwAnim = Math.max(0, throwAnim - dt);
   if (!paused) {
+    if (!insideCave) companion.update(dt, companionObstacles, hero.position);
     passageCooldown = Math.max(0, passageCooldown - dt);
     yaw += ((keys.KeyQ ? 1 : 0) - (keys.KeyE ? 1 : 0)) * dt * 1.4;
     pitch = THREE.MathUtils.clamp(
