@@ -115,7 +115,7 @@ export function createCave() {
   const radius = 7,
     centerZ = -5;
   const height = (r, a) =>
-    0.22 +
+    0.22 * Math.min(1, Math.max(0, (radius - r) / 0.5)) +
     4.5 * Math.pow(Math.max(0, 1 - r / radius), 1.25) +
     0.14 * Math.sin(a * 5) * Math.sin((Math.PI * r) / radius);
   const vertices = [],
@@ -205,7 +205,7 @@ export function createCave() {
   }
   stacks.castShadow = stacks.receiveShadow = true;
   interior.add(stacks);
-  const blockers = [{ x: 0, z: -5, r: 6.7 }];
+  const blockers = [];
   for (const [x, z, rotation] of [
     [-8, 1, 0.4],
     [8, -1, -0.55],
@@ -277,6 +277,16 @@ export function createCave() {
     entrance,
     blockers,
     coinCount: 2700,
+    contains: (x, z) => Math.hypot(x, z) < 15.8,
+    heightAt(x, z) {
+      const r = Math.hypot(x, z - centerZ);
+      if (r >= radius) return 0;
+      // Use the same surface as the visible mound, including its gentle rim.
+      return (
+        height(r, Math.atan2(z - centerZ, x)) +
+        0.08 * Math.min(1, (radius - r) / 0.5)
+      );
+    },
     isEntrance: (p) => Math.abs(p.x) < 2.2 && p.z < -41.2 && p.z > -45.5,
     isExit: (p) => Math.abs(p.x) < 2.3 && p.z > 12,
     constrain(p) {

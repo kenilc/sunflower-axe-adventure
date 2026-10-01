@@ -97,13 +97,22 @@ export function createCompanion({ ball, box, cyl, mesh }) {
     walking = false,
     gait = 0,
     travelTime = 0;
-  function clear(x, z, obstacles) {
+  const horizontalDistance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+  const flatGround = {
+    contains: (x, z) => Math.hypot(x, z) < 48,
+    heightAt: () => 0,
+  };
+  function clear(x, z, obstacles, terrain) {
     return (
-      Math.hypot(x, z) < 48 &&
+      terrain.contains(x, z) &&
       obstacles.every((b) => Math.hypot(x - b.x, z - b.z) > b.r + 0.65)
     );
   }
-  function reset(center = new THREE.Vector3(0, 0, 7), obstacles = []) {
+  function reset(
+    center = new THREE.Vector3(0, 0, 7),
+    obstacles = [],
+    terrain = flatGround,
+  ) {
     // Rejoin beside her after returning from the cave or getting separated.
     for (let distance = 2.7; distance < maxDistance; distance += 0.7) {
       let found = false;
@@ -111,8 +120,8 @@ export function createCompanion({ ball, box, cyl, mesh }) {
         const angle = (i * Math.PI) / 12;
         const x = center.x + Math.cos(angle) * distance;
         const z = center.z + Math.sin(angle) * distance;
-        if (clear(x, z, obstacles)) {
-          character.position.set(x, 0, z);
+        if (clear(x, z, obstacles, terrain)) {
+          character.position.set(x, terrain.heightAt(x, z), z);
           found = true;
           break;
         }
@@ -134,24 +143,25 @@ export function createCompanion({ ball, box, cyl, mesh }) {
     wait = 1 + Math.random() * 2.5;
   }
   function blocksPlayer(position, previous) {
-    if (position.distanceTo(character.position) >= contactDistance)
+    if (horizontalDistance(position, character.position) >= contactDistance)
       return false;
     position.copy(previous);
     return true;
   }
-  function update(dt, obstacles, heroPosition) {
-    let separation = character.position.distanceTo(heroPosition);
+  function update(dt, obstacles, heroPosition, terrain = flatGround) {
+    let separation = horizontalDistance(character.position, heroPosition);
     // Catch up promptly when she leaves; wandering stays centered on her.
     if (separation > maxDistance) {
-      reset(heroPosition, obstacles);
-      separation = character.position.distanceTo(heroPosition);
+      reset(heroPosition, obstacles, terrain);
+      separation = horizontalDistance(character.position, heroPosition);
     }
     const following = separation > 5;
     if (following) {
       destination.copy(heroPosition);
       walking = true;
       travelTime = 0;
-    } else if (destination.distanceTo(heroPosition) > wanderRadius) pause();
+    } else if (horizontalDistance(destination, heroPosition) > wanderRadius)
+      pause();
     if (!walking) {
       wait -= dt;
       if (wait <= 0) {
@@ -160,7 +170,7 @@ export function createCompanion({ ball, box, cyl, mesh }) {
           const distance = 2 + Math.random() * 2.5;
           const x = heroPosition.x + Math.sin(angle) * distance;
           const z = heroPosition.z + Math.cos(angle) * distance;
-          if (clear(x, z, obstacles)) {
+          if (clear(x, z, obstacles, terrain)) {
             destination.set(x, 0, z);
             walking = true;
             travelTime = 0;
@@ -198,7 +208,7 @@ export function createCompanion({ ball, box, cyl, mesh }) {
           const angle = (following ? heading : character.rotation.y) + offset;
           const x = character.position.x + Math.sin(angle) * step;
           const z = character.position.z + Math.cos(angle) * step;
-          if (!clear(x, z, obstacles)) continue;
+          if (!clear(x, z, obstacles, terrain)) continue;
           if (
             Math.hypot(x - heroPosition.x, z - heroPosition.z) < contactDistance
           ) {
@@ -211,7 +221,7 @@ export function createCompanion({ ball, box, cyl, mesh }) {
             Math.hypot(x - heroPosition.x, z - heroPosition.z) > wanderRadius
           )
             continue;
-          character.position.set(x, 0, z);
+          character.position.set(x, terrain.heightAt(x, z), z);
           moved = step;
           travelTime += dt;
           break;

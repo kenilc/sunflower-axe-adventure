@@ -33,7 +33,7 @@ export function createHearts(scene) {
             }),
           );
           mesh.position.copy(position);
-          mesh.position.y = 2.85 + i * 0.2;
+          mesh.position.y = position.y + 2.85 + i * 0.2;
           mesh.position.x += (i - 1) * 0.35;
           scene.add(mesh);
           hearts.push({ mesh, age: 0, drift: (i - 1) * 0.25 });
@@ -41,7 +41,8 @@ export function createHearts(scene) {
       }
     }
     if (bumped) touching = true;
-    else if (woman.distanceTo(man) > 1.4) touching = false;
+    else if (Math.hypot(woman.x - man.x, woman.z - man.z) > 1.4)
+      touching = false;
   }
   function update(dt, camera) {
     cooldown = Math.max(0, cooldown - dt);

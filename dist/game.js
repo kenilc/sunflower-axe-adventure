@@ -1,8 +1,8 @@
 import * as THREE from "./vendor/three.module.js";
-import { createCave } from "./cave.js";
+import { createCave } from "./cave.js?v=20261001-climb";
 import { createGameAudio } from "./audio.js";
-import { createCompanion } from "./companion.js";
-import { createHearts } from "./hearts.js";
+import { createCompanion } from "./companion.js?v=20261001-climb";
+import { createHearts } from "./hearts.js?v=20261001-climb";
 const $ = (s) => document.querySelector(s);
 let renderer;
 try {
@@ -147,6 +147,75 @@ for (let i = 0; i < 550; i++) {
     cyl(0.025, 0.025, 0.6, "#68924b", 0, 0.3, 0, g);
     ball(0.12, i % 3 ? "#ffe499" : "#d8a4b0", 0, 0.66, 0, g);
   }
+}
+// Small patches of sunflowers echo the adventurer's hood.
+function sunflower(x, z, size = 1) {
+  const flower = new THREE.Group();
+  flower.position.set(x, 0, z);
+  flower.scale.setScalar(size);
+  flower.rotation.y = rand() * Math.PI * 2;
+  scene.add(flower);
+  cyl(0.035, 0.055, 1.65, "#52783e", 0, 0.825, 0, flower);
+  for (const side of [-1, 1]) {
+    const leaf = ball(
+      0.24,
+      "#73974a",
+      side * 0.2,
+      0.7 + side * 0.15,
+      0,
+      flower,
+    );
+    leaf.scale.set(1.3, 0.4, 0.55);
+    leaf.rotation.z = side * 0.4;
+  }
+  const face = cyl(0.19, 0.19, 0.12, "#684529", 0, 1.7, 0, flower, 12);
+  face.rotation.x = Math.PI / 2;
+  for (let i = 0; i < 12; i++) {
+    const angle = (i * Math.PI) / 6;
+    const petal = ball(
+      0.15,
+      i % 2 ? "#ffc83d" : "#ffe16a",
+      Math.cos(angle) * 0.29,
+      1.7 + Math.sin(angle) * 0.29,
+      0,
+      flower,
+    );
+    petal.scale.set(1.1, 0.6, 0.35);
+    petal.rotation.z = angle;
+  }
+  for (let i = 0; i < 7; i++) {
+    const angle = (i * Math.PI) / 3;
+    ball(
+      0.025,
+      "#a67b39",
+      i ? Math.cos(angle) * 0.11 : 0,
+      1.7 + (i ? Math.sin(angle) * 0.11 : 0),
+      0.075,
+      flower,
+    );
+  }
+}
+for (const [x, z] of [
+  [4.4, 9],
+  [-4.5, 6],
+  [5.3, 15],
+  [-5, -6],
+  [9, 4],
+])
+  sunflower(x, z, 0.85 + rand() * 0.25);
+for (let i = 0; i < 38; i++) {
+  const angle = rand() * Math.PI * 2,
+    radius = 9 + rand() * 34;
+  const x = Math.cos(angle) * radius,
+    z = Math.sin(angle) * radius;
+  if (
+    Math.abs(x) < 4 ||
+    Math.abs(z) < 3 ||
+    blockers.some((b) => Math.hypot(x - b.x, z - b.z) < b.r + 1)
+  )
+    continue;
+  sunflower(x, z, 0.8 + rand() * 0.5);
+  if (i % 3 === 0) sunflower(x + 0.6, z + 0.4, 0.65 + rand() * 0.2);
 }
 // Ruined garden archways and a central sun shrine.
 function arch(x, z, rot = 0) {
@@ -425,12 +494,15 @@ function usePassage(enter) {
   const sky = scene.children.find((c) => c.isHemisphereLight);
   sky.intensity = enter ? 0.7 : 2.4;
   if (enter) {
+    cave.interior.add(companion.character);
     hero.position.set(0, 0, 9);
+    companion.reset(hero.position, cave.blockers, cave);
     hero.rotation.y = Math.PI;
     yaw = 0;
     pitch = THREE.MathUtils.degToRad(28);
     zoom = 20;
   } else {
+    garden.add(companion.character);
     hero.position.set(0, 0, -38.5);
     companion.reset(hero.position, companionObstacles);
     hero.rotation.y = 0;
@@ -450,7 +522,7 @@ function usePassage(enter) {
       Math.cos(yaw) * Math.cos(pitch) * zoom,
     )
     .add(hero.position);
-  camera.lookAt(hero.position.x, 1, hero.position.z);
+  camera.lookAt(hero.position.x, hero.position.y + 1, hero.position.z);
   passageCooldown = 1;
   $(".quest .eyebrow").textContent = enter
     ? "THE GOLDEN GROTTO"
@@ -619,7 +691,7 @@ $("#restart").onclick = () => {
   camera.position
     .set(0, 1 + Math.sin(pitch) * zoom, Math.cos(pitch) * zoom)
     .add(hero.position);
-  camera.lookAt(hero.position.x, 1, hero.position.z);
+  camera.lookAt(hero.position.x, hero.position.y + 1, hero.position.z);
   score = collected = 0;
   won = false;
   targets.forEach((t) => {
@@ -684,14 +756,17 @@ function frame() {
         hero.position.z = b.z + (vz / d) * min;
       }
     }
-    if (insideCave) cave.constrain(hero.position);
-    else if (hero.position.length() > 49) hero.position.setLength(49);
-    if (!insideCave) {
+    if (insideCave) {
+      cave.constrain(hero.position);
+      hero.position.y = cave.heightAt(hero.position.x, hero.position.z);
+    } else if (hero.position.length() > 49) hero.position.setLength(49);
+    {
       const playerBump = companion.blocksPlayer(hero.position, old);
       const companionBump = companion.update(
         dt,
-        companionObstacles,
+        insideCave ? cave.blockers : companionObstacles,
         hero.position,
+        insideCave ? cave : undefined,
       );
       hearts.contact(
         playerBump || companionBump,
@@ -807,7 +882,7 @@ function frame() {
     )
     .add(hero.position);
   camera.position.lerp(desired, 1 - Math.exp(-dt * 5));
-  camera.lookAt(hero.position.x, 1, hero.position.z);
+  camera.lookAt(hero.position.x, hero.position.y + 1, hero.position.z);
   hearts.update(paused ? 0 : dt, camera);
   sun.position.set(hero.position.x - 18, 30, hero.position.z + 12);
   sun.target.position.copy(hero.position);
