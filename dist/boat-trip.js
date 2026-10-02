@@ -55,23 +55,222 @@ export function createBoatTrip({
       5.5 + i * 0.42,
       lagoonGroup,
     );
-  for (let i = 0; i < 28; i++) {
-    const a = (i * Math.PI * 2) / 28;
-    const x = Math.cos(a) * 21,
-      z = Math.sin(a) * 21;
-    cyl(0.035, 0.05, 0.7, "#66935d", x, 0.35, z, lagoonGroup);
-    for (let j = 0; j < 5; j++) {
-      const petal = ball(
-        0.15,
-        i % 2 ? "#f4b9d6" : "#ffdf9e",
-        x + Math.cos(j * 1.256) * 0.12,
-        0.8,
-        z + Math.sin(j * 1.256) * 0.12,
-        lagoonGroup,
-      );
-      petal.scale.y = 0.5;
-    }
+  // Thousands of petals share a handful of draw calls.
+  let flowerSeed = 24318;
+  const random = () =>
+    (flowerSeed = (Math.imul(flowerSeed, 1664525) + 1013904223) >>> 0) /
+    4294967296;
+  const flowerPositions = [];
+  function clearApproach(x, z) {
+    return (Math.abs(x) < 1.8 && z > 3) || Math.hypot(x - 5, z - 20) < 2.4;
   }
+  while (flowerPositions.length < 900) {
+    const inner = flowerPositions.length >= 740;
+    const angle = random() * Math.PI * 2;
+    const r = inner ? 1.8 + random() * 3.5 : 18.4 + random() * 5.8;
+    const x = Math.cos(angle) * r,
+      z = Math.sin(angle) * r;
+    if (clearApproach(x, z) || (!inner && r > 20.5 && r < 21.8)) continue;
+    flowerPositions.push({
+      x,
+      z,
+      height: 0.65 + random() * 0.5,
+      yaw: random() * Math.PI * 2,
+    });
+  }
+  const instance = (name, geometry, color, count) => {
+    const flowers = new THREE.InstancedMesh(
+      geometry,
+      new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.8,
+        flatShading: true,
+      }),
+      count,
+    );
+    flowers.name = name;
+    flowers.receiveShadow = true;
+    lagoonGroup.add(flowers);
+    return flowers;
+  };
+  const stems = instance(
+    "sunflower-stems",
+    new THREE.CylinderGeometry(0.025, 0.035, 1, 5),
+    "#568646",
+    900,
+  );
+  const leaves = instance(
+    "sunflower-leaves",
+    new THREE.IcosahedronGeometry(1, 0),
+    "#72994e",
+    1800,
+  );
+  const petals = instance(
+    "sunflower-petals",
+    new THREE.IcosahedronGeometry(1, 1),
+    "#ffd254",
+    7200,
+  );
+  const centers = instance(
+    "sunflower-centers",
+    new THREE.IcosahedronGeometry(1, 1),
+    "#765133",
+    900,
+  );
+  const dummy = new THREE.Object3D();
+  function setInstance(
+    batch,
+    index,
+    x,
+    y,
+    z,
+    sx,
+    sy,
+    sz,
+    rx = 0,
+    ry = 0,
+    rz = 0,
+  ) {
+    dummy.position.set(x, y, z);
+    dummy.scale.set(sx, sy, sz);
+    dummy.rotation.set(rx, ry, rz);
+    dummy.updateMatrix();
+    batch.setMatrixAt(index, dummy.matrix);
+  }
+  flowerPositions.forEach(({ x, z, height: h, yaw }, i) => {
+    setInstance(stems, i, x, h / 2, z, 1, h, 1);
+    for (const side of [-1, 1])
+      setInstance(
+        leaves,
+        i * 2 + (side > 0 ? 1 : 0),
+        x + side * 0.12,
+        h * 0.48,
+        z,
+        0.22,
+        0.07,
+        0.1,
+        0,
+        yaw,
+        side * 0.4,
+      );
+    setInstance(centers, i, x, h, z, 0.16, 0.16, 0.08, 0, yaw);
+    for (let j = 0; j < 8; j++) {
+      const a = (j * Math.PI) / 4;
+      setInstance(
+        petals,
+        i * 8 + j,
+        x + Math.cos(a) * 0.25 * Math.cos(yaw),
+        h + Math.sin(a) * 0.25,
+        z - Math.cos(a) * 0.25 * Math.sin(yaw),
+        0.12,
+        0.23,
+        0.06,
+        0,
+        yaw,
+        a - Math.PI / 2,
+      );
+    }
+  });
+  lagoon.sunflowerCount = flowerPositions.length;
+  const gemColors = [
+    "#f26f96",
+    "#62d9be",
+    "#779bee",
+    "#be8eef",
+    "#f3bd62",
+    "#8be4ed",
+  ];
+  const gems = instance(
+    "lagoon-gems",
+    new THREE.OctahedronGeometry(1),
+    "#ffffff",
+    180,
+  );
+  const stones = instance(
+    "lagoon-polished-stones",
+    new THREE.IcosahedronGeometry(1, 1),
+    "#ffffff",
+    60,
+  );
+  gems.material.roughness = 0.22;
+  gems.material.metalness = 0.25;
+  stones.material.roughness = 0.4;
+  const treasures = [];
+  let found = 0;
+  for (let i = 0; i < 240; i++) {
+    let x, z;
+    do {
+      const angle = random() * Math.PI * 2;
+      const r = i < 190 ? 18.6 + random() * 4.8 : 1.8 + random() * 3.5;
+      x = Math.cos(angle) * r;
+      z = Math.sin(angle) * r;
+    } while (clearApproach(x, z));
+    const polished = i % 4 === 0,
+      batch = polished ? stones : gems,
+      index = polished ? Math.floor(i / 4) : i - Math.floor(i / 4) - 1,
+      color = gemColors[i % 6];
+    const size = 0.18 + random() * 0.18;
+    setInstance(
+      batch,
+      index,
+      x,
+      polished ? 0.17 : 0.3,
+      z,
+      size * (polished ? 1.4 : 1),
+      size * (polished ? 0.6 : 1.35),
+      size,
+      0,
+      random() * 6.28,
+      0,
+    );
+    batch.setColorAt(index, new THREE.Color(color));
+    const matrix = new THREE.Matrix4();
+    batch.getMatrixAt(index, matrix);
+    treasures.push({
+      matrix,
+      position: new THREE.Vector3(x, 0.25, z),
+      batch,
+      index,
+      color,
+      got: false,
+    });
+  }
+  lagoon.treasures = treasures;
+  Object.defineProperty(lagoon, "collected", { get: () => found });
+  lagoon.collect = (position) => {
+    let count = 0,
+      last = null;
+    for (const t of treasures)
+      if (
+        !t.got &&
+        Math.hypot(position.x - t.position.x, position.z - t.position.z) < 1.05
+      ) {
+        t.got = true;
+        found++;
+        count++;
+        last = t;
+        dummy.scale.set(0, 0, 0);
+        dummy.updateMatrix();
+        t.batch.setMatrixAt(t.index, dummy.matrix);
+        t.batch.instanceMatrix.needsUpdate = true;
+      }
+    return count
+      ? {
+          count,
+          total: found,
+          color: last.color,
+          position: last.position.clone(),
+        }
+      : null;
+  };
+  lagoon.resetTreasures = () => {
+    found = 0;
+    for (const t of treasures) {
+      t.got = false;
+      t.batch.setMatrixAt(t.index, t.matrix);
+    }
+    gems.instanceMatrix.needsUpdate = stones.instanceMatrix.needsUpdate = true;
+  };
   for (let i = 0; i < 36; i++) {
     const a = i * 2.4,
       r = 8 + (i % 6) * 1.35;
@@ -266,12 +465,13 @@ export function createBoatTrip({
       onSceneChange(atLagoon);
       toast(
         atLagoon
-          ? "Lotus Lagoon · Explore the lily garden. Take the boat to return."
+          ? "Lotus Lagoon · A sea of sunflowers and gemstones. Take the boat to return."
           : "Back at Rainbow Riverside · Your treasures are safe",
       );
     }
   }
-  function reset() {
+  function reset(clearCollection = false) {
+    if (clearCollection) lagoon.resetTreasures();
     const wasLagoon = atLagoon;
     rowing = false;
     atLagoon = false;

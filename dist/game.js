@@ -1,4 +1,4 @@
-import { createBoatTrip } from "./boat-trip.js?v=20261002-rowboat";
+import { createBoatTrip } from "./boat-trip.js?v=20261002-sunflower-lagoon";
 import * as THREE from "./vendor/three.module.js";
 import { createRiverside } from "./riverside.js?v=20261002-landmarks";
 import { createCave } from "./cave.js?v=20261001-climb";
@@ -536,12 +536,15 @@ const boatTrip = createBoatTrip({
       ? "THE LOTUS LAGOON"
       : "THE RAINBOW RIVERSIDE";
     $(".quest h1").innerHTML = atLagoon
-      ? "A boat for two.<br />A secret lily garden."
+      ? "A boat for two.<br />A sunflower paradise."
       : "A gentle river.<br />A rainbow of treasures.";
     $("#objective").textContent = atLagoon
-      ? "Explore the lily garden and its flower island. Return by boat when you're ready."
+      ? boatTrip.lagoon.collected === 240
+        ? "Your lagoon collection is complete! Enjoy the sunflowers together."
+        : "Wander through 900 sunflowers and collect 240 colourful gems and stones."
       : riverObjective();
     $("#riverCounts").hidden = atLagoon;
+    $("#lagoonCounts").hidden = !atLagoon;
     scene.background.set(atLagoon ? "#c0ded9" : "#b6d9ce");
     scene.fog.color.copy(scene.background);
     camera.position
@@ -630,6 +633,7 @@ function usePassage(enter, river = false) {
   camera.lookAt(hero.position.x, hero.position.y + 1, hero.position.z);
   passageCooldown = 1;
   $("#riverCounts").hidden = !insideRiver;
+  $("#lagoonCounts").hidden = true;
   $("#gardenCounts").hidden = insideRiver;
   $(".quest h1").innerHTML = insideRiver
     ? "A gentle river.<br />A rainbow of treasures."
@@ -813,7 +817,8 @@ $("#stick").onpointerup = $("#stick").onpointercancel = () => {
 $("#restart").onclick = () => {
   cameraDrag.reset();
   benchMoment.stand();
-  boatTrip.reset();
+  boatTrip.reset(true);
+  $("#lagoonGems").textContent = 0;
   if (insideCave || insideRiver) usePassage(false, insideRiver);
   hero.position.set(0, 0, 7);
   companion.reset();
@@ -1003,6 +1008,22 @@ function frame() {
           toast(`Sunstone found · ${collected} / 8`);
         }
       }
+      if (insideRiver && boatTrip.atLagoon) {
+        const pickup = boatTrip.lagoon.collect(hero.position);
+        if (pickup) {
+          $("#lagoonGems").textContent = pickup.total;
+          burst(pickup.position, pickup.color, 12);
+          beep(880, 0.12);
+          toast(
+            pickup.total === 240
+              ? "✦ All 240 lagoon treasures collected!"
+              : `Gemstones found · ${pickup.total} / 240`,
+          );
+          if (pickup.total === 240)
+            $("#objective").textContent =
+              "Your lagoon collection is complete! Enjoy the sunflowers together.";
+        }
+      }
       if (insideRiver && !boatTrip.atLagoon) {
         for (const t of riverside.treasures) {
           if (
@@ -1090,7 +1111,7 @@ function frame() {
     $("#caveHint").textContent = boatTrip.rowing
       ? "Both aboard · Enjoy the ride. Camera controls still work."
       : boatTrip.atLagoon
-        ? "Walk the wooden bridge to the flower island. Return boat: south dock."
+        ? "Follow the clear paths through the sunflowers. Cross the bridge for more gems. Return boat: south dock."
         : `Explore the flat island. The river falls over its edges. Boat dock: east bank by the bridge. Return gate: ${distance} m ${direction || "away"}, near the starting bridge.`;
   }
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -1200,6 +1221,7 @@ if (document.modelContext?.registerTool) {
                   ? "treasure cave"
                   : "garden",
               riversideTreasures: riverCollected,
+              lagoonTreasures: boatTrip.lagoon.collected,
               sunStones: collected,
               targetsBroken: score,
               complete: won,

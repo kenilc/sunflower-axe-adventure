@@ -311,6 +311,33 @@ const assert = require("assert/strict");
     !trip.lagoon.contains(8, 8) && !trip.lagoon.contains(30, 0),
     "Lagoon water and world edge must block walking",
   );
+  assert.equal(
+    trip.lagoon.sunflowerCount,
+    900,
+    "Lagoon must contain dense sunflower beds",
+  );
+  assert.equal(
+    trip.lagoon.treasures.length,
+    240,
+    "Lagoon must contain plentiful collectible treasures",
+  );
+  for (const t of trip.lagoon.treasures) {
+    assert(
+      trip.lagoon.contains(t.position.x, t.position.z),
+      "Every lagoon treasure must be walkable",
+    );
+    trip.lagoon.collect(t.position);
+  }
+  assert.equal(
+    trip.lagoon.collected,
+    240,
+    "All lagoon treasures must be collectible",
+  );
+  assert.equal(
+    trip.lagoon.collect(trip.lagoon.treasures[0].position),
+    null,
+    "Collected treasures must not count again",
+  );
   assert(trip.start(), "Return trip must be available at the arrival dock");
   trip.update(5.1);
   trip.update(4);
@@ -329,6 +356,18 @@ const assert = require("assert/strict");
   assert(trip.start());
   trip.update(5.1);
   trip.reset();
+  assert.equal(
+    trip.lagoon.collected,
+    240,
+    "Boat travel must preserve lagoon treasures",
+  );
+  trip.reset(true);
+  assert.equal(
+    trip.lagoon.collected,
+    0,
+    "New adventure must reset all lagoon treasures",
+  );
+  assert(trip.lagoon.treasures.every((t) => !t.got));
   assert(
     !trip.rowing &&
       !trip.atLagoon &&
@@ -337,7 +376,7 @@ const assert = require("assert/strict");
     "Restart during travel must clear the boat state",
   );
   console.log(
-    "PASS: boarding, seated travel, lagoon exploration, return landing, trip reset, four accessible landmarks, six collectible clusters, rainbow, giant waterfall, gazebo fading, visible island boundary, accessible edge banks, river-to-waterfall connections, stable finite scenery, tree fading, 18 accessible treasures, bridge, gates, and reset",
+    "PASS: 900 instanced sunflowers, 240 collectible lagoon treasures, collection persistence and reset, boarding, seated travel, lagoon exploration, return landing, trip reset, four accessible landmarks, six collectible clusters, rainbow, giant waterfall, gazebo fading, visible island boundary, accessible edge banks, river-to-waterfall connections, stable finite scenery, tree fading, 18 accessible treasures, bridge, gates, and reset",
   );
 })().catch((e) => {
   console.error(e);
