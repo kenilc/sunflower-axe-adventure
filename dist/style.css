@@ -390,3 +390,7 @@ body.is-moving #toast {
     bottom: 200px;
   }
 }
+
+.counts[hidden] {
+  display: none;
+}

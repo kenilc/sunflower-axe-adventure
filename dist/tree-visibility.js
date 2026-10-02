@@ -1,7 +1,10 @@
 import * as THREE from "./vendor/three.module.js";
 
 // Fade only trees between the camera and either character's silhouette.
-export function createTreeVisibility() {
+export function createTreeVisibility({
+  cameraClearance = 0,
+  obstructedOpacity = 0.08,
+} = {}) {
   const trees = [];
   const raycaster = new THREE.Raycaster();
   const point = new THREE.Vector3();
@@ -35,8 +38,10 @@ export function createTreeVisibility() {
       }
     }
     for (const tree of trees) {
-      let obstructing = false;
-      for (const ray of rays) {
+      // Rays starting inside a mesh can miss its outward-facing triangles.
+      let obstructing =
+        tree.bounds.distanceToPoint(camera.position) <= cameraClearance;
+      for (const ray of obstructing ? [] : rays) {
         raycaster.set(camera.position, ray.direction);
         raycaster.near = 0;
         raycaster.far = ray.distance;
@@ -48,7 +53,7 @@ export function createTreeVisibility() {
           break;
         }
       }
-      const target = obstructing ? 0.08 : 1;
+      const target = obstructing ? obstructedOpacity : 1;
       tree.opacity = THREE.MathUtils.lerp(
         tree.opacity,
         target,
