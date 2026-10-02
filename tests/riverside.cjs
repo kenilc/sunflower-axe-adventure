@@ -90,6 +90,38 @@ const assert = require("assert/strict");
     tree.children.every((m) => m.material.opacity < 0.09),
     "Trees between the camera and hero must fade",
   );
+  assert.equal(river.landmarks.length, 4);
+  assert.equal(river.clusters.length, 6);
+  assert.equal(
+    river.group.getObjectByName("waterfall-rainbow").children.length,
+    7,
+  );
+  for (const l of river.landmarks) {
+    assert(river.contains(l.x, l.z), l.name + " must be reachable");
+    assert.equal(river.locationAt(new T.Vector3(l.x, 0, l.z)), l.name);
+  }
+  for (const treasure of river.treasures) {
+    assert(
+      !river.blockers.some(
+        (b) =>
+          Math.hypot(
+            treasure.crystal.position.x - b.x,
+            treasure.crystal.position.z - b.z,
+          ) <
+          b.r + 0.38,
+      ),
+      "Hidden treasure must not overlap landmark collision",
+    );
+  }
+  const gazebo = river.group.getObjectByName("The flower gazebo");
+  hero.position.set(16, 0, 26);
+  camera.position.set(16, 3.2, 26);
+  camera.lookAt(16, 1, 26);
+  river.updateVisibility(camera, [hero], 1);
+  assert(
+    gazebo.children.every((m) => m.material.opacity === 0),
+    "Gazebo must fade when its roof encloses the camera",
+  );
   assert.equal(river.treasures.length, 18);
   assert.equal(new Set(river.treasures.map((t) => t.name)).size, 6);
   for (const t of river.treasures)
@@ -196,7 +228,7 @@ const assert = require("assert/strict");
     river.treasures.every((t) => !t.got && t.crystal.visible && t.glow.visible),
   );
   console.log(
-    "PASS: visible island boundary, accessible edge banks, river-to-waterfall connections, stable finite scenery, tree fading, 18 accessible treasures, bridge, gates, and reset",
+    "PASS: four accessible landmarks, six collectible clusters, rainbow, giant waterfall, gazebo fading, visible island boundary, accessible edge banks, river-to-waterfall connections, stable finite scenery, tree fading, 18 accessible treasures, bridge, gates, and reset",
   );
 })().catch((e) => {
   console.error(e);

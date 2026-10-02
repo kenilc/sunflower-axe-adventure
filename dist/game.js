@@ -1,5 +1,5 @@
 import * as THREE from "./vendor/three.module.js";
-import { createRiverside } from "./riverside.js?v=20261002-island-waterfalls";
+import { createRiverside } from "./riverside.js?v=20261002-landmarks";
 import { createCave } from "./cave.js?v=20261001-climb";
 import { createGameAudio } from "./audio.js";
 import { createCompanion } from "./companion.js?v=20261001-lake";
@@ -614,7 +614,7 @@ function usePassage(enter, river = false) {
 function riverObjective() {
   return riverCollected === riverside.treasures.length
     ? "All riverside treasures collected! Enjoy the ducks and the gentle river."
-    : "Gather colourful gems and polished stones along both riverbanks.";
+    : "Find hidden gem clusters near the picnic, boat, gazebo, and rainbow waterfall.";
 }
 const keys = {};
 let yaw = 0,
@@ -1057,7 +1057,7 @@ function frame() {
   const x = hero.position.x,
     z = hero.position.z;
   const region = insideRiver
-    ? "Rainbow Riverside"
+    ? riverside.locationAt(hero.position)
     : insideCave
       ? "The Golden Grotto"
       : z < -38
