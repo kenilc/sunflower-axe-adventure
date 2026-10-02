@@ -58,16 +58,24 @@ export function createRiverside({ mesh, box, cyl, ball }) {
   const center = (z) => Math.sin(z * 0.12) * 3;
   const inWater = (x, z, margin = 0) => Math.abs(x - center(z)) < 3.1 + margin;
   const onBridge = (x, z) => Math.abs(z) < 1.25 && Math.abs(x) < 6;
+  const islandX = 48,
+    islandZ = 56;
+  const onIsland = (x, z, margin = 0) =>
+    Math.hypot(x / (islandX - margin), z / (islandZ - margin)) < 1;
+  const edgeZ = (x) => islandZ * Math.sqrt(Math.max(0, 1 - (x / islandX) ** 2));
   const contains = (x, z) =>
     Number.isFinite(x) &&
     Number.isFinite(z) &&
+    onIsland(x, z, 0.65) &&
     (!inWater(x, z, 0.5) || onBridge(x, z));
-  // The floor follows the player; its edges stay beyond the camera's far plane.
-  const ground = box(440, 0.5, 440, "#79a56e", 0, -0.27, 0, group);
+  const ground = cyl(1, 1, 3.6, "#79a56e", 0, -1.82, 0, group, 128);
+  ground.name = "riverside-island";
+  ground.scale.set(islandX, 1, islandZ);
   for (let i = 0; i < 44; i++) {
     const side = i % 2 ? 1 : -1;
     const x = side * (38 + (i % 4) * 2.4);
     const z = -34 + Math.floor(i / 2) * 3.3;
+    if (!onIsland(x, z, 3)) continue;
     const tree = new THREE.Group();
     tree.name = "riverside-tree";
     group.add(tree);
@@ -84,14 +92,18 @@ export function createRiverside({ mesh, box, cyl, ball }) {
     sceneryVisibility.add(tree);
     blockers.push({ x, z, r: 0.45 });
   }
-  // Leave the river ends open; large hills can swallow an orbiting camera.
-  function ribbon(width, color, y, startZ, parent) {
+  // Each bank and water edge follows the island rim rather than ending inland.
+  function ribbon(width, color, y) {
     const vertices = [],
       indices = [];
-    for (let i = 0; i <= 64; i++) {
-      const z = startZ + i * 0.5;
-      vertices.push(center(z) - width, y, z, center(z) + width, y, z);
-      if (i < 64) {
+    for (let i = 0; i <= 224; i++) {
+      const z = -islandZ + i * 0.5;
+      for (const side of [-1, 1]) {
+        const x = center(z) + side * width;
+        const clippedZ = Math.sign(z) * Math.min(Math.abs(z), edgeZ(x));
+        vertices.push(x, y, clippedZ);
+      }
+      if (i < 224) {
         const a = i * 2;
         indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
       }
@@ -106,10 +118,77 @@ export function createRiverside({ mesh, box, cyl, ball }) {
       metalness: 0.2,
       side: THREE.DoubleSide,
     });
-    const surface = mesh(geo, material, 0, 0, 0, parent);
-    surface.userData.ownedMaterial = true;
+    const surface = mesh(geo, material, 0, 0, 0, group);
+    surface.name = width === 3.1 ? "island-river" : "island-bank";
     surface.castShadow = false;
     return surface;
+  }
+  ribbon(6.9, "#cfc39b", 0.008);
+  ribbon(4.2, "#ddcda3", 0.015);
+  ribbon(3.1, "#52bbca", 0.04);
+  const waterfallStreaks = [];
+  for (const side of [-1, 1]) {
+    const vertices = [],
+      indices = [];
+    for (let i = 0; i <= 32; i++) {
+      const x = center(side * islandZ) - 3.1 + (i / 32) * 6.2;
+      const z = side * edgeZ(x);
+      vertices.push(x, 0.04, z, x, -10, z + side * 1.1);
+      if (i < 32) {
+        const a = i * 2;
+        indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(vertices, 3),
+    );
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    const waterfall = mesh(
+      geometry,
+      new THREE.MeshStandardMaterial({
+        color: "#79d4d8",
+        transparent: true,
+        opacity: 0.8,
+        side: THREE.DoubleSide,
+        roughness: 0.3,
+      }),
+      0,
+      0,
+      0,
+      group,
+    );
+    waterfall.name = "edge-waterfall";
+    waterfall.castShadow = false;
+    for (let i = 0; i < 18; i++) {
+      const x = center(side * islandZ) - 2.9 + i * (5.8 / 17);
+      const streak = box(
+        0.035 + (i % 3) * 0.02,
+        0.6 + (i % 4) * 0.15,
+        0.02,
+        "#c4f3e9",
+        x,
+        0,
+        side * edgeZ(x),
+        group,
+      );
+      streak.castShadow = false;
+      waterfallStreaks.push({
+        mesh: streak,
+        side,
+        z: side * edgeZ(x),
+        phase: i / 18,
+      });
+    }
+    // A thin foam lip makes the transition from river to falling water readable.
+    for (let i = 0; i < 20; i++) {
+      const x = center(side * islandZ) - 3 + i * (6 / 19);
+      const foam = ball(0.15, "#dcf6e8", x, 0.08, side * edgeZ(x), group);
+      foam.scale.set(1.25, 0.3, 0.7);
+      foam.castShadow = false;
+    }
   }
   for (let i = 0; i < 24; i++)
     box(
@@ -148,134 +227,38 @@ export function createRiverside({ mesh, box, cyl, ball }) {
     return bird;
   }
   const ducks = Array.from({ length: 7 }, (_, i) => duck(group, i));
-  const riverChunks = new Map(),
-    meadowChunks = new Map();
-  const chunkSize = 32,
-    riverRadius = 6,
-    meadowRadius = 3;
-  function randomFor(x, z) {
-    let seed = (Math.imul(x, 73856093) ^ Math.imul(z, 19349663) ^ 9187) >>> 0;
-    return () =>
-      (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296;
+  const ripples = [];
+  for (let i = 0; i < 52; i++) {
+    const ripple = box(
+      0.65 + (i % 3) * 0.12,
+      0.012,
+      0.035,
+      "#b5ebe4",
+      0,
+      0.065,
+      0,
+      group,
+    );
+    ripple.castShadow = false;
+    ripples.push(ripple);
   }
-  function makeRiverChunk(index) {
-    const chunk = new THREE.Group();
-    chunk.name = "river-chunk";
-    chunk.userData.index = index;
-    group.add(chunk);
-    const startZ = index * chunkSize;
-    ribbon(6.9, "#cfc39b", 0.008, startZ, chunk);
-    ribbon(4.2, "#ddcda3", 0.015, startZ, chunk);
-    ribbon(3.1, "#52bbca", 0.04, startZ, chunk);
-    const random = randomFor(0, index);
-    for (let i = 0; i < 32; i++) {
-      const z = startZ + i + 0.5;
-      for (const side of [-1, 1]) {
-        const stone = ball(
-          0.14 + random() * 0.08,
-          i % 2 ? "#96a6a0" : "#b7b9ac",
-          center(z) + side * 3.5,
-          0.12,
-          z,
-          chunk,
-        );
-        stone.scale.y = 0.5;
-      }
-    }
-    const ripples = [];
-    for (let i = 0; i < 12; i++) {
-      const r = box(
-        0.65 + random() * 0.3,
-        0.012,
-        0.035,
-        "#b5ebe4",
-        0,
-        0.065,
-        0,
-        chunk,
-      );
-      r.castShadow = false;
-      ripples.push({
-        mesh: r,
-        offset: random() * chunkSize,
-        side: (random() - 0.5) * 4,
-      });
-    }
-    const birds = [];
-    if (index !== -1 && index !== 0) {
-      for (let i = 0; i < 3; i++)
-        birds.push({
-          mesh: duck(chunk, i + 2),
-          centerZ: startZ + 8 + i * 8,
-          phase: random() * 6.28,
-        });
-    }
-    return { group: chunk, ripples, birds, startZ };
+  // Scatter small flowers across the rest of the finite island.
+  let meadowSeed = 9187;
+  const random = () =>
+    (meadowSeed = (Math.imul(meadowSeed, 1664525) + 1013904223) >>> 0) /
+    4294967296;
+  for (let i = 0; i < 220; i++) {
+    const x = (random() - 0.5) * islandX * 2;
+    const z = (random() - 0.5) * islandZ * 2;
+    if (
+      !onIsland(x, z, 2) ||
+      Math.abs(x - center(z)) < 8 ||
+      (Math.abs(x) < 22 && Math.abs(z) < 23)
+    )
+      continue;
+    cyl(0.025, 0.045, 0.65, "#4e824d", x, 0.325, z, group);
+    ball(0.14, ["#f5d47c", "#e6a6c7", "#b6bbef"][i % 3], x, 0.7, z, group);
   }
-  function makeMeadowChunk(cx, cz) {
-    const chunk = new THREE.Group();
-    chunk.name = "meadow-chunk";
-    group.add(chunk);
-    const random = randomFor(cx, cz);
-    // The original clearing already has flowers, treasure, and the gate.
-    if ((cx === -1 || cx === 0) && (cz === -1 || cz === 0)) return chunk;
-    for (let i = 0; i < 14; i++) {
-      const x = (cx + random()) * chunkSize;
-      const z = (cz + random()) * chunkSize;
-      if (Math.abs(x - center(z)) < 8) continue;
-      cyl(0.025, 0.045, 0.65, "#4e824d", x, 0.325, z, chunk);
-      ball(0.14, ["#f5d47c", "#e6a6c7", "#b6bbef"][i % 3], x, 0.7, z, chunk);
-      if (i % 5 === 0) {
-        const stone = ball(0.3, "#96a6a0", x + 0.5, 0.12, z, chunk);
-        stone.scale.y = 0.4;
-      }
-    }
-    return chunk;
-  }
-  function disposeChunk(chunk) {
-    group.remove(chunk);
-    chunk.traverse((object) => {
-      object.geometry?.dispose();
-      if (object.userData.ownedMaterial) object.material.dispose();
-    });
-  }
-  function ensureWorld(position) {
-    ground.position.x = position.x;
-    ground.position.z = position.z;
-    const cx = Math.floor(position.x / chunkSize),
-      cz = Math.floor(position.z / chunkSize);
-    for (const [index, chunk] of riverChunks) {
-      if (Math.abs(index - cz) > riverRadius || Math.abs(position.x) > 180) {
-        disposeChunk(chunk.group);
-        riverChunks.delete(index);
-      }
-    }
-    if (Math.abs(position.x) <= 180) {
-      for (let index = cz - riverRadius; index <= cz + riverRadius; index++) {
-        if (!riverChunks.has(index))
-          riverChunks.set(index, makeRiverChunk(index));
-      }
-    }
-    for (const [key, chunk] of meadowChunks) {
-      const [x, z] = key.split(",").map(Number);
-      if (Math.abs(x - cx) > meadowRadius || Math.abs(z - cz) > meadowRadius) {
-        disposeChunk(chunk);
-        meadowChunks.delete(key);
-      }
-    }
-    for (let x = cx - meadowRadius; x <= cx + meadowRadius; x++) {
-      for (let z = cz - meadowRadius; z <= cz + meadowRadius; z++) {
-        const key = `${x},${z}`;
-        if (!meadowChunks.has(key))
-          meadowChunks.set(key, makeMeadowChunk(x, z));
-      }
-    }
-  }
-  function animateDuck(bird, z, x, nextZ, nextX, time, phase) {
-    bird.position.set(x, 0.04 + Math.sin(time * 2 + phase) * 0.015, z);
-    bird.rotation.y = Math.atan2(nextX - x, nextZ - z);
-  }
-  ensureWorld(new THREE.Vector3(-16, 0, 10));
   // Low flowers and reeds keep the banks open to the camera.
   for (let i = 0; i < 90; i++) {
     const z = -22 + ((i * 7.13) % 44),
@@ -336,7 +319,7 @@ export function createRiverside({ mesh, box, cyl, ball }) {
     entrance,
     treasures,
     blockers,
-    ensureWorld,
+
     updateVisibility: sceneryVisibility.update,
     contains,
     heightAt: (x, z) => (onBridge(x, z) ? 0.22 : 0),
@@ -348,22 +331,16 @@ export function createRiverside({ mesh, box, cyl, ball }) {
         t.crystal.visible = t.glow.visible = true;
       });
     },
-    update(time, position) {
-      if (position) ensureWorld(position);
-      for (const chunk of riverChunks.values()) {
-        chunk.ripples.forEach(({ mesh: r, offset, side }) => {
-          r.position.z = chunk.startZ + ((offset + time * 0.6) % chunkSize);
-          r.position.x = center(r.position.z) + side;
-        });
-        chunk.birds.forEach(({ mesh: bird, centerZ, phase }) => {
-          const z = centerZ + Math.sin(time * 0.16 + phase) * 3;
-          const x = center(z) + Math.sin(time * 0.23 + phase) * 1.6;
-          const nextZ = centerZ + Math.sin((time + 0.05) * 0.16 + phase) * 3;
-          const nextX =
-            center(nextZ) + Math.sin((time + 0.05) * 0.23 + phase) * 1.6;
-          animateDuck(bird, z, x, nextZ, nextX, time, phase);
-        });
-      }
+    update(time) {
+      ripples.forEach((r, i) => {
+        const z = -53 + ((i * 2.1 + time * 0.6) % 106);
+        r.position.set(center(z) + Math.sin(i * 4) * 2, 0.065, z);
+      });
+      waterfallStreaks.forEach(({ mesh: streak, side, z, phase }) => {
+        const progress = (time * 0.35 + phase) % 1;
+        streak.position.y = -0.5 - progress * 8.8;
+        streak.position.z = z + side * (0.06 + progress * 1.1);
+      });
       ducks.forEach((d, i) => {
         const z = (i < 4 ? -12 : 12) + Math.sin(time * 0.16 + i) * 5;
         const x = center(z) + Math.sin(time * 0.23 + i * 1.3) * 1.6;

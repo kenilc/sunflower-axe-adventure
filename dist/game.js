@@ -1,5 +1,5 @@
 import * as THREE from "./vendor/three.module.js";
-import { createRiverside } from "./riverside.js?v=20261002-endless-river";
+import { createRiverside } from "./riverside.js?v=20261002-island-waterfalls";
 import { createCave } from "./cave.js?v=20261001-climb";
 import { createGameAudio } from "./audio.js";
 import { createCompanion } from "./companion.js?v=20261001-lake";
@@ -554,7 +554,6 @@ function usePassage(enter, river = false) {
   if (enter) {
     (river ? riverside.group : cave.interior).add(companion.character);
     hero.position.set(river ? -16 : 0, 0, river ? 10 : 9);
-    if (river) riverside.ensureWorld(hero.position);
     companion.reset(hero.position, terrain.blockers, terrain);
     hero.rotation.y = Math.PI;
     yaw = 0;
@@ -1009,13 +1008,13 @@ function frame() {
   $("#benchStand").hidden = !benchMoment.seated || paused;
   lakeside.update(time);
   if (insideRiver) {
-    riverside.update(time, hero.position);
+    riverside.update(time);
     const gateX = -16 - hero.position.x,
       gateZ = 14 - hero.position.z;
     const distance = Math.round(Math.hypot(gateX, gateZ));
     const direction = `${Math.abs(gateZ) > 3 ? (gateZ > 0 ? "south" : "north") : ""}${Math.abs(gateX) > 3 ? (gateX > 0 ? "east" : "west") : ""}`;
     $("#caveHint").textContent =
-      `The river and meadows continue as you explore. Return gate: ${distance} m ${direction || "away"}, near the starting bridge.`;
+      `Explore the flat island. The river falls over its edges. Return gate: ${distance} m ${direction || "away"}, near the starting bridge.`;
   }
   for (let i = particles.length - 1; i >= 0; i--) {
     let p = particles[i];
