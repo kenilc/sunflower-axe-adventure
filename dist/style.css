@@ -394,3 +394,11 @@ body.is-moving #toast {
 .counts[hidden] {
   display: none;
 }
+
+/* Scene copy stays available to game state without covering the world. */
+#sceneDetails {
+  display: none;
+}
+.quest .counts {
+  margin-top: 0;
+}

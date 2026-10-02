@@ -17,7 +17,7 @@
       content="Explore a 3D garden as a flower-hooded adventurer. Throw axes, smash targets and find eight sunstones."
     />
     <title>Sunflower — Axe & Adventure</title>
-    <link rel="stylesheet" href="style.css?v=20261002-river" />
+    <link rel="stylesheet" href="style.css?v=20261002-compact-hud" />
   </head>
   <body>
     <main id="game" aria-label="3D adventure game"></main>
@@ -37,13 +37,15 @@
       </div>
     </header>
     <section class="quest">
-      <span class="eyebrow">THE SUNKEN GARDEN</span>
-      <h1>A little wander.<br />A mighty axe.</h1>
-      <p id="objective">Break the wooden targets and find the sunstones.</p>
-      <p id="caveHint">
-        Treasure cave: north path beyond the shrine. Lake &amp; bench: southeast
-        of the clearing. River gate: west path.
-      </p>
+      <div id="sceneDetails" hidden>
+        <span class="eyebrow">THE SUNKEN GARDEN</span>
+        <h1>A little wander.<br />A mighty axe.</h1>
+        <p id="objective">Break the wooden targets and find the sunstones.</p>
+        <p id="caveHint">
+          Treasure cave: north path beyond the shrine. Lake &amp; bench:
+          southeast of the clearing. River gate: west path.
+        </p>
+      </div>
       <div class="counts" id="gardenCounts">
         <span>◇ <b id="gems">0</b><i>/ 8 sunstones</i></span
         ><span>⊕ <b id="targets">0</b><i>/ 12 targets</i></span>
