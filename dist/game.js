@@ -1,3 +1,4 @@
+import { createBoatTrip } from "./boat-trip.js?v=20261002-rowboat";
 import * as THREE from "./vendor/three.module.js";
 import { createRiverside } from "./riverside.js?v=20261002-landmarks";
 import { createCave } from "./cave.js?v=20261001-climb";
@@ -518,6 +519,50 @@ const benchMoment = createBenchMoment({
   hearts,
   toast,
 });
+const boatTrip = createBoatTrip({
+  mesh,
+  box,
+  cyl,
+  ball,
+  scene,
+  riverside,
+  hero,
+  heroRig: { body, legs, arms, held },
+  companion,
+  toast,
+  onSceneChange(atLagoon) {
+    hearts.clear();
+    $(".quest .eyebrow").textContent = atLagoon
+      ? "THE LOTUS LAGOON"
+      : "THE RAINBOW RIVERSIDE";
+    $(".quest h1").innerHTML = atLagoon
+      ? "A boat for two.<br />A secret lily garden."
+      : "A gentle river.<br />A rainbow of treasures.";
+    $("#objective").textContent = atLagoon
+      ? "Explore the lily garden and its flower island. Return by boat when you're ready."
+      : riverObjective();
+    $("#riverCounts").hidden = atLagoon;
+    scene.background.set(atLagoon ? "#c0ded9" : "#b6d9ce");
+    scene.fog.color.copy(scene.background);
+    camera.position
+      .set(
+        Math.sin(yaw) * Math.cos(pitch) * zoom,
+        1 + Math.sin(pitch) * zoom,
+        Math.cos(yaw) * Math.cos(pitch) * zoom,
+      )
+      .add(hero.position);
+    camera.lookAt(hero.position.x, hero.position.y + 1, hero.position.z);
+  },
+});
+function boardBoat() {
+  if (!insideRiver || $("#guide").open) return;
+  if (boatTrip.start()) {
+    hearts.clear();
+    axes.forEach((a) => scene.remove(a.g));
+    axes.length = 0;
+  }
+}
+$("#boatAction").onclick = boardBoat;
 $("#benchAction").onclick = () => {
   if (!insideCave && !insideRiver) benchMoment.sit();
 };
@@ -531,6 +576,7 @@ let insideCave = false,
 function usePassage(enter, river = false) {
   if (enter === (river ? insideRiver : insideCave)) return;
   const leavingRiver = insideRiver;
+  boatTrip.reset();
   const terrain = river ? riverside : cave;
   benchMoment.stand();
   hearts.clear();
@@ -540,6 +586,7 @@ function usePassage(enter, river = false) {
   }
   insideCave = enter && !river;
   insideRiver = enter && river;
+  boatTrip.setEnabled(insideRiver);
   riverside.group.visible = insideRiver;
   garden.visible = !enter;
   cave.interior.visible = insideCave;
@@ -671,7 +718,8 @@ async function setSound(value) {
 // Enable audio now; the existing gesture listeners resume it if autoplay is blocked.
 void setSound(true);
 function fire() {
-  if (cooldown > 0 || $("#guide").open || benchMoment.seated) return;
+  if (cooldown > 0 || $("#guide").open || benchMoment.seated || boatTrip.rowing)
+    return;
   cooldown = 0.46;
   throwAnim = 0.3;
   const dir = new THREE.Vector3(
@@ -706,6 +754,7 @@ addEventListener("keydown", (e) => {
     if (benchMoment.seated) benchMoment.stand();
     else benchMoment.sit();
   }
+  if (e.code === "KeyT" && !e.repeat) boardBoat();
   if (e.code === "Space") fire();
 });
 addEventListener("keyup", (e) => (keys[e.code] = false));
@@ -764,6 +813,7 @@ $("#stick").onpointerup = $("#stick").onpointercancel = () => {
 $("#restart").onclick = () => {
   cameraDrag.reset();
   benchMoment.stand();
+  boatTrip.reset();
   if (insideCave || insideRiver) usePassage(false, insideRiver);
   hero.position.set(0, 0, 7);
   companion.reset();
@@ -818,187 +868,211 @@ function frame() {
       THREE.MathUtils.degToRad(6),
       THREE.MathUtils.degToRad(70),
     );
-    let dx =
-        (keys.KeyD || keys.ArrowRight ? 1 : 0) -
-        (keys.KeyA || keys.ArrowLeft ? 1 : 0) +
-        joy.x,
-      dz =
-        (keys.KeyS || keys.ArrowDown ? 1 : 0) -
-        (keys.KeyW || keys.ArrowUp ? 1 : 0) +
-        joy.y;
-    let movement = new THREE.Vector3(dx, 0, dz);
-    if (benchMoment.seated) movement.set(0, 0, 0);
-    if (movement.length() > 1) movement.normalize();
-    movement.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-    const speed = keys.ShiftLeft || keys.ShiftRight ? 7.8 : 4.7;
-    const old = hero.position.clone();
-    hero.position.addScaledVector(movement, dt * speed);
-    for (const b of benchMoment.seated
-      ? []
-      : insideRiver
-        ? riverside.blockers
-        : insideCave
-          ? cave.blockers
-          : blockers) {
-      const vx = hero.position.x - b.x,
-        vz = hero.position.z - b.z,
-        d = Math.hypot(vx, vz),
-        min = b.r + 0.38;
-      if (d < min && d > 0) {
-        hero.position.x = b.x + (vx / d) * min;
-        hero.position.z = b.z + (vz / d) * min;
-      }
-    }
-    if (insideRiver) {
-      if (!riverside.contains(hero.position.x, hero.position.z))
-        hero.position.copy(old);
-      hero.position.y = riverside.heightAt(hero.position.x, hero.position.z);
-    } else if (insideCave) {
-      cave.constrain(hero.position);
-      hero.position.y = cave.heightAt(hero.position.x, hero.position.z);
+    if (boatTrip.rowing) {
+      boatTrip.update(dt);
+      isMoving = false;
     } else {
-      if (hero.position.length() > 49) hero.position.setLength(49);
-      if (!benchMoment.seated && inLake(hero.position.x, hero.position.z, 0.4))
-        hero.position.copy(old);
-    }
-    if (!benchMoment.seated) {
-      const playerBump = companion.blocksPlayer(hero.position, old);
-      const companionBump = companion.update(
-        dt,
-        insideRiver
-          ? riverside.blockers
+      const riverTerrain = boatTrip.atLagoon ? boatTrip.lagoon : riverside;
+      let dx =
+          (keys.KeyD || keys.ArrowRight ? 1 : 0) -
+          (keys.KeyA || keys.ArrowLeft ? 1 : 0) +
+          joy.x,
+        dz =
+          (keys.KeyS || keys.ArrowDown ? 1 : 0) -
+          (keys.KeyW || keys.ArrowUp ? 1 : 0) +
+          joy.y;
+      let movement = new THREE.Vector3(dx, 0, dz);
+      if (benchMoment.seated) movement.set(0, 0, 0);
+      if (movement.length() > 1) movement.normalize();
+      movement.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+      const speed = keys.ShiftLeft || keys.ShiftRight ? 7.8 : 4.7;
+      const old = hero.position.clone();
+      hero.position.addScaledVector(movement, dt * speed);
+      for (const b of benchMoment.seated
+        ? []
+        : insideRiver
+          ? riverTerrain.blockers
           : insideCave
             ? cave.blockers
-            : companionObstacles,
-        hero.position,
-        insideRiver ? riverside : insideCave ? cave : gardenTerrain,
-      );
-      hearts.contact(
-        playerBump || companionBump,
-        hero.position,
-        companion.character.position,
-      );
-    }
-    isMoving = movement.length() > 0.05;
-    if (!benchMoment.seated && isMoving) {
-      walk += dt * speed * 2;
-      body.position.y = Math.abs(Math.sin(walk)) * 0.055;
-      legs[0].rotation.x = Math.sin(walk) * 0.5;
-      legs[1].rotation.x = -Math.sin(walk) * 0.5;
-      const facing = hero.position.clone().sub(old);
-      if (facing.lengthSq() > 0.000001)
-        hero.rotation.y = Math.atan2(facing.x, facing.z);
-    } else if (!benchMoment.seated) {
-      legs.forEach((l) => (l.rotation.x *= 0.8));
-      body.position.y = Math.sin(time * 2) * 0.018;
-    }
-    if (!benchMoment.seated) {
-      arms[1].rotation.x =
-        throwAnim > 0
-          ? -Math.sin((throwAnim / 0.3) * Math.PI) * 2
-          : Math.sin(walk) * 0.12;
-      arms[0].rotation.x = -legs[0].rotation.x * 0.5;
-    }
-    for (let i = axes.length - 1; i >= 0; i--) {
-      const a = axes[i];
-      a.life -= dt;
-      a.g.position.addScaledVector(a.dir, dt * 19);
-      a.g.rotation.x += dt * 18;
-      a.g.rotation.z += dt * 6;
-      for (const t of insideCave || insideRiver ? [] : targets) {
-        if (!t.hit && a.g.position.distanceTo(t.pos) < 0.93) {
-          t.hit = true;
-          t.g.visible = false;
-          score++;
-          $("#targets").textContent = score;
-          burst(t.pos, "#dab56c", 22);
-          beep(130, 0.2);
-          a.life = 0;
-          toast(
-            score === 12
-              ? "All targets cleared. Nicely thrown!"
-              : `Target down · ${score} / 12`,
-          );
-          break;
+            : blockers) {
+        const vx = hero.position.x - b.x,
+          vz = hero.position.z - b.z,
+          d = Math.hypot(vx, vz),
+          min = b.r + 0.38;
+        if (d < min && d > 0) {
+          hero.position.x = b.x + (vx / d) * min;
+          hero.position.z = b.z + (vz / d) * min;
         }
       }
-      if (a.life <= 0) {
-        scene.remove(a.g);
-        axes.splice(i, 1);
-      }
-    }
-    for (const g of insideCave || insideRiver ? [] : gems) {
-      if (!g.got && g.g.position.distanceTo(hero.position) < 1.35) {
-        g.got = true;
-        g.g.visible = false;
-        collected++;
-        $("#gems").textContent = collected;
-        burst(
-          g.g.position.clone().add(new THREE.Vector3(0, 1, 0)),
-          "#ffe392",
-          22,
+      if (insideRiver) {
+        if (!riverTerrain.contains(hero.position.x, hero.position.z))
+          hero.position.copy(old);
+        hero.position.y = riverTerrain.heightAt(
+          hero.position.x,
+          hero.position.z,
         );
-        beep(880, 0.3);
-        toast(`Sunstone found · ${collected} / 8`);
-      }
-    }
-    if (insideRiver) {
-      for (const t of riverside.treasures) {
+      } else if (insideCave) {
+        cave.constrain(hero.position);
+        hero.position.y = cave.heightAt(hero.position.x, hero.position.z);
+      } else {
+        if (hero.position.length() > 49) hero.position.setLength(49);
         if (
-          !t.got &&
-          Math.hypot(
-            hero.position.x - t.crystal.position.x,
-            hero.position.z - t.crystal.position.z,
-          ) < 1.15
-        ) {
-          t.got = true;
-          t.crystal.visible = t.glow.visible = false;
-          riverCollected++;
-          $("#riverGems").textContent = riverCollected;
-          $("#objective").textContent = riverObjective();
-          burst(t.crystal.position.clone(), t.color, 18);
-          beep(660 + riverCollected * 25, 0.2);
-          toast(
-            riverCollected === riverside.treasures.length
-              ? "✦ Your riverside collection is complete!"
-              : `${t.name} found · ${riverCollected} / ${riverside.treasures.length}`,
-          );
+          !benchMoment.seated &&
+          inLake(hero.position.x, hero.position.z, 0.4)
+        )
+          hero.position.copy(old);
+      }
+      if (!benchMoment.seated) {
+        const playerBump = companion.blocksPlayer(hero.position, old);
+        const companionBump = companion.update(
+          dt,
+          insideRiver
+            ? riverTerrain.blockers
+            : insideCave
+              ? cave.blockers
+              : companionObstacles,
+          hero.position,
+          insideRiver ? riverTerrain : insideCave ? cave : gardenTerrain,
+        );
+        hearts.contact(
+          playerBump || companionBump,
+          hero.position,
+          companion.character.position,
+        );
+      }
+      isMoving = movement.length() > 0.05;
+      if (!benchMoment.seated && isMoving) {
+        walk += dt * speed * 2;
+        body.position.y = Math.abs(Math.sin(walk)) * 0.055;
+        legs[0].rotation.x = Math.sin(walk) * 0.5;
+        legs[1].rotation.x = -Math.sin(walk) * 0.5;
+        const facing = hero.position.clone().sub(old);
+        if (facing.lengthSq() > 0.000001)
+          hero.rotation.y = Math.atan2(facing.x, facing.z);
+      } else if (!benchMoment.seated) {
+        legs.forEach((l) => (l.rotation.x *= 0.8));
+        body.position.y = Math.sin(time * 2) * 0.018;
+      }
+      if (!benchMoment.seated) {
+        arms[1].rotation.x =
+          throwAnim > 0
+            ? -Math.sin((throwAnim / 0.3) * Math.PI) * 2
+            : Math.sin(walk) * 0.12;
+        arms[0].rotation.x = -legs[0].rotation.x * 0.5;
+      }
+      for (let i = axes.length - 1; i >= 0; i--) {
+        const a = axes[i];
+        a.life -= dt;
+        a.g.position.addScaledVector(a.dir, dt * 19);
+        a.g.rotation.x += dt * 18;
+        a.g.rotation.z += dt * 6;
+        for (const t of insideCave || insideRiver ? [] : targets) {
+          if (!t.hit && a.g.position.distanceTo(t.pos) < 0.93) {
+            t.hit = true;
+            t.g.visible = false;
+            score++;
+            $("#targets").textContent = score;
+            burst(t.pos, "#dab56c", 22);
+            beep(130, 0.2);
+            a.life = 0;
+            toast(
+              score === 12
+                ? "All targets cleared. Nicely thrown!"
+                : `Target down · ${score} / 12`,
+            );
+            break;
+          }
+        }
+        if (a.life <= 0) {
+          scene.remove(a.g);
+          axes.splice(i, 1);
         }
       }
-    }
-    if (
-      !insideCave &&
-      !insideRiver &&
-      score === 12 &&
-      collected === 8 &&
-      !won
-    ) {
-      $("#objective").textContent =
-        "Return to the glowing shrine in the north.";
-      if (hero.position.distanceTo(shrine.position) < 3) {
-        won = true;
-        $("#objective").textContent =
-          "Garden restored. Keep wandering, adventurer.";
-        toast("✦ Garden restored! Your adventure is complete.");
-        burst(relic.getWorldPosition(new THREE.Vector3()), "#ffe890", 70);
-        beep(1100, 0.8);
+      for (const g of insideCave || insideRiver ? [] : gems) {
+        if (!g.got && g.g.position.distanceTo(hero.position) < 1.35) {
+          g.got = true;
+          g.g.visible = false;
+          collected++;
+          $("#gems").textContent = collected;
+          burst(
+            g.g.position.clone().add(new THREE.Vector3(0, 1, 0)),
+            "#ffe392",
+            22,
+          );
+          beep(880, 0.3);
+          toast(`Sunstone found · ${collected} / 8`);
+        }
       }
-    }
-    if (passageCooldown === 0) {
-      if (insideRiver && riverside.isExit(hero.position))
-        usePassage(false, true);
-      else if (
+      if (insideRiver && !boatTrip.atLagoon) {
+        for (const t of riverside.treasures) {
+          if (
+            !t.got &&
+            Math.hypot(
+              hero.position.x - t.crystal.position.x,
+              hero.position.z - t.crystal.position.z,
+            ) < 1.15
+          ) {
+            t.got = true;
+            t.crystal.visible = t.glow.visible = false;
+            riverCollected++;
+            $("#riverGems").textContent = riverCollected;
+            $("#objective").textContent = riverObjective();
+            burst(t.crystal.position.clone(), t.color, 18);
+            beep(660 + riverCollected * 25, 0.2);
+            toast(
+              riverCollected === riverside.treasures.length
+                ? "✦ Your riverside collection is complete!"
+                : `${t.name} found · ${riverCollected} / ${riverside.treasures.length}`,
+            );
+          }
+        }
+      }
+      if (
         !insideCave &&
         !insideRiver &&
-        riverside.isEntrance(hero.position)
-      )
-        usePassage(true, true);
-      else if (!insideCave && !insideRiver && cave.isEntrance(hero.position))
-        usePassage(true);
-      else if (insideCave && cave.isExit(hero.position)) usePassage(false);
+        score === 12 &&
+        collected === 8 &&
+        !won
+      ) {
+        $("#objective").textContent =
+          "Return to the glowing shrine in the north.";
+        if (hero.position.distanceTo(shrine.position) < 3) {
+          won = true;
+          $("#objective").textContent =
+            "Garden restored. Keep wandering, adventurer.";
+          toast("✦ Garden restored! Your adventure is complete.");
+          burst(relic.getWorldPosition(new THREE.Vector3()), "#ffe890", 70);
+          beep(1100, 0.8);
+        }
+      }
+      if (passageCooldown === 0) {
+        if (
+          insideRiver &&
+          !boatTrip.atLagoon &&
+          riverside.isExit(hero.position)
+        )
+          usePassage(false, true);
+        else if (
+          !insideCave &&
+          !insideRiver &&
+          riverside.isEntrance(hero.position)
+        )
+          usePassage(true, true);
+        else if (!insideCave && !insideRiver && cave.isEntrance(hero.position))
+          usePassage(true);
+        else if (insideCave && cave.isExit(hero.position)) usePassage(false);
+      }
     }
   }
   updateHudVisibility(isMoving, dt, paused);
+  $("#boatAction").hidden =
+    !insideRiver || paused || (!boatTrip.rowing && !boatTrip.nearby());
+  $("#boatAction").disabled = boatTrip.rowing;
+  $("#boatAction").textContent = boatTrip.rowing
+    ? "Rowing together…"
+    : boatTrip.atLagoon
+      ? "Return by boat · T"
+      : "Board boat · T";
   $("#benchAction").hidden =
     insideCave ||
     insideRiver ||
@@ -1013,8 +1087,11 @@ function frame() {
       gateZ = 14 - hero.position.z;
     const distance = Math.round(Math.hypot(gateX, gateZ));
     const direction = `${Math.abs(gateZ) > 3 ? (gateZ > 0 ? "south" : "north") : ""}${Math.abs(gateX) > 3 ? (gateX > 0 ? "east" : "west") : ""}`;
-    $("#caveHint").textContent =
-      `Explore the flat island. The river falls over its edges. Return gate: ${distance} m ${direction || "away"}, near the starting bridge.`;
+    $("#caveHint").textContent = boatTrip.rowing
+      ? "Both aboard · Enjoy the ride. Camera controls still work."
+      : boatTrip.atLagoon
+        ? "Walk the wooden bridge to the flower island. Return boat: south dock."
+        : `Explore the flat island. The river falls over its edges. Boat dock: east bank by the bridge. Return gate: ${distance} m ${direction || "away"}, near the starting bridge.`;
   }
   for (let i = particles.length - 1; i >= 0; i--) {
     let p = particles[i];
@@ -1057,7 +1134,11 @@ function frame() {
   const x = hero.position.x,
     z = hero.position.z;
   const region = insideRiver
-    ? riverside.locationAt(hero.position)
+    ? boatTrip.rowing
+      ? "Rowing together"
+      : boatTrip.atLagoon
+        ? "Lotus Lagoon"
+        : riverside.locationAt(hero.position)
     : insideCave
       ? "The Golden Grotto"
       : z < -38
@@ -1112,7 +1193,9 @@ if (document.modelContext?.registerTool) {
               throw new Error("Expected an empty object");
             return {
               location: insideRiver
-                ? "riverside"
+                ? boatTrip.atLagoon
+                  ? "lotus lagoon"
+                  : "riverside"
                 : insideCave
                   ? "treasure cave"
                   : "garden",

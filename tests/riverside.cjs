@@ -227,8 +227,117 @@ const assert = require("assert/strict");
   assert(
     river.treasures.every((t) => !t.got && t.crystal.visible && t.glow.visible),
   );
+  const boatModule = new vm.SourceTextModule(
+    fs.readFileSync("dist/boat-trip.js", "utf8"),
+    { context },
+  );
+  await boatModule.link(() => three);
+  await boatModule.evaluate();
+  const rig = () => ({
+    body: new T.Group(),
+    legs: [0, 1].map(() => {
+      const l = new T.Group();
+      l.add(new T.Group(), new T.Group());
+      return l;
+    }),
+    arms: [new T.Group(), new T.Group()],
+    held: { visible: true },
+  });
+  const rider = new T.Group(),
+    friend = new T.Group(),
+    heroRig = rig();
+  const companion = {
+    character: friend,
+    rig: rig(),
+    reset(p) {
+      friend.position.copy(p).add(new T.Vector3(1, 0, 0));
+    },
+  };
+  const scene = new T.Scene();
+  scene.add(river.group, rider);
+  const transitions = [];
+  const trip = boatModule.namespace.createBoatTrip({
+    mesh,
+    box,
+    cyl,
+    ball,
+    scene,
+    riverside: river,
+    hero: rider,
+    heroRig,
+    companion,
+    toast() {},
+    onSceneChange(value) {
+      transitions.push(value);
+    },
+  });
+  trip.setEnabled(true);
+  rider.position.set(-25, 0, 30);
+  assert(!trip.start(), "Boarding requires proximity to the dock");
+  rider.position.copy(trip.riverDock);
+  assert(trip.start());
+  assert(!trip.start(), "Repeated boarding must not restart the trip");
+  trip.update(1);
+  assert(
+    trip.rowing && !heroRig.held.visible && heroRig.legs[0].rotation.x < 0,
+    "Both characters must sit during travel",
+  );
+  assert(
+    Math.hypot(
+      rider.position.x - friend.position.x,
+      rider.position.z - friend.position.z,
+    ) < 1.5,
+    "Characters must remain together in the boat",
+  );
+  trip.update(4.1);
+  assert(
+    trip.atLagoon && trip.lagoon.group.visible && !river.group.visible,
+    "Trip must switch to a distinct lagoon scene",
+  );
+  trip.update(4);
+  assert(
+    !trip.rowing && trip.atLagoon && heroRig.held.visible,
+    "Arrival must restore walking pose",
+  );
+  assert(
+    trip.lagoon.contains(rider.position.x, rider.position.z),
+    "Lagoon arrival must be walkable",
+  );
+  assert(
+    trip.lagoon.contains(0, 10) && trip.lagoon.contains(0, 4),
+    "Bridge must reach the flower island",
+  );
+  assert(
+    !trip.lagoon.contains(8, 8) && !trip.lagoon.contains(30, 0),
+    "Lagoon water and world edge must block walking",
+  );
+  assert(trip.start(), "Return trip must be available at the arrival dock");
+  trip.update(5.1);
+  trip.update(4);
+  assert(
+    !trip.atLagoon &&
+      !trip.rowing &&
+      river.group.visible &&
+      !trip.lagoon.group.visible,
+    "Return must restore the riverside scene",
+  );
+  assert(
+    river.contains(rider.position.x, rider.position.z),
+    "Return landing must be walkable",
+  );
+  assert(friend.parent === river.group, "Companion must return with the hero");
+  assert(trip.start());
+  trip.update(5.1);
+  trip.reset();
+  assert(
+    !trip.rowing &&
+      !trip.atLagoon &&
+      heroRig.held.visible &&
+      !trip.lagoon.group.visible,
+    "Restart during travel must clear the boat state",
+  );
   console.log(
-    "PASS: four accessible landmarks, six collectible clusters, rainbow, giant waterfall, gazebo fading, visible island boundary, accessible edge banks, river-to-waterfall connections, stable finite scenery, tree fading, 18 accessible treasures, bridge, gates, and reset",
+    "PASS: boarding, seated travel, lagoon exploration, return landing, trip reset, four accessible landmarks, six collectible clusters, rainbow, giant waterfall, gazebo fading, visible island boundary, accessible edge banks, river-to-waterfall connections, stable finite scenery, tree fading, 18 accessible treasures, bridge, gates, and reset",
   );
 })().catch((e) => {
   console.error(e);
