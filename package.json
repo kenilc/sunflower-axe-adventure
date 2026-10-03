@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node --experimental-vm-modules tests/riverside.cjs",
+    "test": "node --experimental-vm-modules tests/riverside.cjs && node --experimental-vm-modules tests/collisions.cjs",
     "prepare": "husky"
   },
   "repository": {

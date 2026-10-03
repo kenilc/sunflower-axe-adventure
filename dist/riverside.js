@@ -344,7 +344,9 @@ export function createRiverside({ mesh, box, cyl, ball }) {
   for (const x of [-1.5, 1.5]) {
     box(0.6, 0.1, 2.6, "#c69e71", x, 0.6, 0, gazebo);
     for (const z of [-1, 1]) box(0.1, 0.6, 0.1, "#927453", x, 0.3, z, gazebo);
-    blockers.push({ x: 16 + x, z: 26, r: 0.65 });
+    // Cover the entire seat, including its corners and both ends.
+    for (const z of [-0.975, -0.325, 0.325, 0.975])
+      blockers.push({ x: 16 + x, z: 26 + z, r: 0.45 });
   }
   sceneryVisibility.add(gazebo);
   const lookout = landmark("Rainbow waterfall lookout", 9, 49);

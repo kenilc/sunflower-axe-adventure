@@ -138,7 +138,8 @@ export function createBenchMoment({
     elapsed = 0,
     emitted = false;
   const start = [],
-    startYaw = [];
+    startYaw = [],
+    seatSides = [-1, 1];
   const rigs = [heroRig, companion.rig];
   const characters = [hero, companion.character];
   function nearby() {
@@ -172,6 +173,12 @@ export function createBenchMoment({
       start[i] = c.position.clone();
       startYaw[i] = c.rotation.y;
     });
+    const across = new THREE.Vector3(1, 0, 0).applyAxisAngle(
+      new THREE.Vector3(0, 1, 0),
+      bench.rotation.y,
+    );
+    seatSides[0] = start[0].clone().sub(start[1]).dot(across) <= 0 ? -1 : 1;
+    seatSides[1] = -seatSides[0];
     hearts.clear();
     toast("A quiet moment by the lake ♥ · B or Stand up to leave");
     return true;
@@ -200,7 +207,7 @@ export function createBenchMoment({
     const progress = THREE.MathUtils.smoothstep(elapsed, 0, 0.75);
     const hug = THREE.MathUtils.smoothstep(elapsed, 0.7, 1.5);
     characters.forEach((c, i) => {
-      const target = new THREE.Vector3(i ? 0.54 : -0.54, 0.3, 0.04)
+      const target = new THREE.Vector3(seatSides[i] * 0.64, 0.3, 0.04)
         .applyAxisAngle(new THREE.Vector3(0, 1, 0), bench.rotation.y)
         .add(bench.position);
       c.position.lerpVectors(start[i], target, progress);
@@ -209,8 +216,24 @@ export function createBenchMoment({
         Math.cos(bench.rotation.y - startYaw[i]),
       );
       c.rotation.y = startYaw[i] + turn * progress;
-      pose(rigs[i], i ? 1 : -1, hug);
+      pose(rigs[i], seatSides[i], hug);
     });
+    // Keep the approach clear even when both arrive from the same end.
+    const separation = characters[0].position
+      .clone()
+      .sub(characters[1].position);
+    separation.y = 0;
+    const distance = separation.length();
+    if (distance < 1.2) {
+      if (distance < 1e-9)
+        separation
+          .set(seatSides[0], 0, 0)
+          .applyAxisAngle(new THREE.Vector3(0, 1, 0), bench.rotation.y);
+      else separation.divideScalar(distance);
+      separation.multiplyScalar((1.2 - distance) / 2);
+      characters[0].position.add(separation);
+      characters[1].position.sub(separation);
+    }
     if (elapsed > 1.5 && !emitted) {
       emitted = true;
       hearts.contact(true, hero.position, companion.character.position);

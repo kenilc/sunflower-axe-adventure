@@ -105,7 +105,12 @@ export function createCompanion({ ball, box, cyl, mesh }) {
   function clear(x, z, obstacles, terrain) {
     return (
       terrain.contains(x, z) &&
-      obstacles.every((b) => Math.hypot(x - b.x, z - b.z) > b.r + 0.65)
+      obstacles.every(
+        (b) =>
+          b.active === false ||
+          Math.hypot(x - b.x, z - b.z) >
+            b.r + Math.max(0.65, b.minClearance ?? 0),
+      )
     );
   }
   function reset(

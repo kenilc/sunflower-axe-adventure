@@ -7,7 +7,8 @@ export function createCave() {
   entrance.position.set(0, 0, -43);
   const walls = [],
     sparkles = [],
-    flames = [];
+    flames = [],
+    blockers = [];
   let seed = 731;
   const random = () =>
     (seed = (1664525 * seed + 1013904223) >>> 0) / 4294967296;
@@ -54,6 +55,17 @@ export function createCave() {
     const m = add(new THREE.IcosahedronGeometry(1, 1), stone, x, y, z, parent);
     m.scale.set(sx, sy, sz);
     m.rotation.y = random() * 6;
+    if (parent !== entrance) {
+      m.name = "cave-rock";
+      const center = m.getWorldPosition(new THREE.Vector3());
+      // Enclose the rotated rock footprint and allow room for the hood/arms.
+      blockers.push({
+        x: center.x,
+        z: center.z,
+        r: Math.max(sx, sz),
+        minClearance: 0.8,
+      });
+    }
     return m;
   }
   // A walk-through opening on the north trail.
@@ -205,7 +217,6 @@ export function createCave() {
   }
   stacks.castShadow = stacks.receiveShadow = true;
   interior.add(stacks);
-  const blockers = [];
   for (const [x, z, rotation] of [
     [-8, 1, 0.4],
     [8, -1, -0.55],

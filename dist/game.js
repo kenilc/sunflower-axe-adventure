@@ -1,18 +1,19 @@
 import { createBoatTrip } from "./boat-trip.js?v=20261002-sunflower-lagoon";
 import * as THREE from "./vendor/three.module.js";
-import { createRiverside } from "./riverside.js?v=20261002-landmarks";
-import { createCave } from "./cave.js?v=20261001-climb";
+import { createRiverside } from "./riverside.js?v=20261003-collisions";
+import { createCave } from "./cave.js?v=20261003-rocks";
 import { createGameAudio } from "./audio.js";
-import { createCompanion } from "./companion.js?v=20261001-lake";
+import { createCompanion } from "./companion.js?v=20261003-rocks";
 import { createHearts } from "./hearts.js?v=20261001-climb";
 import { createTreeVisibility } from "./tree-visibility.js?v=20261002-camera-clear";
 import { bindCameraDrag } from "./camera-drag.js";
+import { resolveObstacleCollisions } from "./collision.js?v=20261003-rocks";
 import {
   createLakeside,
   createBenchMoment,
   inLake,
   reservedLakeside,
-} from "./lakeside.js?v=20261001-kept-pose";
+} from "./lakeside.js?v=20261003-collisions";
 const $ = (s) => document.querySelector(s);
 let renderer;
 try {
@@ -106,7 +107,7 @@ function rock(x, z, s) {
   const r = ball(s, "#718974", x, s * 0.36, z);
   r.scale.set(1, 0.7, 0.9);
   r.rotation.set(rand(), rand() * 5, rand());
-  blockers.push({ x, z, r: s * 0.8 });
+  blockers.push({ x, z, r: s, minClearance: 0.8 });
 }
 const treeVisibility = createTreeVisibility();
 function tree(x, z, s = 1) {
@@ -288,6 +289,7 @@ for (let i = 0; i < 9; i++) {
   const x = Math.sin(a) * 5,
     z = Math.cos(a) * 5 - 30;
   cyl(0.5, 0.7, 1 + rand() * 2, "#92a18a", x, 1, z);
+  blockers.push({ x, z, r: 0.7 });
 }
 const shrine = new THREE.Group();
 shrine.position.set(0, 0, -30);
@@ -295,6 +297,7 @@ scene.add(shrine);
 cyl(2.7, 3, 0.3, "#8b9b86", 0, 0.15, 0, shrine, 12);
 cyl(1.8, 2, 0.5, "#b3b39a", 0, 0.5, 0, shrine, 8);
 cyl(0.8, 1.1, 1.4, "#899d88", 0, 1.3, 0, shrine);
+blockers.push({ x: 0, z: -30, r: 3 });
 const relic = mesh(
   new THREE.OctahedronGeometry(0.75),
   new THREE.MeshStandardMaterial({
@@ -449,7 +452,9 @@ for (const [x, z] of targetPositions) {
       g,
     );
   }
-  targets.push({ g, hit: false, pos: new THREE.Vector3(x, 1.6, z) });
+  const blocker = { x, z, r: 0.7, active: true };
+  blockers.push(blocker);
+  targets.push({ g, blocker, hit: false, pos: new THREE.Vector3(x, 1.6, z) });
 }
 const gemPositions = [
   [-12, 8],
@@ -497,7 +502,10 @@ scene.add(garden);
 const cave = createCave();
 garden.add(cave.entrance);
 scene.add(cave.interior);
-blockers.push({ x: -4, z: -43, r: 2.2 }, { x: 4, z: -43, r: 2.2 });
+blockers.push(
+  { x: -4, z: -43, r: 2.5, minClearance: 0.8 },
+  { x: 4, z: -43, r: 2.5, minClearance: 0.8 },
+);
 const cavePath = box(4, 0.04, 10, pathMat, 0, 0.025, -39);
 garden.add(cavePath);
 const riverside = createRiverside({ mesh, box, cyl, ball });
@@ -508,7 +516,6 @@ const companion = createCompanion({ ball, box, cyl, mesh });
 garden.add(companion.character);
 const companionObstacles = [
   ...blockers,
-  ...targetPositions.map(([x, z]) => ({ x, z, r: 0.7 })),
   ...gemPositions.map(([x, z]) => ({ x, z, r: 0.8 })),
 ];
 const benchMoment = createBenchMoment({
@@ -836,6 +843,7 @@ $("#restart").onclick = () => {
   won = false;
   targets.forEach((t) => {
     t.hit = false;
+    t.blocker.active = true;
     t.g.visible = true;
   });
   gems.forEach((g) => {
@@ -893,22 +901,14 @@ function frame() {
       const speed = keys.ShiftLeft || keys.ShiftRight ? 7.8 : 4.7;
       const old = hero.position.clone();
       hero.position.addScaledVector(movement, dt * speed);
-      for (const b of benchMoment.seated
+      const movementObstacles = benchMoment.seated
         ? []
         : insideRiver
           ? riverTerrain.blockers
           : insideCave
             ? cave.blockers
-            : blockers) {
-        const vx = hero.position.x - b.x,
-          vz = hero.position.z - b.z,
-          d = Math.hypot(vx, vz),
-          min = b.r + 0.38;
-        if (d < min && d > 0) {
-          hero.position.x = b.x + (vx / d) * min;
-          hero.position.z = b.z + (vz / d) * min;
-        }
-      }
+            : blockers;
+      resolveObstacleCollisions(hero.position, old, movementObstacles);
       if (insideRiver) {
         if (!riverTerrain.contains(hero.position.x, hero.position.z))
           hero.position.copy(old);
@@ -918,9 +918,14 @@ function frame() {
         );
       } else if (insideCave) {
         cave.constrain(hero.position);
+        resolveObstacleCollisions(hero.position, old, movementObstacles);
+        if (Math.hypot(hero.position.x, hero.position.z) > 16)
+          hero.position.copy(old);
         hero.position.y = cave.heightAt(hero.position.x, hero.position.z);
       } else {
         if (hero.position.length() > 49) hero.position.setLength(49);
+        resolveObstacleCollisions(hero.position, old, movementObstacles);
+        if (hero.position.length() > 49) hero.position.copy(old);
         if (
           !benchMoment.seated &&
           inLake(hero.position.x, hero.position.z, 0.4)
@@ -974,6 +979,7 @@ function frame() {
         for (const t of insideCave || insideRiver ? [] : targets) {
           if (!t.hit && a.g.position.distanceTo(t.pos) < 0.93) {
             t.hit = true;
+            t.blocker.active = false;
             t.g.visible = false;
             score++;
             $("#targets").textContent = score;
@@ -1057,7 +1063,7 @@ function frame() {
       ) {
         $("#objective").textContent =
           "Return to the glowing shrine in the north.";
-        if (hero.position.distanceTo(shrine.position) < 3) {
+        if (hero.position.distanceTo(shrine.position) < 3.8) {
           won = true;
           $("#objective").textContent =
             "Garden restored. Keep wandering, adventurer.";
