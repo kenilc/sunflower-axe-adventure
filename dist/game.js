@@ -1,6 +1,6 @@
 import { createBoatTrip } from "./boat-trip.js?v=20261002-sunflower-lagoon";
 import * as THREE from "./vendor/three.module.js";
-import { createRiverside } from "./riverside.js?v=20261003-mountain-waterfall";
+import { createRiverside } from "./riverside.js?v=20261003-mountain-gate";
 import { createCave } from "./cave.js?v=20261003-rocks";
 import { createGameAudio } from "./audio.js";
 import { createCompanion } from "./companion.js?v=20261003-rocks";
@@ -561,7 +561,11 @@ const boatTrip = createBoatTrip({
         Math.cos(yaw) * Math.cos(pitch) * zoom,
       )
       .add(hero.position);
-    camera.lookAt(hero.position.x, hero.position.y + 1, hero.position.z);
+    camera.lookAt(
+      hero.position.x,
+      hero.position.y + cameraTargetHeight(),
+      hero.position.z,
+    );
   },
 });
 function boardBoat() {
@@ -610,12 +614,13 @@ function usePassage(enter, river = false) {
   sky.intensity = insideCave ? 0.7 : 2.4;
   if (enter) {
     (river ? riverside.group : cave.interior).add(companion.character);
-    hero.position.set(river ? -16 : 0, 0, river ? 10 : 9);
+    if (river) hero.position.copy(riverside.arrival);
+    else hero.position.set(0, 0, 9);
     companion.reset(hero.position, terrain.blockers, terrain);
-    hero.rotation.y = Math.PI;
-    yaw = 0;
-    pitch = THREE.MathUtils.degToRad(16);
-    zoom = 20;
+    hero.rotation.y = river ? 0 : Math.PI;
+    yaw = river ? Math.PI : 0;
+    pitch = THREE.MathUtils.degToRad(river ? 6 : 16);
+    zoom = river ? 26 : 20;
   } else {
     garden.add(companion.character);
     hero.position.set(leavingRiver ? -28 : 0, 0, leavingRiver ? 0 : -38.5);
@@ -637,7 +642,11 @@ function usePassage(enter, river = false) {
       Math.cos(yaw) * Math.cos(pitch) * zoom,
     )
     .add(hero.position);
-  camera.lookAt(hero.position.x, hero.position.y + 1, hero.position.z);
+  camera.lookAt(
+    hero.position.x,
+    hero.position.y + cameraTargetHeight(),
+    hero.position.z,
+  );
   passageCooldown = 1;
   $("#riverCounts").hidden = !insideRiver;
   $("#lagoonCounts").hidden = true;
@@ -656,7 +665,7 @@ function usePassage(enter, river = false) {
       ? "A mountain of gold. Explore the hoard, then follow the blue light south to leave."
       : outsideObjective;
   $("#caveHint").textContent = insideRiver
-    ? "Cross the wooden bridge to explore both banks. Return gate: southwest meadow."
+    ? "Enjoy the mountain waterfall. Return gate: beside the rainbow lookout."
     : enter
       ? "Exit: south passage, through the blue light."
       : "River gate: west path. Treasure cave: north. Lake & bench: southeast.";
@@ -668,6 +677,10 @@ function usePassage(enter, river = false) {
         : "Back in the sunken garden",
   );
   beep(enter ? 660 : 440, 0.35);
+}
+function cameraTargetHeight() {
+  // Frame the characters in the foreground and the tall mountain above them.
+  return insideRiver && !boatTrip.atLagoon && !boatTrip.rowing ? 9 : 1;
 }
 function riverObjective() {
   return riverCollected === riverside.treasures.length
@@ -836,7 +849,11 @@ $("#restart").onclick = () => {
   camera.position
     .set(0, 1 + Math.sin(pitch) * zoom, Math.cos(pitch) * zoom)
     .add(hero.position);
-  camera.lookAt(hero.position.x, hero.position.y + 1, hero.position.z);
+  camera.lookAt(
+    hero.position.x,
+    hero.position.y + cameraTargetHeight(),
+    hero.position.z,
+  );
   score = collected = riverCollected = 0;
   riverside.reset();
   $("#riverGems").textContent = 0;
@@ -1110,15 +1127,15 @@ function frame() {
   lakeside.update(time);
   if (insideRiver) {
     riverside.update(time);
-    const gateX = -16 - hero.position.x,
-      gateZ = 14 - hero.position.z;
+    const gateX = riverside.returnGate.position.x - hero.position.x,
+      gateZ = riverside.returnGate.position.z - hero.position.z;
     const distance = Math.round(Math.hypot(gateX, gateZ));
     const direction = `${Math.abs(gateZ) > 3 ? (gateZ > 0 ? "south" : "north") : ""}${Math.abs(gateX) > 3 ? (gateX > 0 ? "east" : "west") : ""}`;
     $("#caveHint").textContent = boatTrip.rowing
       ? "Both aboard · Enjoy the ride. Camera controls still work."
       : boatTrip.atLagoon
         ? "Follow the clear paths through the sunflowers. Cross the bridge for more gems. Return boat: south dock."
-        : `Explore the island. A mountain waterfall feeds the river. Boat dock: east bank by the bridge. Return gate: ${distance} m ${direction || "away"}, near the starting bridge.`;
+        : `Explore the island. A mountain waterfall feeds the river. Boat dock: east bank by the bridge. Return gate: ${distance} m ${direction || "away"}, beside the rainbow lookout.`;
   }
   for (let i = particles.length - 1; i >= 0; i--) {
     let p = particles[i];
@@ -1149,7 +1166,11 @@ function frame() {
     )
     .add(hero.position);
   camera.position.lerp(desired, 1 - Math.exp(-dt * 5));
-  camera.lookAt(hero.position.x, hero.position.y + 1, hero.position.z);
+  camera.lookAt(
+    hero.position.x,
+    hero.position.y + cameraTargetHeight(),
+    hero.position.z,
+  );
   hearts.update(paused ? 0 : dt, camera);
   if (insideRiver)
     riverside.updateVisibility(camera, [hero, companion.character], dt);

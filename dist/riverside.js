@@ -52,7 +52,8 @@ export function createRiverside({ mesh, box, cyl, ball }) {
   }
   gate(entrance);
   const returnGate = new THREE.Group();
-  returnGate.position.set(-16, 0, 14);
+  returnGate.name = "riverside-return-gate";
+  returnGate.position.set(9, 0, 40);
   group.add(returnGate);
   gate(returnGate);
   const center = (z) => Math.sin(z * 0.12) * 3;
@@ -786,13 +787,17 @@ export function createRiverside({ mesh, box, cyl, ball }) {
       );
     },
     blockers,
+    returnGate,
+    arrival: new THREE.Vector3(9, 0, 44),
 
     updateVisibility: sceneryVisibility.update,
     contains,
     heightAt: (x, z) =>
       onBridge(x, z) ? 0.22 : Math.hypot(x - 9, z - 49) < 1.95 ? 0.16 : 0,
     isEntrance: (p) => Math.abs(p.z) < 1.5 && p.x < -31.1 && p.x > -34,
-    isExit: (p) => Math.abs(p.x + 16) < 1.5 && p.z > 13.3 && p.z < 16,
+    isExit: (p) =>
+      Math.abs(p.x - returnGate.position.x) < 1.5 &&
+      Math.abs(p.z - returnGate.position.z) < 1.3,
     reset() {
       treasures.forEach((t) => {
         t.got = false;

@@ -55,7 +55,7 @@ const assert = require("assert/strict");
   // Execute the actual game with only browser/rendering APIs stubbed.
   const setup =
     game.replace("new THREE.WebGLRenderer(", "new FakeRenderer(") +
-    "\nexport {scene, mesh, box, cyl, ball, blockers, hero, body, legs, arms, held, lakeside, targets, shrine, inLake, createBenchMoment, clock, frame, axes, gems, won};";
+    "\nexport {scene, mesh, box, cyl, ball, blockers, hero, body, legs, arms, held, lakeside, targets, shrine, inLake, createBenchMoment, clock, frame, axes, gems, won, camera, riverside, usePassage, yaw};";
   const G = (await module("review-setup", setup)).namespace;
   const T = (await module("vendor/three.module.js")).namespace;
   const C = (await module("companion.js")).namespace.createCompanion(G);
@@ -218,6 +218,28 @@ const assert = require("assert/strict");
   element("#restart").onclick();
   assert(G.targets.every((t) => !t.hit && t.blocker.active));
   assert(!G.won);
+  G.usePassage(true, true);
+  G.frame();
+  assert(G.hero.position.distanceTo(G.riverside.arrival) < 1e-7);
+  assert.equal(G.yaw, Math.PI, "Arrival must face the mountain");
+  G.camera.updateMatrixWorld();
+  for (const point of [
+    new T.Vector3(Math.sin(56 * 0.12) * 3, 58, 104),
+    new T.Vector3(Math.sin(56 * 0.12) * 3, 0.04, 71.8),
+    G.hero.position.clone().add(new T.Vector3(0, 1.6, 0)),
+  ]) {
+    const projected = point.project(G.camera);
+    assert(
+      Math.abs(projected.x) < 1 && Math.abs(projected.y) < 1 && projected.z < 1,
+      "Mountain peak, waterfall base and characters must be visible on arrival",
+    );
+  }
+  G.hero.position.copy(G.riverside.returnGate.position);
+  for (let i = 0; i < 32; i++) G.frame();
+  assert(
+    G.hero.position.distanceTo(new T.Vector3(-28, 0, 0)) < 1e-7,
+    "Stepping through the relocated gate must return to the garden",
+  );
   const disabled = { x: 0, z: 0, r: 0.7, active: false };
   const center = new T.Vector3();
   resolve(center, new T.Vector3(0, 0, 2), [disabled]);

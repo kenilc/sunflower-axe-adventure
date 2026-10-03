@@ -143,10 +143,24 @@ const assert = require("assert/strict");
   for (let x = -5.8; x < 5.8; x += 0.1)
     assert(river.contains(x, 0), "Bridge must cross the water");
   assert(!river.contains(0, 10), "Water must block walking");
-  assert(river.contains(-16, 10), "Arrival must be walkable");
-  assert(river.contains(-16, 14), "Return gate must be walkable");
+  assert(
+    river.contains(river.arrival.x, river.arrival.z),
+    "Arrival must be walkable",
+  );
+  assert(
+    river.contains(river.returnGate.position.x, river.returnGate.position.z),
+    "Return gate must be walkable",
+  );
   assert(river.isEntrance(new T.Vector3(-32, 0, 0)));
-  assert(river.isExit(new T.Vector3(-16, 0, 14)));
+  assert(river.isExit(river.returnGate.position));
+  assert(
+    !river.isExit(river.arrival),
+    "Arrival must not immediately send characters back",
+  );
+  assert(
+    !river.isExit(new T.Vector3(-16, 0, 14)),
+    "The old return location must no longer teleport",
+  );
   for (const time of [0, 1, 20, 500]) {
     river.update(time);
     river.group.traverse((o) =>
