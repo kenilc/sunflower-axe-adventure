@@ -207,6 +207,7 @@ export function createRiverside({ mesh, box, cyl, ball }) {
   const mountain = new THREE.Group();
   mountain.name = "waterfall-mountain";
   group.add(mountain);
+  const mountainSurfaces = [];
   function peak(x, z, radius, height, color) {
     const rock = mesh(
       new THREE.ConeGeometry(radius, height, 64),
@@ -217,6 +218,7 @@ export function createRiverside({ mesh, box, cyl, ball }) {
       mountain,
     );
     rock.scale.z = 0.85;
+    mountainSurfaces.push(rock);
     return rock;
   }
   peak(sourceX - 25, 108, 25, 39, "#718b7c");
@@ -241,64 +243,212 @@ export function createRiverside({ mesh, box, cyl, ball }) {
     mountain,
   );
   cliff.scale.z = 0.65;
+  mountainSurfaces.push(cliff);
   for (const side of [-1, 1]) {
     const shoulder = ball(8, "#6e897a", sourceX + side * 10, 14, 81, mountain);
     shoulder.scale.set(0.7, 2, 1);
+    mountainSurfaces.push(shoulder);
   }
-  // Dense forest uses four instanced batches, so the backdrop stays inexpensive.
-  const forest = new THREE.Group();
-  forest.name = "mountain-forest";
-  mountain.add(forest);
-  const forestCount = 220;
-  const treeBatches = [
-    new THREE.InstancedMesh(
-      new THREE.CylinderGeometry(0.12, 0.22, 1, 6),
-      new THREE.MeshStandardMaterial({ color: "#665f43", flatShading: true }),
-      forestCount,
-    ),
-    ...["#315e4d", "#42745a", "#5b8863"].map(
-      (color) =>
-        new THREE.InstancedMesh(
-          new THREE.ConeGeometry(1, 1, 7),
-          new THREE.MeshStandardMaterial({ color, flatShading: true }),
-          forestCount,
-        ),
-    ),
-  ];
-  treeBatches.forEach((batch) => {
-    batch.castShadow = true;
-    batch.receiveShadow = true;
-    forest.add(batch);
-  });
+  // Sample the actual topmost rock surface so plants cover every peak without
+  // floating over slopes or disappearing inside overlapping mountains.
+  mountain.updateWorldMatrix(true, true);
+  const surfaceRay = new THREE.Raycaster();
+  const down = new THREE.Vector3(0, -1, 0);
+  const surfaceHits = [];
   let forestSeed = 8621;
   const forestRandom = () =>
     (forestSeed = (Math.imul(forestSeed, 1664525) + 1013904223) >>> 0) /
     4294967296;
-  const treeTransform = new THREE.Object3D();
-  for (let i = 0; i < forestCount; i++) {
-    let x, z, radial;
-    do {
+  const peakSites = [
+    { x: sourceX - 25, z: 108, r: 25 },
+    { x: sourceX + 26, z: 113, r: 27 },
+    { x: sourceX, z: 104, r: 36 },
+  ];
+  function plantSite(index) {
+    const peak = peakSites[index % peakSites.length];
+    for (let attempt = 0; attempt < 100; attempt++) {
       const angle = forestRandom() * Math.PI * 2;
-      radial = 0.2 + Math.sqrt(forestRandom()) * 0.73;
-      x = sourceX + Math.cos(angle) * radial * 36;
-      z = 104 + Math.sin(angle) * radial * 30.6;
-    } while (Math.abs(x - sourceX) < 9 && z < 88);
-    const y = 58 * (1 - radial) - 0.1;
-    const size = 0.8 + forestRandom() * 0.75;
-    treeTransform.rotation.set(0, forestRandom() * Math.PI * 2, 0);
-    treeTransform.position.set(x, y + size * 1.4, z);
-    treeTransform.scale.set(size, size * 2.8, size);
+      const radius = Math.sqrt(forestRandom()) * peak.r * 0.98;
+      const x = peak.x + Math.cos(angle) * radius;
+      const z = peak.z + Math.sin(angle) * radius * 0.85;
+      // Leave the waterfall and its source visible, and keep snow above the tree line.
+      if (Math.abs(x - sourceX) < 4.8 && z < 88) continue;
+      surfaceRay.set(new THREE.Vector3(x, 100, z), down);
+      surfaceHits.length = 0;
+      surfaceRay.intersectObjects(mountainSurfaces, false, surfaceHits);
+      const hit = surfaceHits[0];
+      if (!hit || hit.point.y > 47.3) continue;
+      return {
+        x,
+        y: hit.point.y - 0.05,
+        z,
+        normal: hit.face.normal
+          .clone()
+          .applyNormalMatrix(
+            new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld),
+          ),
+      };
+    }
+    throw new Error("Could not find a mountain planting surface");
+  }
+  const forest = new THREE.Group();
+  forest.name = "mountain-forest";
+  mountain.add(forest);
+  const treeTransform = new THREE.Object3D();
+  const color = new THREE.Color();
+  function plantBatch(parent, name, geometry, baseColor, count) {
+    const batch = new THREE.InstancedMesh(
+      geometry,
+      new THREE.MeshStandardMaterial({
+        color: baseColor,
+        roughness: 0.95,
+        flatShading: true,
+      }),
+      count,
+    );
+    batch.name = name;
+    batch.castShadow = true;
+    batch.receiveShadow = true;
+    parent.add(batch);
+    return batch;
+  }
+  function plantInstance(batch, index, x, y, z, sx, sy, sz, yaw, tint) {
+    treeTransform.position.set(x, y, z);
+    treeTransform.rotation.set(0, yaw, 0);
+    treeTransform.scale.set(sx, sy, sz);
     treeTransform.updateMatrix();
-    treeBatches[0].setMatrixAt(i, treeTransform.matrix);
-    for (let tier = 0; tier < 3; tier++) {
-      treeTransform.position.set(x, y + size * (2.4 + tier * 1.1), z);
-      treeTransform.scale.set(
-        size * (1.5 - tier * 0.3),
-        size * 2.5,
-        size * (1.5 - tier * 0.3),
+    batch.setMatrixAt(index, treeTransform.matrix);
+    if (tint) {
+      color.set(tint).multiplyScalar(0.84 + forestRandom() * 0.3);
+      batch.setColorAt(index, color);
+    }
+  }
+  const varieties = [
+    { name: "spruce", trunk: "#6a5940", leaf: "#35684d", shape: "cone" },
+    { name: "pine", trunk: "#78654b", leaf: "#537b42", shape: "umbrella" },
+    { name: "oak", trunk: "#71513b", leaf: "#698e43", shape: "round" },
+    { name: "birch", trunk: "#e2ddbd", leaf: "#8eaa56", shape: "tall" },
+  ];
+  const perVariety = 450;
+  forest.userData.treeCount = perVariety * varieties.length;
+  forest.userData.varieties = varieties.map((v) => v.name);
+  varieties.forEach((variety, species) => {
+    const trunks = plantBatch(
+      forest,
+      variety.name + "-trunks",
+      new THREE.CylinderGeometry(0.13, 0.22, 1, 6),
+      variety.trunk,
+      perVariety,
+    );
+    const canopies = plantBatch(
+      forest,
+      variety.name + "-canopies",
+      variety.shape === "cone"
+        ? new THREE.ConeGeometry(1, 1, 7)
+        : new THREE.IcosahedronGeometry(1, 1),
+      "#ffffff",
+      perVariety * 3,
+    );
+    for (let i = 0; i < perVariety; i++) {
+      const site = plantSite(i + species);
+      const size = (0.55 + forestRandom() * 0.7) * (site.y > 35 ? 0.8 : 1);
+      const yaw = forestRandom() * Math.PI * 2;
+      const trunkHeight = size * (variety.shape === "umbrella" ? 4.2 : 2.8);
+      plantInstance(
+        trunks,
+        i,
+        site.x,
+        site.y + trunkHeight / 2,
+        site.z,
+        size,
+        trunkHeight,
+        size,
+        yaw,
       );
-      treeTransform.updateMatrix();
-      treeBatches[tier + 1].setMatrixAt(i, treeTransform.matrix);
+      for (let tier = 0; tier < 3; tier++) {
+        let x = site.x,
+          z = site.z,
+          y,
+          sx,
+          sy,
+          sz;
+        if (variety.shape === "cone") {
+          y = site.y + size * (2.4 + tier * 1.05);
+          sx = sz = size * (1.45 - tier * 0.3);
+          sy = size * 2.6;
+        } else if (variety.shape === "umbrella") {
+          x += Math.cos(yaw + tier * 2.1) * size * 0.65;
+          z += Math.sin(yaw + tier * 2.1) * size * 0.65;
+          y = site.y + size * (4.1 + tier * 0.18);
+          sx = size * 1.6;
+          sy = size * 0.7;
+          sz = size * 1.3;
+        } else if (variety.shape === "round") {
+          x += Math.cos(yaw + tier * 2.1) * size * 0.55;
+          z += Math.sin(yaw + tier * 2.1) * size * 0.55;
+          y = site.y + size * (2.9 + tier * 0.4);
+          sx = size * 1.35;
+          sy = size * 1.4;
+          sz = size * 1.25;
+        } else {
+          x += Math.cos(yaw + tier * 2.1) * size * 0.25;
+          z += Math.sin(yaw + tier * 2.1) * size * 0.25;
+          y = site.y + size * (2.7 + tier * 0.85);
+          sx = size * 0.85;
+          sy = size * 1.5;
+          sz = size * 0.8;
+        }
+        plantInstance(
+          canopies,
+          i * 3 + tier,
+          x,
+          y,
+          z,
+          sx,
+          sy,
+          sz,
+          yaw,
+          variety.leaf,
+        );
+      }
+    }
+  });
+  const grass = new THREE.Group();
+  grass.name = "mountain-grass";
+  mountain.add(grass);
+  const grassCount = 9000;
+  grass.userData.tuftCount = grassCount;
+  const blades = plantBatch(
+    grass,
+    "mountain-grass-blades",
+    new THREE.ConeGeometry(1, 1, 3),
+    "#ffffff",
+    grassCount * 3,
+  );
+  blades.castShadow = false;
+  const grassColors = ["#79974b", "#91ac5e", "#a6b86b", "#618b4b"];
+  for (let i = 0; i < grassCount; i++) {
+    const site = plantSite(i);
+    const height = 0.25 + forestRandom() * 0.5;
+    const yaw = forestRandom() * Math.PI * 2;
+    for (let blade = 0; blade < 3; blade++) {
+      const offset = (blade - 1) * 0.13;
+      plantInstance(
+        blades,
+        i * 3 + blade,
+        site.x + Math.cos(yaw) * offset,
+        site.y +
+          height / 2 -
+          ((site.normal.x * Math.cos(yaw) + site.normal.z * Math.sin(yaw)) *
+            offset) /
+            site.normal.y,
+        site.z + Math.sin(yaw) * offset,
+        0.09 + forestRandom() * 0.05,
+        height,
+        0.09,
+        yaw + blade * 0.6,
+        grassColors[i % grassColors.length],
+      );
     }
   }
   const crestZ = 73.9,

@@ -51,12 +51,63 @@ const assert = require("assert/strict");
   );
   assert(mountainBounds.max.y > 55, "The source mountain must be tall");
   const forest = mountain.getObjectByName("mountain-forest");
-  assert.equal(
-    forest.children.length,
-    4,
-    "Forest must use a small number of instanced batches",
+  assert(forest.children.length <= 12, "Dense forest must use instancing");
+  assert(
+    forest.userData.treeCount >= 1500,
+    "All mountain slopes need dense tree coverage",
   );
-  assert(forest.children.every((batch) => batch.count >= 200));
+  assert.deepEqual(Array.from(forest.userData.varieties).sort(), [
+    "birch",
+    "oak",
+    "pine",
+    "spruce",
+  ]);
+  const grass = mountain.getObjectByName("mountain-grass");
+  assert(
+    grass && grass.userData.tuftCount >= 8000,
+    "Grass must cover all mountain slopes",
+  );
+  assert.equal(
+    grass.children.length,
+    1,
+    "Grass must share a single instanced batch",
+  );
+  mountain.updateWorldMatrix(true, true);
+  const terrain = mountain.children.filter(
+    (o) => o.isMesh && o.geometry.parameters.radius !== 6.5,
+  );
+  const ray = new T.Raycaster();
+  const matrix = new T.Matrix4();
+  const root = new T.Vector3(),
+    scale = new T.Vector3(),
+    rotation = new T.Quaternion();
+  let westTrees = 0,
+    eastTrees = 0,
+    upperTrees = 0;
+  for (const batch of forest.children.filter((o) =>
+    o.name.endsWith("-trunks"),
+  )) {
+    for (let i = 0; i < batch.count; i++) {
+      batch.getMatrixAt(i, matrix);
+      matrix.decompose(root, rotation, scale);
+      root.y -= scale.y / 2;
+      if (root.x < -25) westTrees++;
+      if (root.x > 30) eastTrees++;
+      if (root.y > 30) upperTrees++;
+      if (i % 90 === 0) {
+        ray.set(new T.Vector3(root.x, 100, root.z), new T.Vector3(0, -1, 0));
+        const hit = ray.intersectObjects(terrain, false)[0];
+        assert(
+          hit && Math.abs(hit.point.y - root.y - 0.05) < 0.00001,
+          "Tree roots must follow the visible slope, including overlapping peaks",
+        );
+      }
+    }
+  }
+  assert(
+    westTrees > 200 && eastTrees > 200 && upperTrees > 100,
+    "Trees must cover both outer mountains and the upper slopes",
+  );
   const trees = river.group.children.filter((o) => o.name === "riverside-tree");
   assert(trees.length > 0 && trees.length <= 44);
   for (const tree of trees) {
@@ -430,7 +481,7 @@ const assert = require("assert/strict");
     "Restart during travel must clear the boat state",
   );
   console.log(
-    "PASS: 900 instanced sunflowers, 240 collectible lagoon treasures, collection persistence and reset, boarding, seated travel, lagoon exploration, return landing, trip reset, four accessible landmarks, six collectible clusters, rainbow, forested source mountain, waterfall feeding the river, gazebo fading, visible island boundary, accessible edge banks, river-to-waterfall connections, stable finite scenery, tree fading, 18 accessible treasures, bridge, gates, and reset",
+    "PASS: 900 instanced sunflowers, 240 collectible lagoon treasures, collection persistence and reset, boarding, seated travel, lagoon exploration, return landing, trip reset, four accessible landmarks, six collectible clusters, rainbow, 1800 trees in four varieties across three peaks, 9000 grass tufts, forested source mountain, waterfall feeding the river, gazebo fading, visible island boundary, accessible edge banks, river-to-waterfall connections, stable finite scenery, tree fading, 18 accessible treasures, bridge, gates, and reset",
   );
 })().catch((e) => {
   console.error(e);

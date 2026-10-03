@@ -1,6 +1,6 @@
 import { createBoatTrip } from "./boat-trip.js?v=20261002-sunflower-lagoon";
 import * as THREE from "./vendor/three.module.js";
-import { createRiverside } from "./riverside.js?v=20261003-mountain-gate";
+import { createRiverside } from "./riverside.js?v=20261003-dense-forest";
 import { createCave } from "./cave.js?v=20261003-rocks";
 import { createGameAudio } from "./audio.js";
 import { createCompanion } from "./companion.js?v=20261003-rocks";
