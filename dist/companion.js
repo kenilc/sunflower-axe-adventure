@@ -1,3 +1,4 @@
+import { createCharacterEyes } from "./character-eyes.js?v=20261003-hug";
 import * as THREE from "./vendor/three.module.js";
 
 // Use the hero's geometry and materials for a matching garden companion.
@@ -55,10 +56,9 @@ export function createCompanion({ ball, box, cyl, mesh }) {
   cyl(0.35, 0.4, 0.22, "#464953", 0, 1.72, 0.03, body);
   ball(0.57, "#352f2c", 0, 2.1, 0, body);
   ball(0.49, "#f0bd8a", 0, 2.12, 0.23, body);
+  const eyes = createCharacterEyes({ body, ball, mesh });
   for (const side of [-1, 1]) {
     ball(0.12, "#f0bd8a", side * 0.49, 2.09, 0.13, body);
-    ball(0.077, "#302d25", side * 0.19, 2.15, 0.672, body);
-    ball(0.022, "#fff9dd", side * 0.19 - 0.015, 2.175, 0.733, body);
     const blush = ball(0.075, "#df967c", side * 0.31, 2, 0.61, body);
     blush.scale.y = 0.4;
     const glasses = mesh(
@@ -260,6 +260,6 @@ export function createCompanion({ ball, box, cyl, mesh }) {
     reset,
     blocksPlayer,
     contactDistance,
-    rig: { body, legs, arms },
+    rig: { body, legs, arms, eyes },
   };
 }

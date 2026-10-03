@@ -271,8 +271,56 @@ export function createCastleRoom({ mesh, box, cyl, ball }) {
     }
     treasureBoxes.push({ group: crate, kind, x, z });
   }
+  // A broad bed in the quiet southwest corner, away from the exit aisle.
+  const bedGroup = new THREE.Group();
+  bedGroup.name = "castle-bed";
+  bedGroup.position.set(-6.5, 0, 9);
+  group.add(bedGroup);
+  box(4.4, 0.4, 4.2, wood, 0, 0.4, 0, bedGroup);
+  for (const x of [-1.9, 1.9])
+    for (const z of [-1.8, 1.8])
+      box(0.2, 0.65, 0.2, wood, x, 0.325, z, bedGroup);
+  box(4.3, 0.35, 4.05, "#f4e5d1", 0, 0.75, 0, bedGroup);
+  box(4.5, 1.9, 0.22, pink, 0, 1.3, -2.05, bedGroup);
+  box(4.5, 0.8, 0.2, pink, 0, 0.85, 2.05, bedGroup);
+  box(4.1, 0.16, 2.65, "#aac7ba", 0, 0.99, 0.52, bedGroup);
+  for (const x of [-1.95, 1.95])
+    box(0.16, 0.18, 2.65, "#d2dfcc", x, 1, 0.52, bedGroup);
+  for (const x of [-1.03, 1.03]) {
+    const pillow = ball(0.58, "#f8ead5", x, 1.03, -1.25, bedGroup);
+    pillow.scale.set(1.2, 0.25, 0.75);
+  }
+  // Dense small circles follow the bed's rectangular footprint accurately.
+  // A single large capsule would spill into the central walking aisle.
+  for (let x = -2.2; x <= 2.2 + 0.001; x += 0.4)
+    for (let z = -2.1; z <= 2.1 + 0.001; z += 0.4)
+      blockers.push({
+        x: bedGroup.position.x + x,
+        z: bedGroup.position.z + z,
+        r: 0.29,
+        minClearance: 0.8,
+      });
+  const sleepSymbols = [];
+  for (const x of [-1.03, 1.03]) {
+    const symbol = new THREE.Group();
+    symbol.position.set(x, 2.7, -1.25);
+    symbol.visible = false;
+    bedGroup.add(symbol);
+    box(0.34, 0.055, 0.04, "#fff0cf", 0, 0.15, 0, symbol);
+    box(0.34, 0.055, 0.04, "#fff0cf", 0, -0.15, 0, symbol);
+    box(0.43, 0.055, 0.04, "#fff0cf", 0, 0, 0, symbol).rotation.z = Math.PI / 4;
+    sleepSymbols.push(symbol);
+  }
+  const bed = {
+    group: bedGroup,
+    sleepSymbols,
+    wakePositions: [
+      new THREE.Vector3(-2.65, 0, 8.2),
+      new THREE.Vector3(-2.65, 0, 10),
+    ],
+  };
   const starPositions = [
-    [-8, 6],
+    [-6.5, 5.5],
     [8, 8],
     [-8, -3],
     [3, -9],
@@ -315,6 +363,7 @@ export function createCastleRoom({ mesh, box, cyl, ball }) {
     blockers.push({ x, z, r: 0.8, minClearance: 0.8 });
   }
   const activities = [
+    { kind: "bed", x: -6.5, z: 9, radius: 5, label: "Lie down & rest · X" },
     { kind: "book", x: -7, z: 1, label: "Read the storybook · X" },
     { kind: "tea", x: 5, z: 2, label: "Share a cup of tea · X" },
     { kind: "piano", x: 7, z: -6, label: "Play the piano · X" },
@@ -323,7 +372,7 @@ export function createCastleRoom({ mesh, box, cyl, ball }) {
   let musicUntil = 0;
   function nearby(p) {
     return activities
-      .filter((a) => Math.hypot(p.x - a.x, p.z - a.z) < 3.5)
+      .filter((a) => Math.hypot(p.x - a.x, p.z - a.z) < (a.radius ?? 3.5))
       .sort(
         (a, b) =>
           Math.hypot(p.x - a.x, p.z - a.z) - Math.hypot(p.x - b.x, p.z - b.z),
@@ -335,6 +384,7 @@ export function createCastleRoom({ mesh, box, cyl, ball }) {
     stars,
     activities,
     treasureBoxes,
+    bed,
     rewardPosition: new THREE.Vector3(0, 2, chestZ),
     followDistance: 2.5,
     get collected() {
@@ -349,8 +399,8 @@ export function createCastleRoom({ mesh, box, cyl, ball }) {
     nearby,
     objective() {
       return opened
-        ? "Star chest opened! Enjoy tea, music and stories. Exit: the pink arch to the south."
-        : `Find the six hidden stars to open the chest · ${collected} / 6. Tea, piano and storybook: X nearby.`;
+        ? "Star chest opened! Enjoy tea, music, stories and a cozy rest. Exit: the pink arch to the south."
+        : `Find the six hidden stars to open the chest · ${collected} / 6. Bed, tea, piano and storybook: X nearby.`;
     },
     collect(p) {
       for (const star of stars)
@@ -365,6 +415,8 @@ export function createCastleRoom({ mesh, box, cyl, ball }) {
     interact(p, time) {
       const a = nearby(p);
       if (!a) return null;
+      if (a.kind === "bed")
+        return { kind: "bed", message: "A cozy rest together · X to get up." };
       if (a.kind === "book")
         return {
           kind: "book",

@@ -43,22 +43,28 @@ const assert = require("assert/strict");
     },
   });
   const cache = new Map();
-  async function module(name, source) {
+  function getModule(name, source) {
     if (cache.has(name)) return cache.get(name);
     const m = new vm.SourceTextModule(
       source ?? fs.readFileSync("dist/" + name, "utf8"),
       { context },
     );
     cache.set(name, m);
-    await m.link((s) => module(s.replace(/^\.\//, "").split("?")[0]));
-    await m.evaluate();
+    return m;
+  }
+  async function module(name, source) {
+    const m = getModule(name, source);
+    // Let the VM link shared dependencies as one graph, including diamonds.
+    if (m.status === "unlinked")
+      await m.link((s) => getModule(s.replace(/^\.\//, "").split("?")[0]));
+    if (m.status === "linked") await m.evaluate();
     return m;
   }
   const game = fs.readFileSync("dist/game.js", "utf8");
   // Execute the actual game with only browser/rendering APIs stubbed.
   const setup =
     game.replace("new THREE.WebGLRenderer(", "new FakeRenderer(") +
-    "\nexport {scene, mesh, box, cyl, ball, blockers, hero, body, legs, arms, held, lakeside, targets, shrine, inLake, createBenchMoment, clock, frame, axes, gems, won, camera, riverside, usePassage, yaw, insideRiver, insideCave, passageTransition, cableCar, boatTrip, companion, boardCableCar, boardBoat, fire, keys, insideCastle, castleRoom, useCastlePassage, changeCastlePassage, interactCastle};";
+    "\nexport {scene, mesh, box, cyl, ball, blockers, hero, body, legs, arms, held, lakeside, targets, shrine, inLake, createBenchMoment, clock, frame, axes, gems, won, camera, riverside, usePassage, yaw, insideRiver, insideCave, passageTransition, cableCar, boatTrip, companion, boardCableCar, boardBoat, fire, keys, insideCastle, castleRoom, useCastlePassage, changeCastlePassage, interactCastle, bedRest, eyes};";
   const G = (await module("review-setup", setup)).namespace;
   const T = (await module("vendor/three.module.js")).namespace;
   const C = (await module("companion.js")).namespace.createCompanion(G);
@@ -397,6 +403,98 @@ const assert = require("assert/strict");
   assert(!G.cableCar.riding && !G.boatTrip.rowing && !G.axes.length);
   const room = G.castleRoom;
   assert(!room.contains(12, 0));
+  assert(
+    !allowed(room.bed.group.position, room.blockers),
+    "The bed is solid while walking",
+  );
+  G.hero.position.copy(room.bed.wakePositions[0]);
+  G.companion.reset(G.hero.position, room.blockers, room);
+  G.interactCastle();
+  assert(
+    G.passageTransition.active && !G.bedRest.resting,
+    "Bed poses change under the fade",
+  );
+  for (let i = 0; i < 12; i++) G.frame();
+  assert(G.bedRest.resting && !G.held.visible);
+  for (const [c, other, rig] of [
+    [G.hero, G.companion.character, { arms: G.arms, eyes: G.eyes }],
+    [G.companion.character, G.hero, G.companion.rig],
+  ]) {
+    const forward = new T.Vector3(0, 0, 1).applyQuaternion(c.quaternion);
+    const towardPartner = other.position.clone().sub(c.position).normalize();
+    assert(
+      forward.dot(towardPartner) > 0.9,
+      "Resting characters face each other",
+    );
+    assert(
+      new T.Vector3(0, 1, 0)
+        .applyQuaternion(c.quaternion)
+        .distanceTo(new T.Vector3(0, 0, -1)) < 1e-7,
+      "Both lie along the bed",
+    );
+    assert(
+      rig.eyes.closed.visible && !rig.eyes.open.visible,
+      "Both close their eyes",
+    );
+    assert(
+      rig.arms.every((arm) => arm.rotation.x < -1 && arm.position.z > 0.3),
+      "Arms reach around the partner",
+    );
+  }
+  const faces = [G.hero, G.companion.character].map((c) =>
+    c.localToWorld(new T.Vector3(0, 2.12, 0.23)),
+  );
+  assert(
+    faces[0].distanceTo(faces[1]) > 0.98,
+    "Faces must not overlap during the hug",
+  );
+  assert(G.hero.position.distanceTo(G.companion.character.position) > 1.2);
+  assert(room.bed.sleepSymbols.every((s) => s.visible));
+  const lyingPosition = G.hero.position.clone();
+  G.keys.KeyW = true;
+  for (let i = 0; i < 40; i++) G.frame();
+  assert(
+    G.hero.position.equals(lyingPosition),
+    "Movement cannot disturb a resting pose",
+  );
+  const breath = G.body.position.z;
+  element("#guide").open = true;
+  G.frame();
+  assert.equal(
+    G.body.position.z,
+    breath,
+    "Rest animation pauses with the guide",
+  );
+  element("#guide").open = false;
+  G.interactCastle();
+  for (let i = 0; i < 12; i++) G.frame();
+  assert(!G.bedRest.resting && !G.keys.KeyW);
+  for (const c of [G.hero, G.companion.character]) {
+    assert.equal(c.rotation.x, 0);
+    assert(
+      allowed(c.position, room.blockers) &&
+        room.contains(c.position.x, c.position.z),
+      "Get up lands on a clear floor spot",
+    );
+  }
+  assert(!room.bed.sleepSymbols.some((s) => s.visible));
+  for (const rig of [{ arms: G.arms, eyes: G.eyes }, G.companion.rig]) {
+    assert(
+      rig.eyes.open.visible && !rig.eyes.closed.visible,
+      "Eyes reopen when getting up",
+    );
+    assert(
+      rig.arms.every(
+        (arm) =>
+          arm.position.z === 0 &&
+          Math.abs(arm.position.x) === 0.5 &&
+          arm.position.y === 1.55 &&
+          Math.abs(arm.rotation.x) < 0.5,
+      ),
+      "The standing arm pose is restored",
+    );
+  }
+
   assert(!allowed({ x: 5, z: 2 }, room.blockers), "Furniture is solid");
   assert(!room.interact(new T.Vector3(0, 0, 8), 0));
   const chestSpot = new T.Vector3(0, 0, 0.5);
@@ -512,8 +610,18 @@ const assert = require("assert/strict");
   G.useCastlePassage(true);
   for (let i = 0; i < 12; i++) G.frame();
   assert(G.insideCastle && room.opened);
+  G.hero.position.copy(room.bed.wakePositions[0]);
+  G.interactCastle();
+  for (let i = 0; i < 12; i++) G.frame();
+  assert(G.bedRest.resting);
   G.useCastlePassage(false);
   for (let i = 0; i < 12; i++) G.frame();
+  assert(
+    !G.bedRest.resting &&
+      G.hero.rotation.x === 0 &&
+      G.eyes.open.visible &&
+      G.companion.rig.eyes.open.visible,
+  );
   G.hero.position.copy(G.cableCar.summitDock);
   G.boardCableCar();
   for (let i = 0; i < 310; i++) G.frame();
@@ -526,6 +634,10 @@ const assert = require("assert/strict");
   G.useCastlePassage(true);
   for (let i = 0; i < 12; i++) G.frame();
   assert(G.insideCastle);
+  G.hero.position.copy(room.bed.wakePositions[0]);
+  G.interactCastle();
+  for (let i = 0; i < 12; i++) G.frame();
+  assert(G.bedRest.resting);
   element("#restart").onclick();
   G.frame();
   assert(
@@ -537,6 +649,12 @@ const assert = require("assert/strict");
       room.collected === 0 &&
       !room.opened,
   );
+  assert(
+    !G.bedRest.resting &&
+      G.hero.rotation.x === 0 &&
+      G.companion.character.rotation.x === 0,
+  );
+  assert(G.eyes.open.visible && G.companion.rig.eyes.open.visible);
   assert(!G.boatTrip.atLagoon && !G.boatTrip.rowing && G.held.visible);
   assert(G.hero.position.distanceTo(new T.Vector3(0, 0, 7)) < 1e-7);
   const disabled = { x: 0, z: 0, r: 0.7, active: false };
@@ -556,7 +674,7 @@ const assert = require("assert/strict");
   resolve(trapped, safe, corridor);
   assert(corridor.every((b) => !overlaps(trapped, b)));
   console.log(
-    "PASS: distinct forested lagoon slope without duplicated waterfall or rainbow, clear sofa aisle for both characters, solid gold and gemstone boxes, separate castle-room entry and return transitions, reachable furniture activities and six-star treasure hunt, persistent chest reward, cable-car ascent and descent, both riders, summit landing and boundary, safe restart and preserved lagoon treasures, smooth bidirectional gate transitions, midpoint-only scene changes, duplicate prevention and restart cancellation, cave wall and exit rock coverage, sprint contacts around the chamber, reachable cave exit, garden rock clearance, garden solid blockers, reachable shrine quest, target blocker lifecycle, full gazebo seats, non-crossing bench approaches, repeated collision resolution, exact-center contacts and crowded-contact fallback",
+    "PASS: face-to-face sleeping hug, closed eyes and restored awake poses, bed rest for both characters, paused movement and animation, safe get-up and rest cleanup on exit and restart, distinct forested lagoon slope without duplicated waterfall or rainbow, clear sofa aisle for both characters, solid gold and gemstone boxes, separate castle-room entry and return transitions, reachable furniture activities and six-star treasure hunt, persistent chest reward, cable-car ascent and descent, both riders, summit landing and boundary, safe restart and preserved lagoon treasures, smooth bidirectional gate transitions, midpoint-only scene changes, duplicate prevention and restart cancellation, cave wall and exit rock coverage, sprint contacts around the chamber, reachable cave exit, garden rock clearance, garden solid blockers, reachable shrine quest, target blocker lifecycle, full gazebo seats, non-crossing bench approaches, repeated collision resolution, exact-center contacts and crowded-contact fallback",
   );
 })().catch((e) => {
   console.error(e);

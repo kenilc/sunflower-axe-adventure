@@ -1,11 +1,13 @@
-import { createCastleRoom } from "./castle-room.js?v=20261003-treasure-aisle";
+import { createCharacterEyes } from "./character-eyes.js?v=20261003-hug";
+import { createBedRest } from "./bed-rest.js?v=20261003-hug";
+import { createCastleRoom } from "./castle-room.js?v=20261003-rest";
 import { createCableCar } from "./cable-car.js?v=20261003-forest-slope";
 import { createBoatTrip } from "./boat-trip.js?v=20261003-cable-car";
 import * as THREE from "./vendor/three.module.js";
 import { createRiverside } from "./riverside.js?v=20261003-cable-car";
 import { createCave } from "./cave.js?v=20261003-rocks";
 import { createGameAudio } from "./audio.js";
-import { createCompanion } from "./companion.js?v=20261003-castle";
+import { createCompanion } from "./companion.js?v=20261003-hug";
 import { createHearts } from "./hearts.js?v=20261001-climb";
 import { createTreeVisibility } from "./tree-visibility.js?v=20261002-camera-clear";
 import { bindCameraDrag } from "./camera-drag.js";
@@ -363,9 +365,8 @@ for (let i = 0; i < 12; i++) {
 const fringe = ball(0.4, "#46362b", -0.17, 2.47, 0.29, body);
 fringe.scale.set(1, 0.52, 0.65);
 fringe.rotation.z = 0.35;
+const eyes = createCharacterEyes({ body, ball, mesh });
 for (const s of [-1, 1]) {
-  ball(0.077, "#302d25", s * 0.19, 2.15, 0.672, body);
-  ball(0.022, "#fff9dd", s * 0.19 - 0.015, 2.175, 0.733, body);
   const blush = ball(0.075, "#df967c", s * 0.31, 2, 0.61, body);
   blush.scale.y = 0.4;
 }
@@ -519,6 +520,14 @@ const castleRoom = createCastleRoom({ mesh, box, cyl, ball });
 scene.add(castleRoom.group);
 const companion = createCompanion({ ball, box, cyl, mesh });
 garden.add(companion.character);
+const bedRest = createBedRest({
+  bed: castleRoom.bed,
+  terrain: castleRoom,
+  hero,
+  heroRig: { body, legs, arms, held, eyes },
+  companion,
+  toast,
+});
 const companionObstacles = [
   ...blockers,
   ...gemPositions.map(([x, z]) => ({ x, z, r: 0.8 })),
@@ -690,6 +699,7 @@ function useCastlePassage(enter) {
 }
 function changeCastlePassage(enter) {
   if (enter === insideCastle) return;
+  bedRest.stand(false);
   insideCastle = enter;
   castleActivityCooldown = 0;
   castleMusicSession++;
@@ -768,12 +778,20 @@ function interactCastle() {
     castleActivityCooldown > 0
   )
     return;
+  if (bedRest.resting) {
+    passageTransition.start(() => bedRest.stand());
+    clearRestInput();
+    return;
+  }
   const action = castleRoom.interact(hero.position, clock.elapsedTime);
   if (!action) return;
   castleActivityCooldown = action.kind === "piano" ? 3 : 0.8;
   toast(action.message);
   $("#objective").textContent = castleRoom.objective();
-  if (action.kind === "piano") {
+  if (action.kind === "bed") {
+    passageTransition.start(() => bedRest.start());
+    clearRestInput();
+  } else if (action.kind === "piano") {
     const session = castleMusicSession;
     [523, 659, 784, 659, 587, 698, 880, 1047].forEach((note, i) =>
       setTimeout(() => {
@@ -788,6 +806,13 @@ function interactCastle() {
     burst(castleRoom.rewardPosition.clone(), "#ffe399", 45);
     beep(1047, 0.5);
   }
+}
+function clearRestInput() {
+  cameraDrag.reset();
+  Object.keys(keys).forEach((key) => (keys[key] = false));
+  joy.set(0, 0);
+  isMoving = false;
+  hearts.clear();
 }
 $("#castleAction").onclick = interactCastle;
 function usePassage(enter, river = false) {
@@ -1137,7 +1162,10 @@ function frame() {
       THREE.MathUtils.degToRad(6),
       THREE.MathUtils.degToRad(70),
     );
-    if (cableCar.riding) {
+    if (bedRest.resting) {
+      bedRest.update(dt, camera);
+      isMoving = false;
+    } else if (cableCar.riding) {
       cableCar.update(dt);
       isMoving = false;
     } else if (boatTrip.rowing) {
@@ -1410,7 +1438,11 @@ function frame() {
     !benchMoment.nearby();
   $("#benchStand").hidden = !benchMoment.seated || paused;
   $("#throw").hidden = insideCastle;
-  const castleActivity = insideCastle ? castleRoom.nearby(hero.position) : null;
+  const castleActivity = insideCastle
+    ? bedRest.resting
+      ? { label: "Get up · X" }
+      : castleRoom.nearby(hero.position)
+    : null;
   $("#castleAction").hidden = !castleActivity || paused;
   $("#castleAction").textContent =
     castleActivity?.label ?? "Explore the castle · X";
@@ -1418,8 +1450,9 @@ function frame() {
   lakeside.update(time);
   if (insideCastle) {
     castleRoom.update(time, camera, paused ? 0 : dt);
-    $("#caveHint").textContent =
-      "Find six hidden stars. Tea, piano and storybook: X nearby. Exit: pink arch to the south.";
+    $("#caveHint").textContent = bedRest.resting
+      ? "Resting together · X or Get up to return to exploring."
+      : "Find six hidden stars. Bed, tea, piano and storybook: X nearby. Exit: pink arch to the south.";
   } else if (insideRiver) {
     riverside.update(time);
     cableCar.updateVisibility(camera, [hero, companion.character], dt);
@@ -1486,7 +1519,9 @@ function frame() {
   const x = hero.position.x,
     z = hero.position.z;
   const region = insideCastle
-    ? "The Cloud Castle · Great Room"
+    ? bedRest.resting
+      ? "The Cloud Castle · Resting together"
+      : "The Cloud Castle · Great Room"
     : insideRiver
       ? cableCar.riding
         ? "Above the treetops"
