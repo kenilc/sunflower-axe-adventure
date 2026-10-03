@@ -7,6 +7,7 @@ export function createBedRest({
   heroRig,
   companion,
   toast,
+  onRestChange,
 }) {
   const characters = [hero, companion.character],
     rigs = [heroRig, companion.rig];
@@ -72,6 +73,8 @@ export function createBedRest({
           leg.children[1].rotation.x = -0.18;
         });
       });
+      terrain.setSleeping(true);
+      onRestChange(true);
       bed.sleepSymbols.forEach((s) => (s.visible = true));
       toast("A sleepy hug together ♥ · X or Get up to leave the bed.");
       return true;
@@ -79,6 +82,8 @@ export function createBedRest({
     stand(notify = true) {
       if (!resting) return false;
       resting = false;
+      terrain.setSleeping(false);
+      onRestChange(false);
       restorePose();
       characters.forEach((c, i) => c.position.copy(bed.wakePositions[i]));
       companion.reset(bed.wakePositions[1], terrain.blockers, terrain);

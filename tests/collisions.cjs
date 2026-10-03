@@ -416,6 +416,18 @@ const assert = require("assert/strict");
   );
   for (let i = 0; i < 12; i++) G.frame();
   assert(G.bedRest.resting && !G.held.visible);
+  const daylight = G.scene.children.find((c) => c.isDirectionalLight);
+  const ambient = G.scene.children.find((c) => c.isHemisphereLight);
+  assert.equal(daylight.intensity, 0.16);
+  assert.equal(ambient.intensity, 0.28);
+  assert.equal(G.scene.background.getHexString(), "363440");
+  assert(room.bed.blanket.cover.visible && !room.bed.blanket.spread.visible);
+  assert(
+    room.bed.bedsideLight.intensity > 0,
+    "A warm lamp lights the sleepers",
+  );
+  for (const v of room.bed.blanket.quilt.geometry.attributes.position.array)
+    assert(Number.isFinite(v), "The draped quilt has finite geometry");
   for (const [c, other, rig] of [
     [G.hero, G.companion.character, { arms: G.arms, eyes: G.eyes }],
     [G.companion.character, G.hero, G.companion.rig],
@@ -448,6 +460,27 @@ const assert = require("assert/strict");
     faces[0].distanceTo(faces[1]) > 0.98,
     "Faces must not overlap during the hug",
   );
+  for (const face of faces) {
+    const p = room.bed.group.worldToLocal(face.clone());
+    assert(
+      p.z < room.bed.blanket.leadingEdge(p.x),
+      "Faces stay above the blanket",
+    );
+  }
+  const handSets = [
+    G.arms.map((a) => a.children[1]),
+    G.companion.rig.arms.map((a) => a.children[3]),
+  ];
+  for (const hands of handSets) {
+    const upperHand = hands
+      .map((h) => h.getWorldPosition(new T.Vector3()))
+      .sort((a, b) => b.y - a.y)[0];
+    const p = room.bed.group.worldToLocal(upperHand);
+    assert(
+      p.z < room.bed.blanket.leadingEdge(p.x),
+      "Joined hands remain above the blanket",
+    );
+  }
   assert(G.hero.position.distanceTo(G.companion.character.position) > 1.2);
   assert(room.bed.sleepSymbols.every((s) => s.visible));
   const lyingPosition = G.hero.position.clone();
@@ -469,6 +502,11 @@ const assert = require("assert/strict");
   G.interactCastle();
   for (let i = 0; i < 12; i++) G.frame();
   assert(!G.bedRest.resting && !G.keys.KeyW);
+  assert.equal(daylight.intensity, 1.7);
+  assert.equal(ambient.intensity, 1.6);
+  assert.equal(G.scene.background.getHexString(), "cab5b0");
+  assert(!room.bed.blanket.cover.visible && room.bed.blanket.spread.visible);
+  assert.equal(room.bed.bedsideLight.intensity, 0);
   for (const c of [G.hero, G.companion.character]) {
     assert.equal(c.rotation.x, 0);
     assert(
@@ -674,7 +712,7 @@ const assert = require("assert/strict");
   resolve(trapped, safe, corridor);
   assert(corridor.every((b) => !overlaps(trapped, b)));
   console.log(
-    "PASS: face-to-face sleeping hug, closed eyes and restored awake poses, bed rest for both characters, paused movement and animation, safe get-up and rest cleanup on exit and restart, distinct forested lagoon slope without duplicated waterfall or rainbow, clear sofa aisle for both characters, solid gold and gemstone boxes, separate castle-room entry and return transitions, reachable furniture activities and six-star treasure hunt, persistent chest reward, cable-car ascent and descent, both riders, summit landing and boundary, safe restart and preserved lagoon treasures, smooth bidirectional gate transitions, midpoint-only scene changes, duplicate prevention and restart cancellation, cave wall and exit rock coverage, sprint contacts around the chamber, reachable cave exit, garden rock clearance, garden solid blockers, reachable shrine quest, target blocker lifecycle, full gazebo seats, non-crossing bench approaches, repeated collision resolution, exact-center contacts and crowded-contact fallback",
+    "PASS: dimmed sleeping room, warm lamp, draped blanket with visible faces and joined hands, restored daytime lighting and bedspread, face-to-face sleeping hug, closed eyes and restored awake poses, bed rest for both characters, paused movement and animation, safe get-up and rest cleanup on exit and restart, distinct forested lagoon slope without duplicated waterfall or rainbow, clear sofa aisle for both characters, solid gold and gemstone boxes, separate castle-room entry and return transitions, reachable furniture activities and six-star treasure hunt, persistent chest reward, cable-car ascent and descent, both riders, summit landing and boundary, safe restart and preserved lagoon treasures, smooth bidirectional gate transitions, midpoint-only scene changes, duplicate prevention and restart cancellation, cave wall and exit rock coverage, sprint contacts around the chamber, reachable cave exit, garden rock clearance, garden solid blockers, reachable shrine quest, target blocker lifecycle, full gazebo seats, non-crossing bench approaches, repeated collision resolution, exact-center contacts and crowded-contact fallback",
   );
 })().catch((e) => {
   console.error(e);

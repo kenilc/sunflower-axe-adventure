@@ -12,7 +12,8 @@ export function createCastleRoom({ mesh, box, cyl, ball }) {
   let collected = 0,
     opened = false,
     page = 0,
-    teaUntil = 0;
+    teaUntil = 0,
+    sleeping = false;
   const wood = "#a97858",
     cream = "#eddfcd",
     pink = "#c79aaa";
@@ -283,13 +284,109 @@ export function createCastleRoom({ mesh, box, cyl, ball }) {
   box(4.3, 0.35, 4.05, "#f4e5d1", 0, 0.75, 0, bedGroup);
   box(4.5, 1.9, 0.22, pink, 0, 1.3, -2.05, bedGroup);
   box(4.5, 0.8, 0.2, pink, 0, 0.85, 2.05, bedGroup);
-  box(4.1, 0.16, 2.65, "#aac7ba", 0, 0.99, 0.52, bedGroup);
+  const spread = new THREE.Group();
+  bedGroup.add(spread);
+  box(4.1, 0.16, 2.65, "#aac7ba", 0, 0.99, 0.52, spread);
   for (const x of [-1.95, 1.95])
-    box(0.16, 0.18, 2.65, "#d2dfcc", x, 1, 0.52, bedGroup);
+    box(0.16, 0.18, 2.65, "#d2dfcc", x, 1, 0.52, spread);
   for (const x of [-1.03, 1.03]) {
     const pillow = ball(0.58, "#f8ead5", x, 1.03, -1.25, bedGroup);
     pillow.scale.set(1.2, 0.25, 0.75);
   }
+  // A quilt drapes over both sleepers. The curved opening leaves their
+  // joined hands and faces above the covers instead of clipping the cloth.
+  const cover = new THREE.Group();
+  cover.name = "sleeping-blanket";
+  cover.visible = false;
+  bedGroup.add(cover);
+  const columns = 40,
+    rows = 28,
+    vertices = [],
+    indices = [],
+    cuffVertices = [],
+    cuffIndices = [];
+  const leadingEdge = (x) => -0.5 + 0.95 * Math.exp(-Math.pow(x / 0.5, 4));
+  const heightAt = (x, t) =>
+    1.11 +
+    Math.exp(-Math.pow((Math.abs(x) - 0.8) / 0.72, 4)) *
+      (1.55 * (1 - Math.pow(t, 6))) +
+    0.015 * Math.sin(x * 8 + t * 7);
+  for (let row = 0; row <= rows; row++)
+    for (let column = 0; column <= columns; column++) {
+      const x = -2.04 + (column / columns) * 4.08,
+        t = row / rows;
+      const edge = leadingEdge(x),
+        z = edge + (2.02 - edge) * t;
+      vertices.push(x, heightAt(x, t), z);
+      if (row < rows && column < columns) {
+        const a = row * (columns + 1) + column,
+          b = a + columns + 1;
+        indices.push(a, b, a + 1, a + 1, b, b + 1);
+      }
+    }
+  const clothGeometry = new THREE.BufferGeometry();
+  clothGeometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(vertices, 3),
+  );
+  clothGeometry.setIndex(indices);
+  clothGeometry.computeVertexNormals();
+  const quilt = mesh(
+    clothGeometry,
+    new THREE.MeshStandardMaterial({
+      color: "#aac7ba",
+      roughness: 1,
+      side: THREE.DoubleSide,
+    }),
+    0,
+    0,
+    0,
+    cover,
+  );
+  quilt.name = "draped-quilt";
+  for (let column = 0; column <= columns; column++) {
+    const x = -2.04 + (column / columns) * 4.08,
+      edge = leadingEdge(x);
+    for (const offset of [0, 0.12]) {
+      const t = offset / (2.02 - edge);
+      cuffVertices.push(x, heightAt(x, t) + 0.022, edge + offset);
+    }
+    if (column < columns) {
+      const a = column * 2;
+      cuffIndices.push(a, a + 1, a + 2, a + 2, a + 1, a + 3);
+    }
+  }
+  const cuffGeometry = new THREE.BufferGeometry();
+  cuffGeometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(cuffVertices, 3),
+  );
+  cuffGeometry.setIndex(cuffIndices);
+  cuffGeometry.computeVertexNormals();
+  mesh(cuffGeometry, "#dae5d4", 0, 0, 0, cover);
+  // A warm bedside lamp keeps the faces and hands readable at night.
+  cyl(0.035, 0.035, 0.6, "#b09b75", 2.15, 2.5, -2.05, bedGroup);
+  const shade = mesh(
+    new THREE.ConeGeometry(0.38, 0.45, 12, 1, true),
+    "#e8d3aa",
+    2.15,
+    2.95,
+    -2.05,
+    bedGroup,
+  );
+  shade.material.side = THREE.DoubleSide;
+  const bulb = mesh(
+    new THREE.SphereGeometry(0.12, 10, 8),
+    new THREE.MeshBasicMaterial({ color: "#ffe0b4" }),
+    2.15,
+    2.78,
+    -2.05,
+    bedGroup,
+  );
+  bulb.visible = false;
+  const bedsideLight = new THREE.PointLight("#ffdfba", 0, 12);
+  bedsideLight.position.set(2.15, 2.78, -2.05);
+  bedGroup.add(bedsideLight);
   // Dense small circles follow the bed's rectangular footprint accurately.
   // A single large capsule would spill into the central walking aisle.
   for (let x = -2.2; x <= 2.2 + 0.001; x += 0.4)
@@ -314,6 +411,8 @@ export function createCastleRoom({ mesh, box, cyl, ball }) {
   const bed = {
     group: bedGroup,
     sleepSymbols,
+    blanket: { spread, cover, quilt, leadingEdge },
+    bedsideLight,
     wakePositions: [
       new THREE.Vector3(-2.65, 0, 8.2),
       new THREE.Vector3(-2.65, 0, 10),
@@ -387,6 +486,13 @@ export function createCastleRoom({ mesh, box, cyl, ball }) {
     bed,
     rewardPosition: new THREE.Vector3(0, 2, chestZ),
     followDistance: 2.5,
+    setSleeping(value) {
+      sleeping = value;
+      bed.blanket.cover.visible = value;
+      bed.blanket.spread.visible = !value;
+      bedsideLight.intensity = value ? 9 : 0;
+      bulb.visible = value;
+    },
     get collected() {
       return collected;
     },
@@ -472,7 +578,9 @@ export function createCastleRoom({ mesh, box, cyl, ball }) {
       flames.forEach(
         (f, i) => (f.scale.y = 0.9 + Math.sin(time * 7 + i) * 0.12),
       );
-      fireLight.intensity = 30 + Math.sin(time * 7) * 2;
+      fireLight.intensity = sleeping
+        ? 8 + Math.sin(time * 7) * 0.5
+        : 30 + Math.sin(time * 7) * 2;
       steam.forEach((s, i) => {
         s.visible = time < teaUntil;
         s.position.y = 1.9 + ((time + i * 0.4) % 1) * 0.8;
@@ -491,6 +599,7 @@ export function createCastleRoom({ mesh, box, cyl, ball }) {
       treasure.rotation.y = time * 0.8;
     },
     reset() {
+      this.setSleeping(false);
       collected = 0;
       opened = false;
       page = 0;

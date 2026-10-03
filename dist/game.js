@@ -1,6 +1,6 @@
 import { createCharacterEyes } from "./character-eyes.js?v=20261003-hug";
-import { createBedRest } from "./bed-rest.js?v=20261003-hug";
-import { createCastleRoom } from "./castle-room.js?v=20261003-rest";
+import { createBedRest } from "./bed-rest.js?v=20261003-night";
+import { createCastleRoom } from "./castle-room.js?v=20261003-night";
 import { createCableCar } from "./cable-car.js?v=20261003-forest-slope";
 import { createBoatTrip } from "./boat-trip.js?v=20261003-cable-car";
 import * as THREE from "./vendor/three.module.js";
@@ -527,6 +527,15 @@ const bedRest = createBedRest({
   heroRig: { body, legs, arms, held, eyes },
   companion,
   toast,
+  onRestChange(sleeping) {
+    sun.intensity = sleeping ? 0.16 : 1.7;
+    scene.children.find((c) => c.isHemisphereLight).intensity = sleeping
+      ? 0.28
+      : 1.6;
+    scene.background.set(sleeping ? "#363440" : "#cab5b0");
+    scene.fog.color.copy(scene.background);
+    scene.fog.density = sleeping ? 0.018 : 0.009;
+  },
 });
 const companionObstacles = [
   ...blockers,
