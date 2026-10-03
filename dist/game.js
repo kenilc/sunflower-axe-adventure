@@ -8,6 +8,7 @@ import { createHearts } from "./hearts.js?v=20261001-climb";
 import { createTreeVisibility } from "./tree-visibility.js?v=20261002-camera-clear";
 import { bindCameraDrag } from "./camera-drag.js";
 import { resolveObstacleCollisions } from "./collision.js?v=20261003-rocks";
+import { createSceneTransition } from "./scene-transition.js";
 import {
   createLakeside,
   createBenchMoment,
@@ -569,7 +570,7 @@ const boatTrip = createBoatTrip({
   },
 });
 function boardBoat() {
-  if (!insideRiver || $("#guide").open) return;
+  if (!insideRiver || $("#guide").open || passageTransition.active) return;
   if (boatTrip.start()) {
     hearts.clear();
     axes.forEach((a) => scene.remove(a.g));
@@ -578,7 +579,8 @@ function boardBoat() {
 }
 $("#boatAction").onclick = boardBoat;
 $("#benchAction").onclick = () => {
-  if (!insideCave && !insideRiver) benchMoment.sit();
+  if (!insideCave && !insideRiver && !passageTransition.active)
+    benchMoment.sit();
 };
 $("#benchStand").onclick = () => benchMoment.stand();
 let insideCave = false,
@@ -587,7 +589,18 @@ let insideCave = false,
   passageCooldown = 0,
   outsideView = null,
   outsideObjective = "";
+const passageTransition = createSceneTransition((opacity) => {
+  $("#sceneTransition").style.opacity = String(opacity);
+});
 function usePassage(enter, river = false) {
+  if (enter === (river ? insideRiver : insideCave)) return;
+  if (!passageTransition.start(() => changePassage(enter, river))) return;
+  cameraDrag.reset();
+  Object.keys(keys).forEach((key) => (keys[key] = false));
+  joy.set(0, 0);
+  isMoving = false;
+}
+function changePassage(enter, river = false) {
   if (enter === (river ? insideRiver : insideCave)) return;
   const leavingRiver = insideRiver;
   boatTrip.reset();
@@ -742,7 +755,13 @@ async function setSound(value) {
 // Enable audio now; the existing gesture listeners resume it if autoplay is blocked.
 void setSound(true);
 function fire() {
-  if (cooldown > 0 || $("#guide").open || benchMoment.seated || boatTrip.rowing)
+  if (
+    cooldown > 0 ||
+    $("#guide").open ||
+    benchMoment.seated ||
+    boatTrip.rowing ||
+    passageTransition.active
+  )
     return;
   cooldown = 0.46;
   throwAnim = 0.3;
@@ -767,6 +786,7 @@ addEventListener("keydown", (e) => {
     )
   )
     e.preventDefault();
+  if (passageTransition.active) return;
   keys[e.code] = true;
   if (
     e.code === "KeyB" &&
@@ -792,7 +812,7 @@ const cameraDrag = bindCameraDrag(renderer.domElement, {
     yaw -= dx * 0.006;
   },
   throwAxe: fire,
-  paused: () => $("#guide").open,
+  paused: () => $("#guide").open || passageTransition.active,
 });
 renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
 renderer.domElement.addEventListener(
@@ -835,11 +855,12 @@ $("#stick").onpointerup = $("#stick").onpointercancel = () => {
   $("#knob").style.transform = "";
 };
 $("#restart").onclick = () => {
+  passageTransition.cancel();
   cameraDrag.reset();
   benchMoment.stand();
   boatTrip.reset(true);
   $("#lagoonGems").textContent = 0;
-  if (insideCave || insideRiver) usePassage(false, insideRiver);
+  if (insideCave || insideRiver) changePassage(false, insideRiver);
   hero.position.set(0, 0, 7);
   companion.reset();
   hearts.clear();
@@ -886,7 +907,9 @@ function frame() {
   requestAnimationFrame(frame);
   let dt = Math.min(clock.getDelta(), 0.04),
     time = clock.elapsedTime;
-  const paused = $("#guide").open;
+  const transitioning = passageTransition.active;
+  if (!$("#guide").open) passageTransition.update(dt);
+  const paused = $("#guide").open || transitioning;
   cooldown = Math.max(0, cooldown - dt);
   throwAnim = Math.max(0, throwAnim - dt);
   if (!paused) {

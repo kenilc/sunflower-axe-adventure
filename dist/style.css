@@ -402,3 +402,11 @@ body.is-moving #toast {
 .quest .counts {
   margin-top: 0;
 }
+#sceneTransition {
+  position: fixed;
+  inset: 0;
+  background: #142c27;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 20;
+}

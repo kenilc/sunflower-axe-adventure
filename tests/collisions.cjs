@@ -55,7 +55,7 @@ const assert = require("assert/strict");
   // Execute the actual game with only browser/rendering APIs stubbed.
   const setup =
     game.replace("new THREE.WebGLRenderer(", "new FakeRenderer(") +
-    "\nexport {scene, mesh, box, cyl, ball, blockers, hero, body, legs, arms, held, lakeside, targets, shrine, inLake, createBenchMoment, clock, frame, axes, gems, won, camera, riverside, usePassage, yaw};";
+    "\nexport {scene, mesh, box, cyl, ball, blockers, hero, body, legs, arms, held, lakeside, targets, shrine, inLake, createBenchMoment, clock, frame, axes, gems, won, camera, riverside, usePassage, yaw, insideRiver, insideCave, passageTransition};";
   const G = (await module("review-setup", setup)).namespace;
   const T = (await module("vendor/three.module.js")).namespace;
   const C = (await module("companion.js")).namespace.createCompanion(G);
@@ -219,7 +219,7 @@ const assert = require("assert/strict");
   assert(G.targets.every((t) => !t.hit && t.blocker.active));
   assert(!G.won);
   G.usePassage(true, true);
-  G.frame();
+  for (let i = 0; i < 12; i++) G.frame();
   assert(G.hero.position.distanceTo(G.riverside.arrival) < 1e-7);
   assert.equal(G.yaw, Math.PI, "Arrival must face the mountain");
   G.camera.updateMatrixWorld();
@@ -235,10 +235,70 @@ const assert = require("assert/strict");
     );
   }
   G.hero.position.copy(G.riverside.returnGate.position);
-  for (let i = 0; i < 32; i++) G.frame();
+  for (let i = 0; i < 45; i++) G.frame();
   assert(
     G.hero.position.distanceTo(new T.Vector3(-28, 0, 0)) < 1e-7,
     "Stepping through the relocated gate must return to the garden",
+  );
+  const { createSceneTransition } = (await module("scene-transition.js"))
+    .namespace;
+  let opacity = 0,
+    switches = 0;
+  const transition = createSceneTransition((value) => {
+    opacity = value;
+  });
+  assert(
+    transition.start(() => {
+      assert.equal(opacity, 1);
+      switches++;
+    }),
+  );
+  assert(
+    !transition.start(() => {
+      throw Error("Duplicate transition");
+    }),
+  );
+  transition.update(0.09);
+  assert.equal(switches, 0);
+  assert(Math.abs(opacity - 0.5) < 1e-7);
+  transition.update(0.09);
+  assert.equal(switches, 1);
+  assert.equal(opacity, 1);
+  transition.update(0.09);
+  assert(Math.abs(opacity - 0.5) < 1e-7);
+  transition.update(0.1);
+  assert(!transition.active && opacity === 0 && switches === 1);
+  transition.start(() => {
+    switches++;
+  });
+  transition.cancel();
+  transition.update(1);
+  assert.equal(switches, 1, "Canceled transitions must never change the scene");
+  // Exercise entering and leaving both gate destinations through real game frames.
+  for (const riverDestination of [false, true]) {
+    for (const enter of [true, false]) {
+      const source = G.hero.position.clone();
+      G.usePassage(enter, riverDestination);
+      assert(G.passageTransition.active);
+      for (let i = 0; i < 4; i++) G.frame();
+      assert(
+        G.hero.position.distanceTo(source) < 1e-7,
+        "Fade-out must hold the current scene",
+      );
+      G.frame();
+      assert.equal(riverDestination ? G.insideRiver : G.insideCave, enter);
+      for (let i = 0; i < 6; i++) G.frame();
+      assert(!G.passageTransition.active);
+      assert.equal(element("#sceneTransition").style.opacity, "0");
+    }
+  }
+  G.usePassage(true, true);
+  element("#restart").onclick();
+  for (let i = 0; i < 12; i++) G.frame();
+  assert(!G.insideRiver && !G.insideCave && !G.passageTransition.active);
+  assert(
+    G.hero.position.distanceTo(new T.Vector3(0, 0, 7)) < 1e-7,
+    "Restart during a fade must cancel the queued gate destination",
   );
   const disabled = { x: 0, z: 0, r: 0.7, active: false };
   const center = new T.Vector3();
@@ -257,7 +317,7 @@ const assert = require("assert/strict");
   resolve(trapped, safe, corridor);
   assert(corridor.every((b) => !overlaps(trapped, b)));
   console.log(
-    "PASS: cave wall and exit rock coverage, sprint contacts around the chamber, reachable cave exit, garden rock clearance, garden solid blockers, reachable shrine quest, target blocker lifecycle, full gazebo seats, non-crossing bench approaches, repeated collision resolution, exact-center contacts and crowded-contact fallback",
+    "PASS: smooth bidirectional gate transitions, midpoint-only scene changes, duplicate prevention and restart cancellation, cave wall and exit rock coverage, sprint contacts around the chamber, reachable cave exit, garden rock clearance, garden solid blockers, reachable shrine quest, target blocker lifecycle, full gazebo seats, non-crossing bench approaches, repeated collision resolution, exact-center contacts and crowded-contact fallback",
   );
 })().catch((e) => {
   console.error(e);
