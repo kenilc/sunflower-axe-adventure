@@ -1,0 +1,308 @@
+import * as THREE from "./vendor/three.module.js";
+
+export function createCableCar({
+  scene,
+  riverside,
+  lagoon,
+  hero,
+  heroRig,
+  companion,
+  mesh,
+  box,
+  cyl,
+  toast,
+  onArrival,
+}) {
+  const group = new THREE.Group();
+  group.name = "mountain-cable-car";
+  group.visible = false;
+  scene.add(group);
+  // The lagoon and riverside are separate destinations. A translated, rotated
+  // scenery copy gives the ride a continuous world without moving either scene.
+  const scenery = riverside.group.clone(true);
+  scenery.rotation.y = Math.PI;
+  scenery.position.z = -20;
+  scenery.visible = true;
+  group.add(scenery);
+  const backdropNames = new Set([
+    "waterfall-mountain",
+    "mountain-waterfall",
+    "waterfall-rainbow",
+    "waterfall-river-feed",
+    "waterfall-source-bank",
+    "waterfall-source-terrace",
+    "mountain-waterfall-streak",
+    "mountain-waterfall-foam",
+    "waterfall-mist",
+  ]);
+  const sceneryPairs = riverside.group.children.map((source, i) => [
+    source,
+    scenery.children[i],
+  ]);
+  const sourceX = Math.sin(56 * 0.12) * 3;
+  const islandDock = new THREE.Vector3(0, 0.16, -3.2);
+  const summitCenter = new THREE.Vector3(-sourceX, 59, -124);
+  const summitDock = summitCenter.clone().add(new THREE.Vector3(-3, 0.16, 0));
+  const summitLanding = summitCenter.clone().add(new THREE.Vector3(0, 0, 1));
+  const islandLanding = islandDock.clone().add(new THREE.Vector3(0, -0.16, -2));
+  const startPoint = islandDock.clone().add(new THREE.Vector3(0, 0.35, 0));
+  const endPoint = summitDock.clone().add(new THREE.Vector3(0, 0.35, 0));
+  // Ground and a feeder river join the distant mountain to the lagoon shore.
+  const valley = cyl(1, 1, 3.6, "#85a777", 0, -1.84, -112, group, 96);
+  valley.scale.set(68, 1, 87);
+  valley.name = "cable-car-valley";
+  function valleyRibbon(width, color, y) {
+    const vertices = [],
+      indices = [];
+    for (let i = 0; i <= 96; i++) {
+      const t = i / 96,
+        z = -76 + t * 58.5;
+      const x = -sourceX * (1 - t) + Math.sin(t * Math.PI * 2) * 0.6;
+      vertices.push(x - width, y, z, x + width, y, z);
+      if (i < 96) {
+        const a = i * 2;
+        indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(vertices, 3),
+    );
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    const ribbon = mesh(geometry, color, 0, 0, 0, group);
+    ribbon.castShadow = false;
+  }
+  valleyRibbon(6.9, "#cfc39b", 0.008);
+  valleyRibbon(4.2, "#ddcda3", 0.015);
+  valleyRibbon(3.1, "#75d6df", 0.04);
+  const summitGroup = new THREE.Group();
+  summitGroup.name = "summit-lookout";
+  group.add(summitGroup);
+  const summit = {
+    group: summitGroup,
+    blockers: [],
+    contains: (x, z) =>
+      Math.hypot(x - summitCenter.x, z - summitCenter.z) < 4.8,
+    heightAt: (x, z) =>
+      summitCenter.y +
+      (Math.abs(x - summitDock.x) < 2.3 && Math.abs(z - summitDock.z) < 1.4
+        ? 0.16
+        : 0),
+  };
+  cyl(
+    5.8,
+    5.8,
+    0.4,
+    "#b99364",
+    summitCenter.x,
+    58.8,
+    summitCenter.z,
+    summitGroup,
+    32,
+  );
+  for (let i = 0; i < 22; i++) {
+    const angle = (i * Math.PI * 2) / 22;
+    const x = summitCenter.x + Math.cos(angle) * 5.6;
+    const z = summitCenter.z + Math.sin(angle) * 5.6;
+    cyl(0.075, 0.075, 1.4, "#e7c894", x, 59.65, z, summitGroup);
+  }
+  const rail = mesh(
+    new THREE.TorusGeometry(5.6, 0.07, 5, 64),
+    "#e7c894",
+    summitCenter.x,
+    60.3,
+    summitCenter.z,
+    summitGroup,
+  );
+  rail.rotation.x = Math.PI / 2;
+  function station(parent, dock, name) {
+    const station = new THREE.Group();
+    station.name = name;
+    station.position.copy(dock);
+    station.position.y -= 0.16;
+    parent.add(station);
+    box(4.6, 0.15, 2.8, "#c49e70", 0, 0.08, 0, station);
+    for (const x of [-1.95, 1.95]) {
+      cyl(0.12, 0.16, 4.6, "#5b655b", x, 2.3, -0.7, station);
+      (parent === lagoon.group ? lagoon.blockers : summit.blockers).push({
+        x: dock.x + x,
+        z: dock.z - 0.7,
+        r: 0.2,
+        minClearance: 0.8,
+      });
+    }
+    box(4.8, 0.2, 1.8, "#67815d", 0, 4.55, -0.7, station);
+    box(1.7, 0.48, 0.12, "#d7bc84", 0, 3.85, 0.25, station);
+    return station;
+  }
+  station(lagoon.group, islandDock, "lagoon-cable-car-station");
+  station(summitGroup, summitDock, "summit-cable-car-station");
+  const lagoonHeightAt = lagoon.heightAt;
+  lagoon.heightAt = (x, z) =>
+    Math.abs(x - islandDock.x) < 2.3 && Math.abs(z - islandDock.z) < 1.4
+      ? 0.16
+      : lagoonHeightAt(x, z);
+  function route(t) {
+    const point = startPoint.clone().lerp(endPoint, t);
+    point.y -= Math.sin(t * Math.PI) * 2;
+    return point;
+  }
+  const linePoints = [];
+  for (let i = 0; i <= 80; i++)
+    linePoints.push(route(i / 80).add(new THREE.Vector3(0, 4.1, 0)));
+  for (const x of [-0.3, 0.3]) {
+    const geometry = new THREE.BufferGeometry().setFromPoints(
+      linePoints.map((p) => p.clone().add(new THREE.Vector3(x, 0, 0))),
+    );
+    const line = new THREE.Line(
+      geometry,
+      new THREE.LineBasicMaterial({ color: "#4b6059" }),
+    );
+    line.name = "cable-car-cable";
+    group.add(line);
+  }
+  const cabin = new THREE.Group();
+  cabin.name = "glass-cable-car";
+  group.add(cabin);
+  box(3.5, 0.18, 2.4, "#568d86", 0, 0, 0, cabin);
+  box(3.7, 0.18, 2.6, "#e2c680", 0, 3.5, 0, cabin);
+  const glass = new THREE.MeshStandardMaterial({
+    color: "#b3e9df",
+    transparent: true,
+    opacity: 0.15,
+    roughness: 0.15,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  for (const x of [-1.7, 1.7]) {
+    box(0.04, 3.1, 2.25, glass, x, 1.8, 0, cabin);
+    for (const z of [-1.1, 1.1])
+      box(0.08, 3.5, 0.08, "#e2c680", x, 1.75, z, cabin);
+  }
+  for (const z of [-1.15, 1.15]) box(3.3, 3.1, 0.04, glass, 0, 1.8, z, cabin);
+  box(0.16, 0.7, 0.16, "#4b6059", 0, 3.85, 0, cabin);
+  const rigs = [heroRig, companion.rig];
+  const characters = [hero, companion.character];
+  let enabled = false,
+    riding = false,
+    atSummit = false,
+    elapsed = 0;
+  const duration = 12;
+  function showScenery() {
+    scenery.children.forEach((child) => {
+      child.visible = backdropNames.has(child.name);
+    });
+    summitGroup.visible = atSummit || riding;
+  }
+  function restorePose() {
+    rigs.forEach((rig) => {
+      rig.body.position.y = 0;
+      rig.body.rotation.set(0, 0, 0);
+      [...rig.legs, ...rig.arms].forEach((limb) => limb.rotation.set(0, 0, 0));
+      rig.legs.forEach((leg) => {
+        leg.children[1].rotation.x = 0;
+      });
+      if (rig.held) rig.held.visible = true;
+    });
+  }
+  function nearby() {
+    const dock = atSummit ? summitDock : islandDock;
+    return (
+      enabled &&
+      !riding &&
+      Math.hypot(hero.position.x - dock.x, hero.position.z - dock.z) <
+        (atSummit ? 3.3 : 2.3)
+    );
+  }
+  function positionRiders() {
+    characters.forEach((character, i) => {
+      character.position
+        .copy(cabin.position)
+        .add(new THREE.Vector3(i ? 0.78 : -0.78, 0.1, 0));
+      character.rotation.y = atSummit ? 0 : Math.PI;
+      if (rigs[i].held) rigs[i].held.visible = false;
+    });
+  }
+  function start() {
+    if (!nearby()) return false;
+    riding = true;
+    elapsed = 0;
+    restorePose();
+    group.add(companion.character);
+    cabin.position.copy(atSummit ? endPoint : startPoint);
+    positionRiders();
+    showScenery();
+    toast(
+      atSummit
+        ? "Cable car · Descending to the flower island"
+        : "Cable car · Rising above the lake and treetops",
+    );
+    return true;
+  }
+  function update(dt) {
+    if (!riding) return;
+    elapsed = Math.min(duration, elapsed + dt);
+    const t = elapsed / duration;
+    const smooth = t * t * (3 - 2 * t);
+    cabin.position.copy(route(atSummit ? 1 - smooth : smooth));
+    positionRiders();
+    if (elapsed < duration) return;
+    riding = false;
+    atSummit = !atSummit;
+    lagoon.group.visible = true;
+    restorePose();
+    hero.position.copy(atSummit ? summitLanding : islandLanding);
+    const terrain = atSummit ? summit : lagoon;
+    terrain.group.add(companion.character);
+    companion.reset(hero.position, terrain.blockers, terrain);
+    showScenery();
+    onArrival(atSummit);
+    toast(
+      atSummit
+        ? "Mountain summit · Enjoy the waterfall, rainbow and lake below. C to return."
+        : "Back on the flower island · Your lagoon treasures are safe",
+    );
+  }
+  function reset() {
+    riding = atSummit = false;
+    elapsed = 0;
+    restorePose();
+    if (enabled) lagoon.group.add(companion.character);
+    enabled = false;
+    group.visible = false;
+    cabin.position.copy(startPoint);
+  }
+  cabin.position.copy(startPoint);
+  showScenery();
+  return {
+    group,
+    cabin,
+    summit,
+    islandDock,
+    summitDock,
+    start,
+    update,
+    nearby,
+    reset,
+    updateScenery() {
+      if (!enabled) return;
+      sceneryPairs.forEach(([source, copy]) => {
+        copy.position.copy(source.position);
+        copy.rotation.copy(source.rotation);
+        copy.scale.copy(source.scale);
+      });
+    },
+    setEnabled(value) {
+      enabled = value;
+      group.visible = value;
+    },
+    get riding() {
+      return riding;
+    },
+    get atSummit() {
+      return atSummit;
+    },
+  };
+}

@@ -55,7 +55,7 @@ const assert = require("assert/strict");
   // Execute the actual game with only browser/rendering APIs stubbed.
   const setup =
     game.replace("new THREE.WebGLRenderer(", "new FakeRenderer(") +
-    "\nexport {scene, mesh, box, cyl, ball, blockers, hero, body, legs, arms, held, lakeside, targets, shrine, inLake, createBenchMoment, clock, frame, axes, gems, won, camera, riverside, usePassage, yaw, insideRiver, insideCave, passageTransition};";
+    "\nexport {scene, mesh, box, cyl, ball, blockers, hero, body, legs, arms, held, lakeside, targets, shrine, inLake, createBenchMoment, clock, frame, axes, gems, won, camera, riverside, usePassage, yaw, insideRiver, insideCave, passageTransition, cableCar, boatTrip, companion, boardCableCar, boardBoat, fire};";
   const G = (await module("review-setup", setup)).namespace;
   const T = (await module("vendor/three.module.js")).namespace;
   const C = (await module("companion.js")).namespace.createCompanion(G);
@@ -300,6 +300,65 @@ const assert = require("assert/strict");
     G.hero.position.distanceTo(new T.Vector3(0, 0, 7)) < 1e-7,
     "Restart during a fade must cancel the queued gate destination",
   );
+  // A real round trip through boat arrival, cable-car boarding and summit walking.
+  G.usePassage(true, true);
+  for (let i = 0; i < 12; i++) G.frame();
+  assert(
+    !G.cableCar.start(),
+    "The cable car must be unavailable outside the lagoon",
+  );
+  G.hero.position.copy(G.boatTrip.riverDock);
+  G.boardBoat();
+  for (let i = 0; i < 240; i++) G.frame();
+  assert(G.boatTrip.atLagoon && !G.boatTrip.rowing);
+  assert(
+    !G.cableCar.start(),
+    "Boarding must require proximity to the island station",
+  );
+  const treasure = G.boatTrip.lagoon.treasures[0];
+  G.boatTrip.lagoon.collect(treasure.position);
+  const preserved = G.boatTrip.lagoon.collected;
+  G.hero.position.copy(G.cableCar.islandDock);
+  G.boardCableCar();
+  assert(G.cableCar.riding && !G.held.visible);
+  assert(!G.cableCar.start(), "Repeated boarding must not restart the ride");
+  const launchY = G.hero.position.y;
+  for (let i = 0; i < 150; i++) G.frame();
+  assert(G.cableCar.riding && G.hero.position.y > launchY + 15);
+  assert(
+    Math.abs(G.hero.position.x - G.companion.character.position.x) >= 1.5,
+    "Both riders need room inside the cabin",
+  );
+  G.fire();
+  assert.equal(G.axes.length, 0, "Axes must be disabled inside the cable car");
+  for (let i = 0; i < 160; i++) G.frame();
+  assert(G.cableCar.atSummit && !G.cableCar.riding && G.held.visible);
+  assert(G.cableCar.summit.contains(G.hero.position.x, G.hero.position.z));
+  assert.equal(
+    G.hero.position.y,
+    G.cableCar.summit.heightAt(G.hero.position.x, G.hero.position.z),
+  );
+  G.boardBoat();
+  assert(!G.boatTrip.rowing, "The boat must be inaccessible from the summit");
+  assert(
+    !G.cableCar.summit.contains(G.hero.position.x + 30, G.hero.position.z),
+    "The summit deck must have a finite walking boundary",
+  );
+  G.boardCableCar();
+  for (let i = 0; i < 310; i++) G.frame();
+  assert(!G.cableCar.atSummit && !G.cableCar.riding);
+  assert(G.boatTrip.lagoon.contains(G.hero.position.x, G.hero.position.z));
+  assert.equal(G.boatTrip.lagoon.collected, preserved);
+  assert(G.companion.character.parent === G.boatTrip.lagoon.group);
+  G.boardCableCar();
+  for (let i = 0; i < 20; i++) G.frame();
+  element("#restart").onclick();
+  G.frame();
+  assert(
+    !G.cableCar.riding && !G.cableCar.atSummit && !G.cableCar.group.visible,
+  );
+  assert(!G.boatTrip.atLagoon && !G.boatTrip.rowing && G.held.visible);
+  assert(G.hero.position.distanceTo(new T.Vector3(0, 0, 7)) < 1e-7);
   const disabled = { x: 0, z: 0, r: 0.7, active: false };
   const center = new T.Vector3();
   resolve(center, new T.Vector3(0, 0, 2), [disabled]);
@@ -317,7 +376,7 @@ const assert = require("assert/strict");
   resolve(trapped, safe, corridor);
   assert(corridor.every((b) => !overlaps(trapped, b)));
   console.log(
-    "PASS: smooth bidirectional gate transitions, midpoint-only scene changes, duplicate prevention and restart cancellation, cave wall and exit rock coverage, sprint contacts around the chamber, reachable cave exit, garden rock clearance, garden solid blockers, reachable shrine quest, target blocker lifecycle, full gazebo seats, non-crossing bench approaches, repeated collision resolution, exact-center contacts and crowded-contact fallback",
+    "PASS: cable-car ascent and descent, both riders, summit landing and boundary, safe restart and preserved lagoon treasures, smooth bidirectional gate transitions, midpoint-only scene changes, duplicate prevention and restart cancellation, cave wall and exit rock coverage, sprint contacts around the chamber, reachable cave exit, garden rock clearance, garden solid blockers, reachable shrine quest, target blocker lifecycle, full gazebo seats, non-crossing bench approaches, repeated collision resolution, exact-center contacts and crowded-contact fallback",
   );
 })().catch((e) => {
   console.error(e);

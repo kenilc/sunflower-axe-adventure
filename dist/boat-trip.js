@@ -23,6 +23,7 @@ export function createBoatTrip({
       const r = Math.hypot(x, z);
       return (
         r < 24 &&
+        !(Math.abs(x) < 3.8 && z < -17.5) &&
         (r > 17.9 || r < 5.7 || (Math.abs(x) < 1.45 && z > 4 && z < 21))
       );
     },
@@ -62,7 +63,11 @@ export function createBoatTrip({
     4294967296;
   const flowerPositions = [];
   function clearApproach(x, z) {
-    return (Math.abs(x) < 1.8 && z > 3) || Math.hypot(x - 5, z - 20) < 2.4;
+    return (
+      (Math.abs(x) < 4.6 && z < -17.5) ||
+      (Math.abs(x) < 1.8 && (z > 3 || (z < -1.4 && z > -5.7))) ||
+      Math.hypot(x - 5, z - 20) < 2.4
+    );
   }
   while (flowerPositions.length < 900) {
     const inner = flowerPositions.length >= 740;

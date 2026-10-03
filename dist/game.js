@@ -1,6 +1,7 @@
-import { createBoatTrip } from "./boat-trip.js?v=20261002-sunflower-lagoon";
+import { createCableCar } from "./cable-car.js";
+import { createBoatTrip } from "./boat-trip.js?v=20261003-cable-car";
 import * as THREE from "./vendor/three.module.js";
-import { createRiverside } from "./riverside.js?v=20261003-dense-forest";
+import { createRiverside } from "./riverside.js?v=20261003-cable-car";
 import { createCave } from "./cave.js?v=20261003-rocks";
 import { createGameAudio } from "./audio.js";
 import { createCompanion } from "./companion.js?v=20261003-rocks";
@@ -41,7 +42,7 @@ const camera = new THREE.PerspectiveCamera(
   43,
   innerWidth / innerHeight,
   0.1,
-  180,
+  320,
 );
 scene.add(new THREE.HemisphereLight(0xfff4cf, 0x346457, 2.4));
 const sun = new THREE.DirectionalLight(0xffe6a7, 3.4);
@@ -555,6 +556,13 @@ const boatTrip = createBoatTrip({
     $("#lagoonCounts").hidden = !atLagoon;
     scene.background.set(atLagoon ? "#c0ded9" : "#b6d9ce");
     scene.fog.color.copy(scene.background);
+    scene.fog.density = atLagoon ? 0.006 : 0.011;
+    cableCar.setEnabled(atLagoon);
+    if (atLagoon) {
+      yaw = 0;
+      pitch = THREE.MathUtils.degToRad(16);
+      zoom = 20;
+    }
     camera.position
       .set(
         Math.sin(yaw) * Math.cos(pitch) * zoom,
@@ -569,8 +577,75 @@ const boatTrip = createBoatTrip({
     );
   },
 });
+const cableCar = createCableCar({
+  scene,
+  riverside,
+  lagoon: boatTrip.lagoon,
+  hero,
+  heroRig: { body, legs, arms, held },
+  companion,
+  mesh,
+  box,
+  cyl,
+  toast,
+  onArrival(atSummit) {
+    hearts.clear();
+    yaw = atSummit ? Math.PI : 0;
+    pitch = THREE.MathUtils.degToRad(atSummit ? 30 : 16);
+    zoom = atSummit ? 22 : 20;
+    $(".quest .eyebrow").textContent = atSummit
+      ? "THE MOUNTAIN SUMMIT"
+      : "THE LOTUS LAGOON";
+    $(".quest h1").innerHTML = atSummit
+      ? "Above the treetops.<br />A view for two."
+      : "A boat for two.<br />A sunflower paradise.";
+    $("#objective").textContent = atSummit
+      ? "Enjoy the panorama. Take the cable car back to the flower island."
+      : boatTrip.lagoon.collected === 240
+        ? "Your lagoon collection is complete! Enjoy the flowers and the mountain cable car."
+        : "Explore the flowers and gemstones. Cable car: north end of the central island.";
+    camera.position
+      .set(
+        Math.sin(yaw) * Math.cos(pitch) * zoom,
+        1 + Math.sin(pitch) * zoom,
+        Math.cos(yaw) * Math.cos(pitch) * zoom,
+      )
+      .add(hero.position);
+  },
+});
+function boardCableCar() {
+  if (
+    !insideRiver ||
+    !boatTrip.atLagoon ||
+    boatTrip.rowing ||
+    $("#guide").open ||
+    passageTransition.active
+  )
+    return;
+  if (cableCar.start()) {
+    cameraDrag.reset();
+    Object.keys(keys).forEach((key) => {
+      keys[key] = false;
+    });
+    joy.set(0, 0);
+    hearts.clear();
+    axes.forEach((a) => scene.remove(a.g));
+    axes.length = 0;
+    yaw = cableCar.atSummit ? Math.PI : 0;
+    pitch = THREE.MathUtils.degToRad(16);
+    zoom = 16;
+  }
+}
+$("#cableAction").onclick = boardCableCar;
 function boardBoat() {
-  if (!insideRiver || $("#guide").open || passageTransition.active) return;
+  if (
+    !insideRiver ||
+    $("#guide").open ||
+    passageTransition.active ||
+    cableCar.riding ||
+    cableCar.atSummit
+  )
+    return;
   if (boatTrip.start()) {
     hearts.clear();
     axes.forEach((a) => scene.remove(a.g));
@@ -603,6 +678,7 @@ function usePassage(enter, river = false) {
 function changePassage(enter, river = false) {
   if (enter === (river ? insideRiver : insideCave)) return;
   const leavingRiver = insideRiver;
+  cableCar.reset();
   boatTrip.reset();
   const terrain = river ? riverside : cave;
   benchMoment.stand();
@@ -693,7 +769,11 @@ function changePassage(enter, river = false) {
 }
 function cameraTargetHeight() {
   // Frame the characters in the foreground and the tall mountain above them.
-  return insideRiver && !boatTrip.atLagoon && !boatTrip.rowing ? 9 : 1;
+  return cableCar.riding
+    ? 3
+    : insideRiver && !boatTrip.atLagoon && !boatTrip.rowing
+      ? 9
+      : 1;
 }
 function riverObjective() {
   return riverCollected === riverside.treasures.length
@@ -760,6 +840,7 @@ function fire() {
     $("#guide").open ||
     benchMoment.seated ||
     boatTrip.rowing ||
+    cableCar.riding ||
     passageTransition.active
   )
     return;
@@ -799,6 +880,7 @@ addEventListener("keydown", (e) => {
     else benchMoment.sit();
   }
   if (e.code === "KeyT" && !e.repeat) boardBoat();
+  if (e.code === "KeyC" && !e.repeat) boardCableCar();
   if (e.code === "Space") fire();
 });
 addEventListener("keyup", (e) => (keys[e.code] = false));
@@ -858,6 +940,7 @@ $("#restart").onclick = () => {
   passageTransition.cancel();
   cameraDrag.reset();
   benchMoment.stand();
+  cableCar.reset();
   boatTrip.reset(true);
   $("#lagoonGems").textContent = 0;
   if (insideCave || insideRiver) changePassage(false, insideRiver);
@@ -921,11 +1004,18 @@ function frame() {
       THREE.MathUtils.degToRad(6),
       THREE.MathUtils.degToRad(70),
     );
-    if (boatTrip.rowing) {
+    if (cableCar.riding) {
+      cableCar.update(dt);
+      isMoving = false;
+    } else if (boatTrip.rowing) {
       boatTrip.update(dt);
       isMoving = false;
     } else {
-      const riverTerrain = boatTrip.atLagoon ? boatTrip.lagoon : riverside;
+      const riverTerrain = cableCar.atSummit
+        ? cableCar.summit
+        : boatTrip.atLagoon
+          ? boatTrip.lagoon
+          : riverside;
       let dx =
           (keys.KeyD || keys.ArrowRight ? 1 : 0) -
           (keys.KeyA || keys.ArrowLeft ? 1 : 0) +
@@ -1054,7 +1144,7 @@ function frame() {
           toast(`Sunstone found · ${collected} / 8`);
         }
       }
-      if (insideRiver && boatTrip.atLagoon) {
+      if (insideRiver && boatTrip.atLagoon && !cableCar.atSummit) {
         const pickup = boatTrip.lagoon.collect(hero.position);
         if (pickup) {
           $("#lagoonGems").textContent = pickup.total;
@@ -1133,13 +1223,29 @@ function frame() {
   }
   updateHudVisibility(isMoving, dt, paused);
   $("#boatAction").hidden =
-    !insideRiver || paused || (!boatTrip.rowing && !boatTrip.nearby());
+    !insideRiver ||
+    paused ||
+    cableCar.riding ||
+    cableCar.atSummit ||
+    (!boatTrip.rowing && !boatTrip.nearby());
   $("#boatAction").disabled = boatTrip.rowing;
   $("#boatAction").textContent = boatTrip.rowing
     ? "Rowing together…"
     : boatTrip.atLagoon
       ? "Return by boat · T"
       : "Board boat · T";
+  $("#cableAction").hidden =
+    !insideRiver ||
+    !boatTrip.atLagoon ||
+    paused ||
+    boatTrip.rowing ||
+    (!cableCar.riding && !cableCar.nearby());
+  $("#cableAction").disabled = cableCar.riding;
+  $("#cableAction").textContent = cableCar.riding
+    ? "Above the treetops…"
+    : cableCar.atSummit
+      ? "Return to flower island · C"
+      : "Ride to mountain summit · C";
   $("#benchAction").hidden =
     insideCave ||
     insideRiver ||
@@ -1150,15 +1256,20 @@ function frame() {
   lakeside.update(time);
   if (insideRiver) {
     riverside.update(time);
+    cableCar.updateScenery();
     const gateX = riverside.returnGate.position.x - hero.position.x,
       gateZ = riverside.returnGate.position.z - hero.position.z;
     const distance = Math.round(Math.hypot(gateX, gateZ));
     const direction = `${Math.abs(gateZ) > 3 ? (gateZ > 0 ? "south" : "north") : ""}${Math.abs(gateX) > 3 ? (gateX > 0 ? "east" : "west") : ""}`;
-    $("#caveHint").textContent = boatTrip.rowing
-      ? "Both aboard · Enjoy the ride. Camera controls still work."
-      : boatTrip.atLagoon
-        ? "Follow the clear paths through the sunflowers. Cross the bridge for more gems. Return boat: south dock."
-        : `Explore the island. A mountain waterfall feeds the river. Boat dock: east bank by the bridge. Return gate: ${distance} m ${direction || "away"}, beside the rainbow lookout.`;
+    $("#caveHint").textContent = cableCar.riding
+      ? "Both aboard · Rising above the lake and forest. Camera controls still work."
+      : cableCar.atSummit
+        ? "Mountain summit · Enjoy the view. Return cable car: beside the lookout deck · C."
+        : boatTrip.rowing
+          ? "Both aboard · Enjoy the ride. Camera controls still work."
+          : boatTrip.atLagoon
+            ? "Follow the clear paths through the sunflowers. Cross the bridge for more gems. Cable car: north end of the flower island · C. Return boat: south dock."
+            : `Explore the island. A mountain waterfall feeds the river. Boat dock: east bank by the bridge. Return gate: ${distance} m ${direction || "away"}, beside the rainbow lookout.`;
   }
   for (let i = particles.length - 1; i >= 0; i--) {
     let p = particles[i];
@@ -1205,11 +1316,15 @@ function frame() {
   const x = hero.position.x,
     z = hero.position.z;
   const region = insideRiver
-    ? boatTrip.rowing
-      ? "Rowing together"
-      : boatTrip.atLagoon
-        ? "Lotus Lagoon"
-        : riverside.locationAt(hero.position)
+    ? cableCar.riding
+      ? "Above the treetops"
+      : cableCar.atSummit
+        ? "Mountain summit"
+        : boatTrip.rowing
+          ? "Rowing together"
+          : boatTrip.atLagoon
+            ? "Lotus Lagoon"
+            : riverside.locationAt(hero.position)
     : insideCave
       ? "The Golden Grotto"
       : z < -38
@@ -1264,9 +1379,13 @@ if (document.modelContext?.registerTool) {
               throw new Error("Expected an empty object");
             return {
               location: insideRiver
-                ? boatTrip.atLagoon
-                  ? "lotus lagoon"
-                  : "riverside"
+                ? cableCar.riding
+                  ? "cable car"
+                  : cableCar.atSummit
+                    ? "mountain summit"
+                    : boatTrip.atLagoon
+                      ? "lotus lagoon"
+                      : "riverside"
                 : insideCave
                   ? "treasure cave"
                   : "garden",

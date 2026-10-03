@@ -589,6 +589,7 @@ export function createRiverside({ mesh, box, cyl, ball }) {
       group,
     );
     streak.castShadow = false;
+    streak.name = "mountain-waterfall-streak";
     sourceStreaks.push(streak);
   }
   for (let i = 0; i < 24; i++) {
@@ -600,6 +601,7 @@ export function createRiverside({ mesh, box, cyl, ball }) {
       71.55 - (i % 4) * 0.3,
       group,
     );
+    foam.name = "mountain-waterfall-foam";
     foam.scale.set(1.5, 0.45, 1.1);
     foam.castShadow = false;
   }
@@ -648,6 +650,7 @@ export function createRiverside({ mesh, box, cyl, ball }) {
     );
     cloud.castShadow = false;
     cloud.scale.set(1.8 + (i % 3), 0.5, 0.8);
+    cloud.name = "waterfall-mist";
     mist.push(cloud);
   }
   const landmarks = [];
