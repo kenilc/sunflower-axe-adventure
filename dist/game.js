@@ -1,5 +1,5 @@
 import { createCastleRoom } from "./castle-room.js?v=20261003-treasure-aisle";
-import { createCableCar } from "./cable-car.js?v=20261003-great-room";
+import { createCableCar } from "./cable-car.js?v=20261003-forest-slope";
 import { createBoatTrip } from "./boat-trip.js?v=20261003-cable-car";
 import * as THREE from "./vendor/three.module.js";
 import { createRiverside } from "./riverside.js?v=20261003-cable-car";
@@ -1422,7 +1422,6 @@ function frame() {
       "Find six hidden stars. Tea, piano and storybook: X nearby. Exit: pink arch to the south.";
   } else if (insideRiver) {
     riverside.update(time);
-    cableCar.updateScenery();
     cableCar.updateVisibility(camera, [hero, companion.character], dt);
     const gateX = riverside.returnGate.position.x - hero.position.x,
       gateZ = riverside.returnGate.position.z - hero.position.z;

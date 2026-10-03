@@ -18,28 +18,19 @@ export function createCableCar({
   group.name = "mountain-cable-car";
   group.visible = false;
   scene.add(group);
-  // The lagoon and riverside are separate destinations. A translated, rotated
-  // scenery copy gives the ride a continuous world without moving either scene.
-  const scenery = riverside.group.clone(true);
+  // The lagoon sees the forested rear slope of the same mountain. Copy only
+  // its land and vegetation, so river effects never reappear during the ride.
+  const scenery = new THREE.Group();
+  scenery.name = "lagoon-mountain-backdrop";
   scenery.rotation.y = Math.PI;
   scenery.position.z = -20;
-  scenery.visible = true;
   group.add(scenery);
-  const backdropNames = new Set([
-    "waterfall-mountain",
-    "mountain-waterfall",
-    "waterfall-rainbow",
-    "waterfall-river-feed",
-    "waterfall-source-bank",
-    "waterfall-source-terrace",
-    "mountain-waterfall-streak",
-    "mountain-waterfall-foam",
-    "waterfall-mist",
-  ]);
-  const sceneryPairs = riverside.group.children.map((source, i) => [
-    source,
-    scenery.children[i],
-  ]);
+  const mountain = riverside.group
+    .getObjectByName("waterfall-mountain")
+    .clone(true);
+  mountain.name = "lagoon-mountain";
+  mountain.getObjectByName("waterfall-source-stream").removeFromParent();
+  scenery.add(mountain);
   const sourceX = Math.sin(56 * 0.12) * 3;
   const islandDock = new THREE.Vector3(0, 0.16, -3.2);
   const summitCenter = new THREE.Vector3(-sourceX, 59, -124);
@@ -50,36 +41,38 @@ export function createCableCar({
   const islandLanding = islandDock.clone().add(new THREE.Vector3(0, -0.16, -2));
   const startPoint = islandDock.clone().add(new THREE.Vector3(0, 0.35, 0));
   const endPoint = summitDock.clone().add(new THREE.Vector3(0, 0.35, 0));
-  // Ground and a feeder river join the distant mountain to the lagoon shore.
+  // A grassy valley meets the lagoon shore below the rocky forest slope.
   const valley = cyl(1, 1, 3.6, "#85a777", 0, -1.84, -112, group, 96);
   valley.scale.set(68, 1, 87);
   valley.name = "cable-car-valley";
-  function valleyRibbon(width, color, y) {
-    const vertices = [],
-      indices = [];
-    for (let i = 0; i <= 96; i++) {
-      const t = i / 96,
-        z = -76 + t * 58.5;
-      const x = -sourceX * (1 - t) + Math.sin(t * Math.PI * 2) * 0.6;
-      vertices.push(x - width, y, z, x + width, y, z);
-      if (i < 96) {
-        const a = i * 2;
-        indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
-      }
-    }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(vertices, 3),
+  const rockFace = new THREE.Group();
+  rockFace.name = "lagoon-rocky-slope";
+  mountain.add(rockFace);
+  const ledges = [
+    [-6.8, 4.5, 3.4, 3.6, 2.2, -0.4],
+    [-1.5, 3, 4.8, 2.3, 2.1, 0.2],
+    [5.8, 6.2, 3.5, 4, 2, 0.3],
+    [-4.8, 11.5, 3.1, 3.8, 1.9, -0.2],
+    [2.6, 13, 4.2, 2.2, 1.8, 0.1],
+    [-6.3, 21, 3.5, 4.5, 1.7, 0.5],
+    [0.1, 23, 4.4, 2.8, 1.9, 0.6],
+    [5.8, 28, 2.8, 4.2, 1.8, -0.3],
+  ];
+  ledges.forEach(([x, y, width, height, depth, angle], i) => {
+    const radius = 12 - (3 * y) / 32;
+    // Irregular, embedded ledges break up the exposed cliff face.
+    const z = 80 - 0.65 * Math.sqrt(radius * radius - x * x);
+    const rock = mesh(
+      new THREE.IcosahedronGeometry(1, 0),
+      ["#859184", "#79877c", "#92988b"][i % 3],
+      sourceX + x,
+      y,
+      z + 0.7,
+      rockFace,
     );
-    geometry.setIndex(indices);
-    geometry.computeVertexNormals();
-    const ribbon = mesh(geometry, color, 0, 0, 0, group);
-    ribbon.castShadow = false;
-  }
-  valleyRibbon(6.9, "#cfc39b", 0.008);
-  valleyRibbon(4.2, "#ddcda3", 0.015);
-  valleyRibbon(3.1, "#75d6df", 0.04);
+    rock.scale.set(width, height, depth);
+    rock.rotation.set(0.15, angle, angle * 0.45);
+  });
   const summitGroup = new THREE.Group();
   summitGroup.name = "summit-lookout";
   group.add(summitGroup);
@@ -204,9 +197,6 @@ export function createCableCar({
     elapsed = 0;
   const duration = 12;
   function showScenery() {
-    scenery.children.forEach((child) => {
-      child.visible = backdropNames.has(child.name);
-    });
     summitGroup.visible = atSummit || riding;
   }
   function restorePose() {
@@ -301,14 +291,6 @@ export function createCableCar({
     reset,
     updateVisibility(camera, characters, dt) {
       if (atSummit && !riding) castle.updateVisibility(camera, characters, dt);
-    },
-    updateScenery() {
-      if (!enabled) return;
-      sceneryPairs.forEach(([source, copy]) => {
-        copy.position.copy(source.position);
-        copy.rotation.copy(source.rotation);
-        copy.scale.copy(source.scale);
-      });
     },
     setEnabled(value) {
       enabled = value;

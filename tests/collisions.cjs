@@ -314,6 +314,36 @@ const assert = require("assert/strict");
   G.boardBoat();
   for (let i = 0; i < 240; i++) G.frame();
   assert(G.boatTrip.atLagoon && !G.boatTrip.rowing);
+  const lagoonMountain = G.cableCar.group.getObjectByName("lagoon-mountain");
+  assert(lagoonMountain, "The lagoon has a forested mountain backdrop");
+  assert.equal(
+    lagoonMountain.getObjectByName("mountain-forest").userData.treeCount,
+    1800,
+  );
+  assert.equal(
+    lagoonMountain.getObjectByName("mountain-grass").userData.tuftCount,
+    9000,
+  );
+  assert.equal(
+    lagoonMountain.getObjectByName("lagoon-rocky-slope").children.length,
+    8,
+  );
+  for (const name of [
+    "mountain-waterfall",
+    "waterfall-rainbow",
+    "waterfall-source-stream",
+    "waterfall-river-feed",
+    "waterfall-mist",
+    "mountain-waterfall-streak",
+    "mountain-waterfall-foam",
+  ])
+    assert(
+      !G.cableCar.group.getObjectByName(name),
+      `The lagoon must not duplicate ${name}`,
+    );
+  assert(G.riverside.group.getObjectByName("mountain-waterfall").visible);
+  assert(G.riverside.group.getObjectByName("waterfall-rainbow").visible);
+
   assert(
     !G.cableCar.start(),
     "Boarding must require proximity to the island station",
@@ -526,7 +556,7 @@ const assert = require("assert/strict");
   resolve(trapped, safe, corridor);
   assert(corridor.every((b) => !overlaps(trapped, b)));
   console.log(
-    "PASS: clear sofa aisle for both characters, solid gold and gemstone boxes, separate castle-room entry and return transitions, reachable furniture activities and six-star treasure hunt, persistent chest reward, cable-car ascent and descent, both riders, summit landing and boundary, safe restart and preserved lagoon treasures, smooth bidirectional gate transitions, midpoint-only scene changes, duplicate prevention and restart cancellation, cave wall and exit rock coverage, sprint contacts around the chamber, reachable cave exit, garden rock clearance, garden solid blockers, reachable shrine quest, target blocker lifecycle, full gazebo seats, non-crossing bench approaches, repeated collision resolution, exact-center contacts and crowded-contact fallback",
+    "PASS: distinct forested lagoon slope without duplicated waterfall or rainbow, clear sofa aisle for both characters, solid gold and gemstone boxes, separate castle-room entry and return transitions, reachable furniture activities and six-star treasure hunt, persistent chest reward, cable-car ascent and descent, both riders, summit landing and boundary, safe restart and preserved lagoon treasures, smooth bidirectional gate transitions, midpoint-only scene changes, duplicate prevention and restart cancellation, cave wall and exit rock coverage, sprint contacts around the chamber, reachable cave exit, garden rock clearance, garden solid blockers, reachable shrine quest, target blocker lifecycle, full gazebo seats, non-crossing bench approaches, repeated collision resolution, exact-center contacts and crowded-contact fallback",
   );
 })().catch((e) => {
   console.error(e);
