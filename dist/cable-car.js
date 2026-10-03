@@ -1,3 +1,4 @@
+import { createSummitCastle } from "./summit-castle.js?v=20261003-great-room";
 import * as THREE from "./vendor/three.module.js";
 
 export function createCableCar({
@@ -42,8 +43,10 @@ export function createCableCar({
   const sourceX = Math.sin(56 * 0.12) * 3;
   const islandDock = new THREE.Vector3(0, 0.16, -3.2);
   const summitCenter = new THREE.Vector3(-sourceX, 59, -124);
-  const summitDock = summitCenter.clone().add(new THREE.Vector3(-3, 0.16, 0));
-  const summitLanding = summitCenter.clone().add(new THREE.Vector3(0, 0, 1));
+  const summitDock = summitCenter.clone().add(new THREE.Vector3(-6.2, 0.16, 0));
+  const summitLanding = summitCenter
+    .clone()
+    .add(new THREE.Vector3(1.7, 0, 6.5));
   const islandLanding = islandDock.clone().add(new THREE.Vector3(0, -0.16, -2));
   const startPoint = islandDock.clone().add(new THREE.Vector3(0, 0.35, 0));
   const endPoint = summitDock.clone().add(new THREE.Vector3(0, 0.35, 0));
@@ -84,7 +87,7 @@ export function createCableCar({
     group: summitGroup,
     blockers: [],
     contains: (x, z) =>
-      Math.hypot(x - summitCenter.x, z - summitCenter.z) < 4.8,
+      Math.hypot(x - summitCenter.x, z - summitCenter.z) < 8.6,
     heightAt: (x, z) =>
       summitCenter.y +
       (Math.abs(x - summitDock.x) < 2.3 && Math.abs(z - summitDock.z) < 1.4
@@ -92,8 +95,8 @@ export function createCableCar({
         : 0),
   };
   cyl(
-    5.8,
-    5.8,
+    9.6,
+    9.6,
     0.4,
     "#b99364",
     summitCenter.x,
@@ -102,14 +105,14 @@ export function createCableCar({
     summitGroup,
     32,
   );
-  for (let i = 0; i < 22; i++) {
-    const angle = (i * Math.PI * 2) / 22;
-    const x = summitCenter.x + Math.cos(angle) * 5.6;
-    const z = summitCenter.z + Math.sin(angle) * 5.6;
+  for (let i = 0; i < 32; i++) {
+    const angle = (i * Math.PI * 2) / 32;
+    const x = summitCenter.x + Math.cos(angle) * 9.4;
+    const z = summitCenter.z + Math.sin(angle) * 9.4;
     cyl(0.075, 0.075, 1.4, "#e7c894", x, 59.65, z, summitGroup);
   }
   const rail = mesh(
-    new THREE.TorusGeometry(5.6, 0.07, 5, 64),
+    new THREE.TorusGeometry(9.4, 0.07, 5, 64),
     "#e7c894",
     summitCenter.x,
     60.3,
@@ -117,6 +120,16 @@ export function createCableCar({
     summitGroup,
   );
   rail.rotation.x = Math.PI / 2;
+  const castle = createSummitCastle({
+    parent: summitGroup,
+    center: summitCenter,
+    blockers: summit.blockers,
+    mesh,
+    box,
+    cyl,
+  });
+  summit.followDistance = 1.8;
+  summit.castle = castle;
   function station(parent, dock, name) {
     const station = new THREE.Group();
     station.name = name;
@@ -261,7 +274,7 @@ export function createCableCar({
     onArrival(atSummit);
     toast(
       atSummit
-        ? "Mountain summit · Enjoy the waterfall, rainbow and lake below. C to return."
+        ? "Summit castle · Walk through the open arch to explore. Cable car: beside the castle · C."
         : "Back on the flower island · Your lagoon treasures are safe",
     );
   }
@@ -286,6 +299,9 @@ export function createCableCar({
     update,
     nearby,
     reset,
+    updateVisibility(camera, characters, dt) {
+      if (atSummit && !riding) castle.updateVisibility(camera, characters, dt);
+    },
     updateScenery() {
       if (!enabled) return;
       sceneryPairs.forEach(([source, copy]) => {

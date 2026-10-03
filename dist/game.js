@@ -1,10 +1,11 @@
-import { createCableCar } from "./cable-car.js";
+import { createCastleRoom } from "./castle-room.js?v=20261003-treasure-aisle";
+import { createCableCar } from "./cable-car.js?v=20261003-great-room";
 import { createBoatTrip } from "./boat-trip.js?v=20261003-cable-car";
 import * as THREE from "./vendor/three.module.js";
 import { createRiverside } from "./riverside.js?v=20261003-cable-car";
 import { createCave } from "./cave.js?v=20261003-rocks";
 import { createGameAudio } from "./audio.js";
-import { createCompanion } from "./companion.js?v=20261003-rocks";
+import { createCompanion } from "./companion.js?v=20261003-castle";
 import { createHearts } from "./hearts.js?v=20261001-climb";
 import { createTreeVisibility } from "./tree-visibility.js?v=20261002-camera-clear";
 import { bindCameraDrag } from "./camera-drag.js";
@@ -514,6 +515,8 @@ const riverside = createRiverside({ mesh, box, cyl, ball });
 garden.add(riverside.entrance);
 scene.add(riverside.group);
 blockers.push({ x: -32, z: -2, r: 0.45 }, { x: -32, z: 2, r: 0.45 });
+const castleRoom = createCastleRoom({ mesh, box, cyl, ball });
+scene.add(castleRoom.group);
 const companion = createCompanion({ ball, box, cyl, mesh });
 garden.add(companion.character);
 const companionObstacles = [
@@ -590,17 +593,17 @@ const cableCar = createCableCar({
   toast,
   onArrival(atSummit) {
     hearts.clear();
-    yaw = atSummit ? Math.PI : 0;
+    yaw = 0;
     pitch = THREE.MathUtils.degToRad(atSummit ? 30 : 16);
     zoom = atSummit ? 22 : 20;
     $(".quest .eyebrow").textContent = atSummit
-      ? "THE MOUNTAIN SUMMIT"
+      ? "THE SUMMIT CASTLE"
       : "THE LOTUS LAGOON";
     $(".quest h1").innerHTML = atSummit
-      ? "Above the treetops.<br />A view for two."
+      ? "A castle in the clouds.<br />A cozy room for two."
       : "A boat for two.<br />A sunflower paradise.";
     $("#objective").textContent = atSummit
-      ? "Enjoy the panorama. Take the cable car back to the flower island."
+      ? "Walk through the open castle arch. Return cable car: beside the castle."
       : boatTrip.lagoon.collected === 240
         ? "Your lagoon collection is complete! Enjoy the flowers and the mountain cable car."
         : "Explore the flowers and gemstones. Cable car: north end of the central island.";
@@ -615,6 +618,7 @@ const cableCar = createCableCar({
 });
 function boardCableCar() {
   if (
+    insideCastle ||
     !insideRiver ||
     !boatTrip.atLagoon ||
     boatTrip.rowing ||
@@ -639,6 +643,7 @@ function boardCableCar() {
 $("#cableAction").onclick = boardCableCar;
 function boardBoat() {
   if (
+    insideCastle ||
     !insideRiver ||
     $("#guide").open ||
     passageTransition.active ||
@@ -658,6 +663,8 @@ $("#benchAction").onclick = () => {
     benchMoment.sit();
 };
 $("#benchStand").onclick = () => benchMoment.stand();
+let insideCastle = false,
+  castleOutsideView = null;
 let insideCave = false,
   insideRiver = false,
   riverCollected = 0,
@@ -667,6 +674,122 @@ let insideCave = false,
 const passageTransition = createSceneTransition((opacity) => {
   $("#sceneTransition").style.opacity = String(opacity);
 });
+function useCastlePassage(enter) {
+  if (
+    enter === insideCastle ||
+    !insideRiver ||
+    !cableCar.atSummit ||
+    cableCar.riding
+  )
+    return;
+  if (!passageTransition.start(() => changeCastlePassage(enter))) return;
+  cameraDrag.reset();
+  Object.keys(keys).forEach((key) => (keys[key] = false));
+  joy.set(0, 0);
+  isMoving = false;
+}
+function changeCastlePassage(enter) {
+  if (enter === insideCastle) return;
+  insideCastle = enter;
+  castleActivityCooldown = 0;
+  castleMusicSession++;
+  held.visible = !enter;
+  hearts.clear();
+  axes.forEach((a) => scene.remove(a.g));
+  axes.length = 0;
+  if (enter)
+    castleOutsideView = {
+      yaw,
+      pitch,
+      zoom,
+      instructions: $(".instructions").innerHTML,
+    };
+  castleRoom.group.visible = enter;
+  cableCar.group.visible = !enter;
+  boatTrip.lagoon.group.visible = false;
+  boatTrip.boat.visible = !enter;
+  if (enter) {
+    castleRoom.group.add(companion.character);
+    hero.position.set(0, 0, 8.5);
+    companion.reset(hero.position, castleRoom.blockers, castleRoom);
+    yaw = 0;
+    pitch = THREE.MathUtils.degToRad(28);
+    zoom = 22;
+    hero.rotation.y = Math.PI;
+  } else {
+    cableCar.summit.group.add(companion.character);
+    hero.position.copy(cableCar.summit.castle.entrance);
+    companion.reset(hero.position, cableCar.summit.blockers, cableCar.summit);
+    if (castleOutsideView) ({ yaw, pitch, zoom } = castleOutsideView);
+    hero.rotation.y = 0;
+  }
+  scene.background.set(enter ? "#cab5b0" : "#c0ded9");
+  scene.fog.color.copy(scene.background);
+  scene.fog.density = enter ? 0.009 : 0.006;
+  sun.intensity = enter ? 1.7 : 3.4;
+  scene.children.find((c) => c.isHemisphereLight).intensity = enter ? 1.6 : 2.4;
+  camera.position
+    .set(
+      Math.sin(yaw) * Math.cos(pitch) * zoom,
+      1 + Math.sin(pitch) * zoom,
+      Math.cos(yaw) * Math.cos(pitch) * zoom,
+    )
+    .add(hero.position);
+  camera.lookAt(hero.position.x, hero.position.y + 1, hero.position.z);
+  passageCooldown = 1;
+  $("#lagoonCounts").hidden = enter;
+  $(".instructions").innerHTML = enter
+    ? "<kbd>W A S D</kbd> move <kbd>X</kbd> interact <kbd>DRAG / Q E</kbd> rotate <kbd>R / F</kbd> view up / down"
+    : castleOutsideView?.instructions;
+  $("#castleCounts").hidden = !enter;
+  $("#castleStars").textContent = castleRoom.collected;
+  $(".quest .eyebrow").textContent = enter
+    ? "THE CLOUD CASTLE"
+    : "THE SUMMIT CASTLE";
+  $(".quest h1").innerHTML = enter
+    ? "A home above the clouds.<br />Little wonders to discover."
+    : "A castle in the clouds.<br />A cozy room for two.";
+  $("#objective").textContent = enter
+    ? castleRoom.objective()
+    : "Enter the castle to explore its great room. Cable car: beside the castle.";
+  toast(
+    enter
+      ? "Welcome home · Find stars, share tea, play music, and read a story. Activities: X."
+      : "Back at the summit · Cable car: beside the castle · C.",
+  );
+}
+let castleActivityCooldown = 0,
+  castleMusicSession = 0;
+function interactCastle() {
+  if (
+    !insideCastle ||
+    passageTransition.active ||
+    $("#guide").open ||
+    castleActivityCooldown > 0
+  )
+    return;
+  const action = castleRoom.interact(hero.position, clock.elapsedTime);
+  if (!action) return;
+  castleActivityCooldown = action.kind === "piano" ? 3 : 0.8;
+  toast(action.message);
+  $("#objective").textContent = castleRoom.objective();
+  if (action.kind === "piano") {
+    const session = castleMusicSession;
+    [523, 659, 784, 659, 587, 698, 880, 1047].forEach((note, i) =>
+      setTimeout(() => {
+        if (insideCastle && session === castleMusicSession && !$("#guide").open)
+          beep(note, 0.18);
+      }, i * 240),
+    );
+  } else if (action.kind === "tea") {
+    hearts.contact(true, hero.position, companion.character.position);
+    beep(660, 0.2);
+  } else if (action.kind === "chest") {
+    burst(castleRoom.rewardPosition.clone(), "#ffe399", 45);
+    beep(1047, 0.5);
+  }
+}
+$("#castleAction").onclick = interactCastle;
 function usePassage(enter, river = false) {
   if (enter === (river ? insideRiver : insideCave)) return;
   if (!passageTransition.start(() => changePassage(enter, river))) return;
@@ -677,6 +800,7 @@ function usePassage(enter, river = false) {
 }
 function changePassage(enter, river = false) {
   if (enter === (river ? insideRiver : insideCave)) return;
+  if (insideCastle) changeCastlePassage(false);
   const leavingRiver = insideRiver;
   cableCar.reset();
   boatTrip.reset();
@@ -769,11 +893,15 @@ function changePassage(enter, river = false) {
 }
 function cameraTargetHeight() {
   // Frame the characters in the foreground and the tall mountain above them.
-  return cableCar.riding
-    ? 3
-    : insideRiver && !boatTrip.atLagoon && !boatTrip.rowing
-      ? 9
-      : 1;
+  return insideCastle
+    ? 1
+    : cableCar.atSummit && !cableCar.riding
+      ? 5
+      : cableCar.riding
+        ? 3
+        : insideRiver && !boatTrip.atLagoon && !boatTrip.rowing
+          ? 9
+          : 1;
 }
 function riverObjective() {
   return riverCollected === riverside.treasures.length
@@ -838,6 +966,7 @@ function fire() {
   if (
     cooldown > 0 ||
     $("#guide").open ||
+    insideCastle ||
     benchMoment.seated ||
     boatTrip.rowing ||
     cableCar.riding ||
@@ -881,6 +1010,7 @@ addEventListener("keydown", (e) => {
   }
   if (e.code === "KeyT" && !e.repeat) boardBoat();
   if (e.code === "KeyC" && !e.repeat) boardCableCar();
+  if (e.code === "KeyX" && !e.repeat) interactCastle();
   if (e.code === "Space") fire();
 });
 addEventListener("keyup", (e) => (keys[e.code] = false));
@@ -940,6 +1070,8 @@ $("#restart").onclick = () => {
   passageTransition.cancel();
   cameraDrag.reset();
   benchMoment.stand();
+  if (insideCastle) changeCastlePassage(false);
+  castleRoom.reset();
   cableCar.reset();
   boatTrip.reset(true);
   $("#lagoonGems").textContent = 0;
@@ -995,6 +1127,7 @@ function frame() {
   const paused = $("#guide").open || transitioning;
   cooldown = Math.max(0, cooldown - dt);
   throwAnim = Math.max(0, throwAnim - dt);
+  castleActivityCooldown = Math.max(0, castleActivityCooldown - dt);
   if (!paused) {
     benchMoment.update(dt);
     passageCooldown = Math.max(0, passageCooldown - dt);
@@ -1011,11 +1144,13 @@ function frame() {
       boatTrip.update(dt);
       isMoving = false;
     } else {
-      const riverTerrain = cableCar.atSummit
-        ? cableCar.summit
-        : boatTrip.atLagoon
-          ? boatTrip.lagoon
-          : riverside;
+      const riverTerrain = insideCastle
+        ? castleRoom
+        : cableCar.atSummit
+          ? cableCar.summit
+          : boatTrip.atLagoon
+            ? boatTrip.lagoon
+            : riverside;
       let dx =
           (keys.KeyD || keys.ArrowRight ? 1 : 0) -
           (keys.KeyA || keys.ArrowLeft ? 1 : 0) +
@@ -1202,8 +1337,27 @@ function frame() {
           beep(1100, 0.8);
         }
       }
+      if (insideCastle) {
+        const star = castleRoom.collect(hero.position);
+        if (star) {
+          burst(star.g.position.clone(), "#ffe399", 12);
+          beep(880, 0.2);
+          toast(`Hidden star found · ${castleRoom.collected} / 6`);
+          $("#castleStars").textContent = castleRoom.collected;
+          $("#objective").textContent = castleRoom.objective();
+        }
+      }
       if (passageCooldown === 0) {
-        if (
+        if (insideCastle && castleRoom.isExit(hero.position))
+          useCastlePassage(false);
+        else if (
+          insideRiver &&
+          cableCar.atSummit &&
+          !insideCastle &&
+          cableCar.summit.castle.isEntrance(hero.position)
+        )
+          useCastlePassage(true);
+        else if (
           insideRiver &&
           !boatTrip.atLagoon &&
           riverside.isExit(hero.position)
@@ -1223,6 +1377,7 @@ function frame() {
   }
   updateHudVisibility(isMoving, dt, paused);
   $("#boatAction").hidden =
+    insideCastle ||
     !insideRiver ||
     paused ||
     cableCar.riding ||
@@ -1235,6 +1390,7 @@ function frame() {
       ? "Return by boat · T"
       : "Board boat · T";
   $("#cableAction").hidden =
+    insideCastle ||
     !insideRiver ||
     !boatTrip.atLagoon ||
     paused ||
@@ -1253,10 +1409,21 @@ function frame() {
     benchMoment.seated ||
     !benchMoment.nearby();
   $("#benchStand").hidden = !benchMoment.seated || paused;
+  $("#throw").hidden = insideCastle;
+  const castleActivity = insideCastle ? castleRoom.nearby(hero.position) : null;
+  $("#castleAction").hidden = !castleActivity || paused;
+  $("#castleAction").textContent =
+    castleActivity?.label ?? "Explore the castle · X";
+  $("#castleAction").disabled = castleActivityCooldown > 0;
   lakeside.update(time);
-  if (insideRiver) {
+  if (insideCastle) {
+    castleRoom.update(time, camera, paused ? 0 : dt);
+    $("#caveHint").textContent =
+      "Find six hidden stars. Tea, piano and storybook: X nearby. Exit: pink arch to the south.";
+  } else if (insideRiver) {
     riverside.update(time);
     cableCar.updateScenery();
+    cableCar.updateVisibility(camera, [hero, companion.character], dt);
     const gateX = riverside.returnGate.position.x - hero.position.x,
       gateZ = riverside.returnGate.position.z - hero.position.z;
     const distance = Math.round(Math.hypot(gateX, gateZ));
@@ -1264,7 +1431,7 @@ function frame() {
     $("#caveHint").textContent = cableCar.riding
       ? "Both aboard · Rising above the lake and forest. Camera controls still work."
       : cableCar.atSummit
-        ? "Mountain summit · Enjoy the view. Return cable car: beside the lookout deck · C."
+        ? "Summit castle · Enter through the open arch. Return cable car: beside the castle · C."
         : boatTrip.rowing
           ? "Both aboard · Enjoy the ride. Camera controls still work."
           : boatTrip.atLagoon
@@ -1306,40 +1473,48 @@ function frame() {
     hero.position.z,
   );
   hearts.update(paused ? 0 : dt, camera);
-  if (insideRiver)
+  if (insideRiver && !insideCastle)
     riverside.updateVisibility(camera, [hero, companion.character], dt);
-  else if (!insideCave)
+  else if (!insideCave && !insideCastle)
     treeVisibility.update(camera, [hero, companion.character], dt);
-  sun.position.set(hero.position.x - 18, 30, hero.position.z + 12);
+  sun.position.set(
+    hero.position.x - 18,
+    hero.position.y + 30,
+    hero.position.z + 12,
+  );
   sun.target.position.copy(hero.position);
   if (performance.now() > toastUntil) $("#toast").style.opacity = 0;
   const x = hero.position.x,
     z = hero.position.z;
-  const region = insideRiver
-    ? cableCar.riding
-      ? "Above the treetops"
-      : cableCar.atSummit
-        ? "Mountain summit"
-        : boatTrip.rowing
-          ? "Rowing together"
-          : boatTrip.atLagoon
-            ? "Lotus Lagoon"
-            : riverside.locationAt(hero.position)
-    : insideCave
-      ? "The Golden Grotto"
-      : z < -38
-        ? "Treasure cave entrance"
-        : z < -20
-          ? "The sun shrine"
-          : Math.hypot(x - 8, z - 12) < 7
-            ? "Sunflower lake"
-            : x > 16
-              ? "Whispering grove"
-              : x < -16
-                ? "Old garden ruins"
-                : z > 16
-                  ? "Wildflower trail"
-                  : "Petal clearing";
+  const region = insideCastle
+    ? "The Cloud Castle · Great Room"
+    : insideRiver
+      ? cableCar.riding
+        ? "Above the treetops"
+        : cableCar.atSummit
+          ? cableCar.summit.castle.inside(hero.position)
+            ? "Inside the summit castle"
+            : "Summit castle"
+          : boatTrip.rowing
+            ? "Rowing together"
+            : boatTrip.atLagoon
+              ? "Lotus Lagoon"
+              : riverside.locationAt(hero.position)
+      : insideCave
+        ? "The Golden Grotto"
+        : z < -38
+          ? "Treasure cave entrance"
+          : z < -20
+            ? "The sun shrine"
+            : Math.hypot(x - 8, z - 12) < 7
+              ? "Sunflower lake"
+              : x > 16
+                ? "Whispering grove"
+                : x < -16
+                  ? "Old garden ruins"
+                  : z > 16
+                    ? "Wildflower trail"
+                    : "Petal clearing";
   if ($("#region").firstChild.textContent !== region)
     $("#region").firstChild.textContent = region;
   cave.update(time, camera);
@@ -1378,17 +1553,19 @@ if (document.modelContext?.registerTool) {
             )
               throw new Error("Expected an empty object");
             return {
-              location: insideRiver
-                ? cableCar.riding
-                  ? "cable car"
-                  : cableCar.atSummit
-                    ? "mountain summit"
-                    : boatTrip.atLagoon
-                      ? "lotus lagoon"
-                      : "riverside"
-                : insideCave
-                  ? "treasure cave"
-                  : "garden",
+              location: insideCastle
+                ? "castle great room"
+                : insideRiver
+                  ? cableCar.riding
+                    ? "cable car"
+                    : cableCar.atSummit
+                      ? "mountain summit"
+                      : boatTrip.atLagoon
+                        ? "lotus lagoon"
+                        : "riverside"
+                  : insideCave
+                    ? "treasure cave"
+                    : "garden",
               riversideTreasures: riverCollected,
               lagoonTreasures: boatTrip.lagoon.collected,
               sunStones: collected,

@@ -160,7 +160,8 @@ export function createCompanion({ ball, box, cyl, mesh }) {
       reset(heroPosition, obstacles, terrain);
       separation = horizontalDistance(character.position, heroPosition);
     }
-    const following = separation > 5;
+    const followDistance = terrain.followDistance ?? 5;
+    const following = separation > followDistance;
     if (following) {
       destination.copy(heroPosition);
       walking = true;
@@ -204,7 +205,7 @@ export function createCompanion({ ball, box, cyl, mesh }) {
           dt * (following ? 6 : 2),
         );
         const speed = following
-          ? Math.min(8.8, 1.05 + (separation - 5) * 2.5)
+          ? Math.min(8.8, 1.05 + (separation - followDistance) * 2.5)
           : 1.05;
         const step =
           speed * dt * (following ? 1 : Math.abs(turn) < 0.35 ? 1 : 0);

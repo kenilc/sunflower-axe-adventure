@@ -17,6 +17,9 @@ const assert = require("assert/strict");
   };
   const context = vm.createContext({
     console,
+    setTimeout(fn) {
+      fn();
+    },
     performance: { now: () => 0 },
     innerWidth: 1280,
     innerHeight: 720,
@@ -55,7 +58,7 @@ const assert = require("assert/strict");
   // Execute the actual game with only browser/rendering APIs stubbed.
   const setup =
     game.replace("new THREE.WebGLRenderer(", "new FakeRenderer(") +
-    "\nexport {scene, mesh, box, cyl, ball, blockers, hero, body, legs, arms, held, lakeside, targets, shrine, inLake, createBenchMoment, clock, frame, axes, gems, won, camera, riverside, usePassage, yaw, insideRiver, insideCave, passageTransition, cableCar, boatTrip, companion, boardCableCar, boardBoat, fire};";
+    "\nexport {scene, mesh, box, cyl, ball, blockers, hero, body, legs, arms, held, lakeside, targets, shrine, inLake, createBenchMoment, clock, frame, axes, gems, won, camera, riverside, usePassage, yaw, insideRiver, insideCave, passageTransition, cableCar, boatTrip, companion, boardCableCar, boardBoat, fire, keys, insideCastle, castleRoom, useCastlePassage, changeCastlePassage, interactCastle};";
   const G = (await module("review-setup", setup)).namespace;
   const T = (await module("vendor/three.module.js")).namespace;
   const C = (await module("companion.js")).namespace.createCompanion(G);
@@ -344,6 +347,144 @@ const assert = require("assert/strict");
     !G.cableCar.summit.contains(G.hero.position.x + 30, G.hero.position.z),
     "The summit deck must have a finite walking boundary",
   );
+  const castle = G.cableCar.summit.castle;
+  assert(!castle.inside(G.hero.position));
+  G.keys.KeyW = true;
+  for (let i = 0; i < 45; i++) G.frame();
+  G.keys.KeyW = false;
+  assert(G.insideCastle, "Walking into the arch enters a separate room");
+  assert(
+    G.castleRoom.group.visible &&
+      !G.cableCar.group.visible &&
+      !G.boatTrip.boat.visible,
+  );
+  assert(G.companion.character.parent === G.castleRoom.group);
+  assert.equal(G.hero.position.y, 0);
+  assert(G.castleRoom.contains(G.hero.position.x, G.hero.position.z));
+  G.boardCableCar();
+  G.boardBoat();
+  G.fire();
+  assert(!G.cableCar.riding && !G.boatTrip.rowing && !G.axes.length);
+  const room = G.castleRoom;
+  assert(!room.contains(12, 0));
+  assert(!allowed({ x: 5, z: 2 }, room.blockers), "Furniture is solid");
+  assert(!room.interact(new T.Vector3(0, 0, 8), 0));
+  const chestSpot = new T.Vector3(0, 0, 0.5);
+  assert(allowed(chestSpot, room.blockers));
+  assert.equal(room.interact(chestSpot, 0).kind, "locked");
+  // Both characters have a clear lane between the sofa and the relocated chest.
+  for (let z = -9; z <= -4; z += 0.1) {
+    const woman = new T.Vector3(-1.5, 0, z),
+      man = new T.Vector3(0.1, 0, z);
+    assert(
+      allowed(woman, room.blockers) && allowed(man, room.blockers),
+      "Sofa aisle has room for both characters",
+    );
+    assert(woman.distanceTo(man) > G.companion.contactDistance);
+  }
+  G.hero.position.set(-1.5, 0, -9);
+  G.companion.reset(new T.Vector3(2, 0, -9), room.blockers, room);
+  G.keys.KeyS = true;
+  for (let i = 0; i < 24; i++) {
+    G.frame();
+    assert(allowed(G.hero.position, room.blockers));
+    assert(allowed(G.companion.character.position, room.blockers));
+  }
+  G.keys.KeyS = false;
+  assert(
+    G.hero.position.z > -4.6,
+    "The player can walk through the sofa aisle",
+  );
+  assert.equal(room.treasureBoxes.filter((b) => b.kind === "coins").length, 2);
+  assert.equal(room.treasureBoxes.filter((b) => b.kind === "gems").length, 2);
+  for (const crate of room.treasureBoxes) {
+    assert(
+      !allowed(crate.group.position, room.blockers),
+      "Treasure boxes are solid",
+    );
+    const bounds = new T.Box3().setFromObject(crate.group);
+    assert(
+      bounds.max.x < -4 || bounds.min.x > 4,
+      "Boxes keep the central aisle clear",
+    );
+  }
+  // Explore the real navigable floor, including every star and activity.
+  const start = [0, 8],
+    queue = [start],
+    reached = new Set([start.join(",")]);
+  for (let head = 0; head < queue.length; head++) {
+    const [x, z] = queue[head];
+    for (const [dx, dz] of [
+      [0.5, 0],
+      [-0.5, 0],
+      [0, 0.5],
+      [0, -0.5],
+    ]) {
+      const next = [x + dx, z + dz],
+        key = next.join(",");
+      if (
+        reached.has(key) ||
+        !room.contains(...next) ||
+        !allowed({ x: next[0], z: next[1] }, room.blockers)
+      )
+        continue;
+      reached.add(key);
+      queue.push(next);
+    }
+  }
+  for (const star of room.stars) {
+    assert(
+      queue.some(([x, z]) => Math.hypot(x - star.x, z - star.z) < 1.3),
+      "Each hidden star is reachable",
+    );
+    G.hero.position.set(star.x, 0, star.z);
+    assert(allowed(G.hero.position, room.blockers));
+    G.frame();
+  }
+  assert.equal(room.collected, 6);
+  assert(!room.collect(G.hero.position), "Stars cannot be collected twice");
+  for (const activity of room.activities) {
+    const reachable = queue.find(
+      ([x, z]) => room.nearby(new T.Vector3(x, 0, z)) === activity,
+    );
+    assert(reachable, `${activity.kind} is reachable`);
+    const result = room.interact(
+      new T.Vector3(reachable[0], 0, reachable[1]),
+      0,
+    );
+    assert.equal(result.kind, activity.kind);
+  }
+  assert(room.opened);
+  const pianoSpot = queue.find(
+    ([x, z]) => room.nearby(new T.Vector3(x, 0, z))?.kind === "piano",
+  );
+  G.hero.position.set(pianoSpot[0], 0, pianoSpot[1]);
+  assert(allowed(G.hero.position, room.blockers));
+  G.interactCastle();
+  assert(
+    element("#toast").textContent.includes("melody"),
+    "Piano action schedules its melody",
+  );
+  for (let i = 0; i < 80; i++) G.frame();
+
+  G.hero.position.copy(chestSpot);
+  G.interactCastle();
+  assert(element("#toast").textContent.includes("wishing star"));
+  for (let i = 0; i < 30; i++) G.frame();
+  G.hero.position.set(0, 0, 11.5);
+  G.frame();
+  assert(G.passageTransition.active && G.insideCastle);
+  for (let i = 0; i < 12; i++) G.frame();
+  assert(!G.insideCastle && !room.group.visible && G.cableCar.group.visible);
+  assert(G.cableCar.atSummit);
+  assert(allowed(G.hero.position, G.cableCar.summit.blockers));
+  assert.equal(room.collected, 6, "Treasure hunt persists after leaving");
+  G.useCastlePassage(true);
+  for (let i = 0; i < 12; i++) G.frame();
+  assert(G.insideCastle && room.opened);
+  G.useCastlePassage(false);
+  for (let i = 0; i < 12; i++) G.frame();
+  G.hero.position.copy(G.cableCar.summitDock);
   G.boardCableCar();
   for (let i = 0; i < 310; i++) G.frame();
   assert(!G.cableCar.atSummit && !G.cableCar.riding);
@@ -351,11 +492,20 @@ const assert = require("assert/strict");
   assert.equal(G.boatTrip.lagoon.collected, preserved);
   assert(G.companion.character.parent === G.boatTrip.lagoon.group);
   G.boardCableCar();
-  for (let i = 0; i < 20; i++) G.frame();
+  for (let i = 0; i < 310; i++) G.frame();
+  G.useCastlePassage(true);
+  for (let i = 0; i < 12; i++) G.frame();
+  assert(G.insideCastle);
   element("#restart").onclick();
   G.frame();
   assert(
     !G.cableCar.riding && !G.cableCar.atSummit && !G.cableCar.group.visible,
+  );
+  assert(
+    !G.insideCastle &&
+      !room.group.visible &&
+      room.collected === 0 &&
+      !room.opened,
   );
   assert(!G.boatTrip.atLagoon && !G.boatTrip.rowing && G.held.visible);
   assert(G.hero.position.distanceTo(new T.Vector3(0, 0, 7)) < 1e-7);
@@ -376,7 +526,7 @@ const assert = require("assert/strict");
   resolve(trapped, safe, corridor);
   assert(corridor.every((b) => !overlaps(trapped, b)));
   console.log(
-    "PASS: cable-car ascent and descent, both riders, summit landing and boundary, safe restart and preserved lagoon treasures, smooth bidirectional gate transitions, midpoint-only scene changes, duplicate prevention and restart cancellation, cave wall and exit rock coverage, sprint contacts around the chamber, reachable cave exit, garden rock clearance, garden solid blockers, reachable shrine quest, target blocker lifecycle, full gazebo seats, non-crossing bench approaches, repeated collision resolution, exact-center contacts and crowded-contact fallback",
+    "PASS: clear sofa aisle for both characters, solid gold and gemstone boxes, separate castle-room entry and return transitions, reachable furniture activities and six-star treasure hunt, persistent chest reward, cable-car ascent and descent, both riders, summit landing and boundary, safe restart and preserved lagoon treasures, smooth bidirectional gate transitions, midpoint-only scene changes, duplicate prevention and restart cancellation, cave wall and exit rock coverage, sprint contacts around the chamber, reachable cave exit, garden rock clearance, garden solid blockers, reachable shrine quest, target blocker lifecycle, full gazebo seats, non-crossing bench approaches, repeated collision resolution, exact-center contacts and crowded-contact fallback",
   );
 })().catch((e) => {
   console.error(e);
