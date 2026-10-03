@@ -1,6 +1,6 @@
 import { createBoatTrip } from "./boat-trip.js?v=20261002-sunflower-lagoon";
 import * as THREE from "./vendor/three.module.js";
-import { createRiverside } from "./riverside.js?v=20261003-collisions";
+import { createRiverside } from "./riverside.js?v=20261003-mountain-waterfall";
 import { createCave } from "./cave.js?v=20261003-rocks";
 import { createGameAudio } from "./audio.js";
 import { createCompanion } from "./companion.js?v=20261003-rocks";
@@ -604,7 +604,7 @@ function usePassage(enter, river = false) {
     insideCave ? "#17151c" : insideRiver ? "#b6d9ce" : "#96c4b0",
   );
   scene.fog.color.copy(scene.background);
-  scene.fog.density = insideCave ? 0.026 : 0.018;
+  scene.fog.density = insideCave ? 0.026 : insideRiver ? 0.011 : 0.018;
   sun.intensity = insideCave ? 0.45 : 3.4;
   const sky = scene.children.find((c) => c.isHemisphereLight);
   sky.intensity = insideCave ? 0.7 : 2.4;
@@ -1118,7 +1118,7 @@ function frame() {
       ? "Both aboard · Enjoy the ride. Camera controls still work."
       : boatTrip.atLagoon
         ? "Follow the clear paths through the sunflowers. Cross the bridge for more gems. Return boat: south dock."
-        : `Explore the flat island. The river falls over its edges. Boat dock: east bank by the bridge. Return gate: ${distance} m ${direction || "away"}, near the starting bridge.`;
+        : `Explore the island. A mountain waterfall feeds the river. Boat dock: east bank by the bridge. Return gate: ${distance} m ${direction || "away"}, near the starting bridge.`;
   }
   for (let i = particles.length - 1; i >= 0; i--) {
     let p = particles[i];

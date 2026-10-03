@@ -128,8 +128,8 @@ export function createRiverside({ mesh, box, cyl, ball }) {
   ribbon(3.1, "#52bbca", 0.04);
   const waterfallStreaks = [];
   const mist = [];
-  for (const side of [-1, 1]) {
-    const drop = side > 0 ? 36 : 12;
+  for (const side of [-1]) {
+    const drop = 12;
     const vertices = [],
       indices = [];
     for (let i = 0; i <= 32; i++) {
@@ -200,9 +200,261 @@ export function createRiverside({ mesh, box, cyl, ball }) {
       foam.castShadow = false;
     }
   }
+  // The upstream end is fed by a mountain waterfall; only the downstream
+  // end leaves the island. Keep this scenery beyond the walkable banks.
+  const sourceX = center(islandZ);
+  const mountain = new THREE.Group();
+  mountain.name = "waterfall-mountain";
+  group.add(mountain);
+  function peak(x, z, radius, height, color) {
+    const rock = mesh(
+      new THREE.ConeGeometry(radius, height, 64),
+      color,
+      x,
+      height / 2 - 0.04,
+      z,
+      mountain,
+    );
+    rock.scale.z = 0.85;
+    return rock;
+  }
+  peak(sourceX - 25, 108, 25, 39, "#718b7c");
+  peak(sourceX + 26, 113, 27, 44, "#637f73");
+  peak(sourceX, 104, 36, 58, "#7d9581");
+  const snow = mesh(
+    new THREE.ConeGeometry(6.5, 10.5, 32),
+    "#e1eee3",
+    sourceX,
+    52.71,
+    104,
+    mountain,
+  );
+  snow.scale.z = 0.85;
+  // A broad rock face supports the crest, with broken shoulders framing it.
+  const cliff = mesh(
+    new THREE.CylinderGeometry(9, 12, 32, 9),
+    "#7a9188",
+    sourceX,
+    16,
+    80,
+    mountain,
+  );
+  cliff.scale.z = 0.65;
+  for (const side of [-1, 1]) {
+    const shoulder = ball(8, "#6e897a", sourceX + side * 10, 14, 81, mountain);
+    shoulder.scale.set(0.7, 2, 1);
+  }
+  // Dense forest uses four instanced batches, so the backdrop stays inexpensive.
+  const forest = new THREE.Group();
+  forest.name = "mountain-forest";
+  mountain.add(forest);
+  const forestCount = 220;
+  const treeBatches = [
+    new THREE.InstancedMesh(
+      new THREE.CylinderGeometry(0.12, 0.22, 1, 6),
+      new THREE.MeshStandardMaterial({ color: "#665f43", flatShading: true }),
+      forestCount,
+    ),
+    ...["#315e4d", "#42745a", "#5b8863"].map(
+      (color) =>
+        new THREE.InstancedMesh(
+          new THREE.ConeGeometry(1, 1, 7),
+          new THREE.MeshStandardMaterial({ color, flatShading: true }),
+          forestCount,
+        ),
+    ),
+  ];
+  treeBatches.forEach((batch) => {
+    batch.castShadow = true;
+    batch.receiveShadow = true;
+    forest.add(batch);
+  });
+  let forestSeed = 8621;
+  const forestRandom = () =>
+    (forestSeed = (Math.imul(forestSeed, 1664525) + 1013904223) >>> 0) /
+    4294967296;
+  const treeTransform = new THREE.Object3D();
+  for (let i = 0; i < forestCount; i++) {
+    let x, z, radial;
+    do {
+      const angle = forestRandom() * Math.PI * 2;
+      radial = 0.2 + Math.sqrt(forestRandom()) * 0.73;
+      x = sourceX + Math.cos(angle) * radial * 36;
+      z = 104 + Math.sin(angle) * radial * 30.6;
+    } while (Math.abs(x - sourceX) < 9 && z < 88);
+    const y = 58 * (1 - radial) - 0.1;
+    const size = 0.8 + forestRandom() * 0.75;
+    treeTransform.rotation.set(0, forestRandom() * Math.PI * 2, 0);
+    treeTransform.position.set(x, y + size * 1.4, z);
+    treeTransform.scale.set(size, size * 2.8, size);
+    treeTransform.updateMatrix();
+    treeBatches[0].setMatrixAt(i, treeTransform.matrix);
+    for (let tier = 0; tier < 3; tier++) {
+      treeTransform.position.set(x, y + size * (2.4 + tier * 1.1), z);
+      treeTransform.scale.set(
+        size * (1.5 - tier * 0.3),
+        size * 2.5,
+        size * (1.5 - tier * 0.3),
+      );
+      treeTransform.updateMatrix();
+      treeBatches[tier + 1].setMatrixAt(i, treeTransform.matrix);
+    }
+  }
+  const crestZ = 73.9,
+    crestY = 32.15;
+  const sourceMaterial = new THREE.MeshStandardMaterial({
+    color: "#75d6df",
+    roughness: 0.24,
+    metalness: 0.12,
+    transparent: true,
+    opacity: 0.9,
+    side: THREE.DoubleSide,
+  });
+  const fallVertices = [],
+    fallIndices = [];
+  for (let i = 0; i <= 32; i++) {
+    const x = sourceX - 3.1 + (i * 6.2) / 32;
+    fallVertices.push(x, crestY, crestZ, x, 0.04, 71.8);
+    if (i < 32) {
+      const a = i * 2;
+      fallIndices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+    }
+  }
+  const fallGeometry = new THREE.BufferGeometry();
+  fallGeometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(fallVertices, 3),
+  );
+  fallGeometry.setIndex(fallIndices);
+  fallGeometry.computeVertexNormals();
+  const sourceFall = mesh(fallGeometry, sourceMaterial, 0, 0, 0, group);
+  sourceFall.name = "mountain-waterfall";
+  sourceFall.castShadow = false;
+  const sourceStream = box(
+    6.2,
+    0.08,
+    11.9,
+    "#75d6df",
+    sourceX,
+    crestY,
+    79.85,
+    mountain,
+  );
+  sourceStream.name = "waterfall-source-stream";
+  // A solid, non-walkable upstream terrace joins the mountain to the island.
+  const terraceVertices = [],
+    terraceIndices = [];
+  for (let i = 0; i <= 32; i++) {
+    const x = sourceX - 9 + (i * 18) / 32;
+    const front = edgeZ(x);
+    terraceVertices.push(
+      x,
+      -0.04,
+      front,
+      x,
+      -0.04,
+      73,
+      x,
+      -3.64,
+      front,
+      x,
+      -3.64,
+      73,
+    );
+    if (i < 32) {
+      const a = i * 4;
+      terraceIndices.push(
+        a,
+        a + 1,
+        a + 4,
+        a + 1,
+        a + 5,
+        a + 4,
+        a,
+        a + 4,
+        a + 2,
+        a + 2,
+        a + 4,
+        a + 6,
+        a + 1,
+        a + 3,
+        a + 5,
+        a + 3,
+        a + 7,
+        a + 5,
+      );
+    }
+  }
+  terraceIndices.push(0, 2, 1, 1, 2, 3, 128, 129, 130, 129, 131, 130);
+  const terraceGeometry = new THREE.BufferGeometry();
+  terraceGeometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(terraceVertices, 3),
+  );
+  terraceGeometry.setIndex(terraceIndices);
+  terraceGeometry.computeVertexNormals();
+  mesh(terraceGeometry, "#79a56e", 0, 0, 0, group).name =
+    "waterfall-source-terrace";
+  // Connect the water and both banks to their exact upstream river vertices.
+  function sourceFeed(width, y, material, name) {
+    const vertices = [
+      sourceX - width,
+      y,
+      edgeZ(sourceX - width),
+      sourceX + width,
+      y,
+      edgeZ(sourceX + width),
+      sourceX - width,
+      y,
+      71.8,
+      sourceX + width,
+      y,
+      71.8,
+    ];
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(vertices, 3),
+    );
+    geometry.setIndex([0, 2, 1, 1, 2, 3]);
+    geometry.computeVertexNormals();
+    const feed = mesh(geometry, material, 0, 0, 0, group);
+    feed.name = name;
+    feed.castShadow = false;
+  }
+  sourceFeed(6.9, 0.008, "#cfc39b", "waterfall-source-bank");
+  sourceFeed(4.2, 0.015, "#ddcda3", "waterfall-source-bank");
+  sourceFeed(3.1, 0.04, sourceMaterial, "waterfall-river-feed");
+  const sourceStreaks = [];
+  for (let i = 0; i < 28; i++) {
+    const streak = box(
+      0.05 + (i % 3) * 0.025,
+      1.1 + (i % 4) * 0.45,
+      0.035,
+      "#d0f6f0",
+      sourceX - 2.95 + (i * 5.9) / 27,
+      0,
+      crestZ - 0.06,
+      group,
+    );
+    streak.castShadow = false;
+    sourceStreaks.push(streak);
+  }
+  for (let i = 0; i < 24; i++) {
+    const foam = ball(
+      0.25,
+      "#e0f8ef",
+      sourceX - 3.2 + (i * 6.4) / 23,
+      0.12 + (i % 3) * 0.08,
+      71.55 - (i % 4) * 0.3,
+      group,
+    );
+    foam.scale.set(1.5, 0.45, 1.1);
+    foam.castShadow = false;
+  }
   const rainbow = new THREE.Group();
   rainbow.name = "waterfall-rainbow";
-  rainbow.position.set(center(islandZ), -4, islandZ + 3.3);
+  rainbow.position.set(sourceX, 0.8, 65);
   group.add(rainbow);
   [
     "#ff727a",
@@ -549,7 +801,7 @@ export function createRiverside({ mesh, box, cyl, ball }) {
     },
     update(time) {
       ripples.forEach((r, i) => {
-        const z = -53 + ((i * 2.1 + time * 0.6) % 106);
+        const z = 53 - ((i * 2.1 + time * 0.6) % 106);
         r.position.set(center(z) + Math.sin(i * 4) * 2, 0.065, z);
       });
       waterfallStreaks.forEach(({ mesh: streak, side, z, phase, drop }) => {
@@ -557,11 +809,17 @@ export function createRiverside({ mesh, box, cyl, ball }) {
         streak.position.y = -0.5 - progress * (drop - 1.5);
         streak.position.z = z + side * (0.06 + progress * 2);
       });
+      sourceStreaks.forEach((streak, i) => {
+        const progress = (time * 0.28 + i / sourceStreaks.length) % 1;
+        streak.position.y = 0.9 + (1 - progress) * (crestY - 2.5);
+        streak.position.z =
+          71.8 + (streak.position.y / crestY) * (crestZ - 71.8) - 0.06;
+      });
       mist.forEach((cloud, i) => {
         cloud.position.set(
           center(islandZ) + Math.sin(time * 0.25 + i * 2.3) * 5,
-          -9 - (i % 5) * 4 + Math.sin(time * 0.6 + i),
-          islandZ + 2.5 + Math.cos(time * 0.3 + i) * 1.5,
+          0.9 + (i % 5) * 0.55 + Math.sin(time * 0.6 + i) * 0.4,
+          70.3 + Math.cos(time * 0.3 + i) * 1.5,
         );
         cloud.material.opacity = 0.08 + (Math.sin(time * 0.5 + i) + 1) * 0.03;
       });

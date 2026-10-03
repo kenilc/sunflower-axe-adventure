@@ -42,10 +42,21 @@ const assert = require("assert/strict");
   const ball = (r, c, x, y, z, p) =>
     mesh(new T.IcosahedronGeometry(r, 1), c, x, y, z, p);
   const river = riverModule.namespace.createRiverside({ mesh, box, cyl, ball });
-  const hills = river.group.children.filter(
-    (o) => o.material?.color?.getHexString() === "7d9e77",
+  const mountain = river.group.getObjectByName("waterfall-mountain");
+  assert(mountain, "A mountain must supply the rainbow waterfall");
+  const mountainBounds = new T.Box3().setFromObject(mountain);
+  assert(
+    mountainBounds.min.z > 56,
+    "Mountain scenery must stay beyond the walking area",
   );
-  assert.equal(hills.length, 0, "Large hills must not return to the riverside");
+  assert(mountainBounds.max.y > 55, "The source mountain must be tall");
+  const forest = mountain.getObjectByName("mountain-forest");
+  assert.equal(
+    forest.children.length,
+    4,
+    "Forest must use a small number of instanced batches",
+  );
+  assert(forest.children.every((batch) => batch.count >= 200));
   const trees = river.group.children.filter((o) => o.name === "riverside-tree");
   assert(trees.length > 0 && trees.length <= 44);
   for (const tree of trees) {
@@ -179,10 +190,10 @@ const assert = require("assert/strict");
   const falls = river.group.children.filter((o) => o.name === "edge-waterfall");
   assert.equal(
     falls.length,
-    2,
-    "Both river ends must flow over the world edge",
+    1,
+    "Only the downstream end should fall off the island",
   );
-  for (let end = 0; end < 2; end++) {
+  for (let end = 0; end < 1; end++) {
     const first = end === 0 ? 0 : water.count - 2;
     const waterfall = falls[end].geometry.attributes.position;
     for (const side of [0, 1]) {
@@ -205,6 +216,35 @@ const assert = require("assert/strict");
       );
     }
   }
+  const sourceFall = river.group.getObjectByName("mountain-waterfall");
+  const fallBounds = new T.Box3().setFromObject(sourceFall);
+  assert(fallBounds.max.y > 30 && Math.abs(fallBounds.min.y - 0.04) < 0.000001);
+  const feeder = river.group.getObjectByName("waterfall-river-feed").geometry
+    .attributes.position;
+  for (let side = 0; side < 2; side++) {
+    const wi = water.count - 2 + side;
+    assert(Math.abs(feeder.getX(side) - water.getX(wi)) < 0.00001);
+    assert(Math.abs(feeder.getZ(side) - water.getZ(wi)) < 0.00001);
+    assert(
+      Math.abs(feeder.getZ(2 + side) - fallBounds.min.z) < 0.00001,
+      "The plunge pool must connect to the foot of the mountain waterfall",
+    );
+  }
+  const rainbow = river.group.getObjectByName("waterfall-rainbow");
+  assert(
+    rainbow.position.z > 56 && rainbow.position.z < fallBounds.min.z,
+    "The rainbow must sit in front of the mountain waterfall",
+  );
+  const ripple = river.group.children.find(
+    (o) => o.geometry?.parameters?.width === 0.65,
+  );
+  river.update(0);
+  const startZ = ripple.position.z;
+  river.update(0.5);
+  assert(
+    ripple.position.z < startZ,
+    "River animation must flow away from its source",
+  );
   for (const tree of trees) {
     const trunk = tree.children[0].position;
     assert(
@@ -376,7 +416,7 @@ const assert = require("assert/strict");
     "Restart during travel must clear the boat state",
   );
   console.log(
-    "PASS: 900 instanced sunflowers, 240 collectible lagoon treasures, collection persistence and reset, boarding, seated travel, lagoon exploration, return landing, trip reset, four accessible landmarks, six collectible clusters, rainbow, giant waterfall, gazebo fading, visible island boundary, accessible edge banks, river-to-waterfall connections, stable finite scenery, tree fading, 18 accessible treasures, bridge, gates, and reset",
+    "PASS: 900 instanced sunflowers, 240 collectible lagoon treasures, collection persistence and reset, boarding, seated travel, lagoon exploration, return landing, trip reset, four accessible landmarks, six collectible clusters, rainbow, forested source mountain, waterfall feeding the river, gazebo fading, visible island boundary, accessible edge banks, river-to-waterfall connections, stable finite scenery, tree fading, 18 accessible treasures, bridge, gates, and reset",
   );
 })().catch((e) => {
   console.error(e);
