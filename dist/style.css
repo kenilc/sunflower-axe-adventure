@@ -410,3 +410,65 @@ body.is-moving #toast {
   pointer-events: none;
   z-index: 20;
 }
+
+#ringMeter {
+  width: min(300px, 80vw);
+  padding: 14px 20px;
+  border-radius: 18px;
+  background: #163b35ee;
+  color: #fff0ce;
+  text-align: center;
+  font-size: 12px;
+}
+#ringMeter[hidden] {
+  display: none;
+}
+.ring-track {
+  position: relative;
+  height: 12px;
+  margin: 14px 6px 3px;
+  border-radius: 8px;
+  background: #e6d0a477;
+}
+#ringTarget {
+  position: absolute;
+  top: 0;
+  width: 20%;
+  height: 100%;
+  transform: translateX(-50%);
+  border-radius: 8px;
+  background: #79d8a0;
+}
+#ringNeedle {
+  position: absolute;
+  top: -4px;
+  width: 4px;
+  height: 20px;
+  transform: translateX(-50%);
+  border-radius: 3px;
+  background: #fff4d0;
+  box-shadow: 0 0 8px #fff4d088;
+}
+
+#benchControls:has(#funfairExit:not([hidden])) {
+  bottom: 130px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+#funfairExit {
+  font-size: 12px;
+  padding: 9px 18px !important;
+}
+#stick[hidden] {
+  display: none;
+}
+body:has(#funfairExit:not([hidden])) #toast {
+  bottom: 82px;
+  max-width: min(560px, 90vw);
+  padding: 8px 16px;
+  font-size: 12px;
+  white-space: normal;
+  text-align: center;
+}

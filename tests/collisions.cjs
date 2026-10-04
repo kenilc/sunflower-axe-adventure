@@ -3,6 +3,7 @@ const vm = require("vm");
 const assert = require("assert/strict");
 (async () => {
   const elements = new Map();
+  const handlers = new Map();
   const element = (selector) => {
     if (!elements.has(selector))
       elements.set(selector, {
@@ -26,7 +27,9 @@ const assert = require("assert/strict");
     devicePixelRatio: 1,
     window: {},
     requestAnimationFrame() {},
-    addEventListener() {},
+    addEventListener(name, callback) {
+      handlers.set(name, callback);
+    },
     document: {
       querySelector: element,
       addEventListener() {},
@@ -39,7 +42,10 @@ const assert = require("assert/strict");
       }
       setSize() {}
       setPixelRatio() {}
-      render() {}
+      render(scene, camera) {
+        this.scene = scene;
+        this.camera = camera;
+      }
     },
   });
   const cache = new Map();
@@ -64,7 +70,7 @@ const assert = require("assert/strict");
   // Execute the actual game with only browser/rendering APIs stubbed.
   const setup =
     game.replace("new THREE.WebGLRenderer(", "new FakeRenderer(") +
-    "\nexport {scene, mesh, box, cyl, ball, blockers, hero, body, legs, arms, held, lakeside, targets, shrine, inLake, createBenchMoment, clock, frame, axes, gems, won, camera, riverside, usePassage, yaw, insideRiver, insideCave, passageTransition, cableCar, boatTrip, companion, boardCableCar, boardBoat, fire, keys, insideCastle, castleRoom, useCastlePassage, changeCastlePassage, interactCastle, bedRest, eyes};";
+    "\nexport {scene, mesh, box, cyl, ball, blockers, hero, body, legs, arms, held, lakeside, targets, shrine, inLake, createBenchMoment, clock, frame, axes, gems, won, camera, riverside, usePassage, yaw, insideRiver, insideCave, passageTransition, cableCar, boatTrip, companion, boardCableCar, boardBoat, fire, keys, insideCastle, castleRoom, useCastlePassage, changeCastlePassage, interactCastle, bedRest, eyes, funfair, funfairActivities, insideFunfair, useFunfairPassage, interactFunfair, garden, renderer, pitch, zoom};";
   const G = (await module("review-setup", setup)).namespace;
   const T = (await module("vendor/three.module.js")).namespace;
   const C = (await module("companion.js")).namespace.createCompanion(G);
@@ -695,6 +701,260 @@ const assert = require("assert/strict");
   assert(G.eyes.open.visible && G.companion.rig.eyes.open.visible);
   assert(!G.boatTrip.atLagoon && !G.boatTrip.rowing && G.held.visible);
   assert(G.hero.position.distanceTo(new T.Vector3(0, 0, 7)) < 1e-7);
+  // Exercise the actual scene transitions, walking, rides, and ring-toss game.
+  const park = G.funfair,
+    fair = G.funfairActivities;
+  assert(
+    allowed({ x: 28, z: 0 }) && allowed({ x: 32, z: 0 }),
+    "East gate approach must be clear",
+  );
+  for (const spot of [
+    park.arrival,
+    park.ferrisBoard,
+    park.carouselBoard,
+    park.tossSpot,
+    park.returnGate.position,
+  ]) {
+    assert(
+      park.contains(spot.x, spot.z) && allowed(spot, park.blockers),
+      "Every arrival, activity and exit must be walkable",
+    );
+  }
+  assert(
+    !park.contains(NaN, 0) && !park.contains(38, 0),
+    "Park edge must contain both characters",
+  );
+  G.hero.position.set(32, 0, 0);
+  for (let i = 0; i < 40; i++) G.frame();
+  assert(
+    G.insideFunfair && park.group.visible && !G.garden.visible,
+    "Walking through the east gate must open the park",
+  );
+  assert(G.companion.character.parent === park.group && !G.held.visible);
+  assert.equal(element("#funfairCounts").hidden, false);
+  assert.equal(element("#gardenCounts").hidden, true);
+  assert(G.hero.position.distanceTo(park.arrival) < 0.01);
+  const axeCount = G.axes.length;
+  G.fire();
+  assert.equal(
+    G.axes.length,
+    axeCount,
+    "Park activities must suppress axe throwing",
+  );
+  // Walking against a park obstacle must be resolved by the park terrain.
+  G.hero.position.set(15, 0, 0.5);
+  G.keys.KeyW = true;
+  for (let i = 0; i < 20; i++) G.frame();
+  G.keys.KeyW = false;
+  assert(allowed(G.hero.position, park.blockers));
+  G.hero.position.copy(park.ferrisBoard);
+  G.interactFunfair();
+  assert(fair.riding && fair.ride === "ferris");
+  const cabinStart = G.hero.position.clone();
+  G.keys.KeyW = true;
+  for (let i = 0; i < 280; i++) G.frame();
+  G.keys.KeyW = false;
+  assert(
+    G.hero.position.y > 17,
+    "Wheel must lift both characters above the park",
+  );
+  assert(
+    G.companion.character.position.y > 17 &&
+      G.hero.position.distanceTo(G.companion.character.position) < 1.5,
+  );
+  assert(G.legs[0].rotation.x < -1 && G.companion.rig.legs[0].rotation.x < -1);
+  assert(G.hero.position.distanceTo(cabinStart) > 10);
+  const pausePosition = G.hero.position.clone();
+  element("#guide").open = true;
+  for (let i = 0; i < 30; i++) G.frame();
+  assert(
+    G.hero.position.distanceTo(pausePosition) < 1e-7,
+    "Help must pause the ride",
+  );
+  element("#guide").open = false;
+  for (let i = 0; i < 325; i++) G.frame();
+  assert(
+    !fair.riding && G.hero.position.distanceTo(park.ferrisBoard) < 0.01,
+    "Full wheel circuit must return to the boarding platform",
+  );
+  assert(
+    allowed(G.hero.position, park.blockers) &&
+      allowed(G.companion.character.position, park.blockers),
+  );
+  G.hero.position.copy(park.carouselBoard);
+  G.interactFunfair();
+  assert(fair.riding && fair.ride === "carousel");
+  const carouselStart = G.hero.position.clone();
+  G.frame();
+  assert(
+    G.hero.position.x < carouselStart.x && G.hero.position.z > -7,
+    "From above, the south carousel mount must move west for clockwise rotation",
+  );
+  for (let i = 0; i < 99; i++) G.frame();
+  assert(
+    Math.hypot(G.hero.position.x - 15, G.hero.position.z + 7) > 3,
+    "Carousel rider must orbit the center",
+  );
+  assert(G.hero.position.distanceTo(G.companion.character.position) < 4);
+  G.interactFunfair();
+  assert(
+    !fair.riding && G.hero.position.distanceTo(park.carouselBoard) < 0.01,
+    "Early finish must return to safe steps",
+  );
+  assert(allowed(G.hero.position, park.blockers));
+  G.hero.position.copy(park.tossSpot);
+  const parkView = { yaw: G.yaw, pitch: G.pitch, zoom: G.zoom };
+  G.interactFunfair();
+  assert(fair.aiming && fair.playing);
+  const tossPlayer = G.hero.position.clone(),
+    tossFriend = G.companion.character.position.clone();
+  G.keys.KeyW = G.keys.KeyQ = G.keys.KeyR = true;
+  for (let i = 0; i < 4; i++) G.frame();
+  G.keys.KeyW = G.keys.KeyQ = G.keys.KeyR = false;
+  assert(
+    G.hero.position.equals(tossPlayer) &&
+      G.companion.character.position.equals(tossFriend),
+    "First-person booth must lock both characters in place",
+  );
+  assert.equal(G.yaw, parkView.yaw);
+  assert.equal(G.pitch, parkView.pitch);
+  assert.equal(G.zoom, parkView.zoom);
+  assert(
+    G.renderer.scene === park.tossScene &&
+      G.renderer.camera === park.tossCamera,
+    "Active booth must render its separate scene and first-person camera",
+  );
+  assert(
+    park.tossCamera.position.distanceTo(park.tossSpot) < 2.3,
+    "Camera must be at eye level at the throwing position",
+  );
+  assert(
+    !park.tossScene.getObjectById(G.hero.id) &&
+      !park.tossScene.getObjectByName("ferris-wheel"),
+  );
+  assert(
+    park.tossRing.visible && park.tossRing.position.equals(park.ring.position),
+  );
+  assert.equal(element("#funfairExit").hidden, false);
+  G.frame();
+  assert.equal(element("#ringMeter").hidden, false);
+  const frozenAim = fair.aim;
+  element("#guide").open = true;
+  for (let i = 0; i < 8; i++) G.frame();
+  assert.equal(fair.aim, frozenAim, "Help must pause first-person aiming");
+  element("#guide").open = false;
+  handlers.get("keydown")({
+    code: "Space",
+    repeat: false,
+    preventDefault() {},
+  }); // First target is left; center throw misses.
+  assert(fair.throwing && !fair.aiming);
+  G.interactFunfair(); // Repeated input during flight must not launch another ring.
+  for (let i = 0; i < 26; i++) G.frame();
+  assert.equal(fair.collected, 0, "Mistimed throw must not award a prize");
+  assert(
+    !park.ring.visible && fair.playing,
+    "Miss must allow a retry inside the booth",
+  );
+  G.interactFunfair();
+  G.interactFunfair();
+  assert(fair.throwing);
+  element("#funfairExit").onclick();
+  for (let i = 0; i < 26; i++) G.frame();
+  assert(
+    !fair.playing &&
+      !fair.throwing &&
+      !park.tossRing.visible &&
+      fair.collected === 0,
+    "Leaving mid-throw must cancel the ring and reward",
+  );
+  assert(G.renderer.scene === G.scene && G.renderer.camera === G.camera);
+  assert.equal(G.yaw, parkView.yaw);
+  assert.equal(G.pitch, parkView.pitch);
+  assert.equal(G.zoom, parkView.zoom);
+  G.interactFunfair();
+  handlers.get("keydown")({
+    code: "Escape",
+    repeat: false,
+    preventDefault() {},
+  });
+  G.frame();
+  assert(
+    !fair.playing && element("#funfairExit").hidden,
+    "Escape must leave the booth",
+  );
+  for (let prize = 0; prize < 3; prize++) {
+    G.hero.position.copy(park.tossSpot);
+    G.interactFunfair();
+    for (let i = 0; i < 100 && Math.abs(fair.aim - fair.target) > 0.1; i++)
+      G.frame();
+    assert(Math.abs(fair.aim - fair.target) <= 0.1);
+    G.interactFunfair();
+    for (let i = 0; i < 26; i++) G.frame();
+    assert.equal(fair.collected, prize + 1);
+    assert.equal(element("#funfairPrizes").textContent, prize + 1);
+    assert(!park.prizes[prize].visible);
+    assert(
+      !park.tossScene.getObjectByName(park.prizes[prize].name).visible,
+      "Both scenes must show the same prize progress",
+    );
+  }
+  G.interactFunfair();
+  assert(
+    !fair.aiming && !fair.playing && fair.collected === 3,
+    "Completed booth must not award duplicate prizes",
+  );
+  G.hero.position.copy(park.returnGate.position);
+  for (let i = 0; i < 12; i++) G.frame();
+  assert(
+    !G.insideFunfair &&
+      G.garden.visible &&
+      !park.group.visible &&
+      G.held.visible,
+    "Return gate must restore garden and axe",
+  );
+  assert(G.hero.position.distanceTo(new T.Vector3(28, 0, 0)) < 0.01);
+  assert(G.companion.character.parent === G.garden);
+  G.useFunfairPassage(true);
+  for (let i = 0; i < 12; i++) G.frame();
+  assert.equal(fair.collected, 3, "Prizes must persist across park visits");
+  G.hero.position.copy(park.ferrisBoard);
+  G.interactFunfair();
+  for (let i = 0; i < 100; i++) G.frame();
+  element("#restart").onclick();
+  G.frame();
+  assert(
+    !G.insideFunfair && !fair.riding && !park.group.visible && G.held.visible,
+  );
+  assert.equal(fair.collected, 0, "New adventure must reset prizes");
+  assert(park.prizes.every((p) => p.visible));
+  assert.equal(G.legs[0].rotation.x, 0);
+  assert.equal(G.companion.rig.legs[0].rotation.x, 0);
+  G.useFunfairPassage(true);
+  element("#restart").onclick();
+  for (let i = 0; i < 12; i++) G.frame();
+  assert(
+    !G.insideFunfair && !G.passageTransition.active,
+    "Restart must cancel pending park transition",
+  );
+  G.useFunfairPassage(true);
+  for (let i = 0; i < 12; i++) G.frame();
+  G.hero.position.copy(park.tossSpot);
+  G.interactFunfair();
+  G.interactFunfair();
+  element("#restart").onclick();
+  for (let i = 0; i < 30; i++) G.frame();
+  assert(
+    !fair.throwing &&
+      !fair.playing &&
+      !park.ring.visible &&
+      !park.tossRing.visible &&
+      fair.collected === 0,
+    "Restart during a throw must cancel its reward",
+  );
+  console.log(
+    "PASS: east funfair gate, separate scene and companion, clear activity approaches, park collisions, full Ferris circuit with seated riders, paused rides, clockwise carousel orbit and early exit, dedicated first-person booth, movement and camera locks, paused aiming, Space throws, booth exit and Escape cancellation, shared prize visuals, ring-toss misses and three timed prizes, duplicate prevention, return gate, progress persistence, and restart during rides, throws and transitions",
+  );
   const disabled = { x: 0, z: 0, r: 0.7, active: false };
   const center = new T.Vector3();
   resolve(center, new T.Vector3(0, 0, 2), [disabled]);

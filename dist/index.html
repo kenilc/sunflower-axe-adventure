@@ -17,7 +17,7 @@
       content="Explore a 3D garden as a flower-hooded adventurer. Throw axes, smash targets and find eight sunstones."
     />
     <title>Sunflower — Axe & Adventure</title>
-    <link rel="stylesheet" href="style.css?v=20261003-gate-transitions" />
+    <link rel="stylesheet" href="style.css?v=20261004-first-person-final" />
   </head>
   <body>
     <div id="sceneTransition" aria-hidden="true"></div>
@@ -44,7 +44,8 @@
         <p id="objective">Break the wooden targets and find the sunstones.</p>
         <p id="caveHint">
           Treasure cave: north path beyond the shrine. Lake &amp; bench:
-          southeast of the clearing. River gate: west path.
+          southeast of the clearing. River gate: west path. Funfair gate: east
+          path.
         </p>
       </div>
       <div class="counts" id="gardenCounts">
@@ -60,12 +61,31 @@
       <div class="counts" id="lagoonCounts" hidden>
         <span>◇ <b id="lagoonGems">0</b><i>/ 240 lagoon treasures</i></span>
       </div>
+      <div class="counts" id="funfairCounts" hidden>
+        <span>✿ <b id="funfairPrizes">0</b><i>/ 3 plush prizes</i></span>
+      </div>
     </section>
     <div id="benchControls">
       <button id="benchAction" hidden>Sit &amp; hug · B</button>
       <button id="boatAction" hidden>Board boat · T</button>
       <button id="castleAction" hidden>Explore the castle · X</button>
       <button id="cableAction" hidden>Ride to mountain summit · C</button>
+      <div
+        id="ringMeter"
+        hidden
+        role="meter"
+        aria-label="Ring toss aim: throw when the marker reaches the green zone"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="50"
+      >
+        <span>Time your throw in the green zone</span>
+        <div class="ring-track">
+          <i id="ringTarget"></i><b id="ringNeedle"></b>
+        </div>
+      </div>
+      <button id="funfairAction" hidden>Explore the funfair · X</button>
+      <button id="funfairExit" hidden>Leave booth · Esc</button>
       <button id="benchStand" hidden>Stand up · B</button>
     </div>
     <div id="toast" role="status">Welcome to the garden</div>
@@ -107,6 +127,13 @@
         through the pink arch to return to the summit.
       </p>
       <p>
+        Follow the sunflower gate on the east path to Sunflower Funfair. Ride
+        the Ferris wheel and woodland carousel together. Press X near a ride to
+        board, or again to finish early. At the southeast ring-toss booth, press
+        X to play, then time another X when the moving marker reaches the green
+        zone. Win three plush prizes! Return through the south gate.
+      </p>
+      <p>
         <b>WASD / arrows</b> — move<br /><b>Shift</b> — run · <b>Space</b> —
         throw<br /><b>Click / Space</b> — throw straight ahead<br /><b
           >Drag the screen / Q / E</b
@@ -119,7 +146,7 @@
         help<br /><b>T near a boat dock</b> — board together / return from Lotus
         Lagoon<br /><b>C near a cable-car station</b> — ride to the summit /
         return to the flower island<br /><b>X near castle furniture</b> —
-        interact
+        interact<br /><b>X near funfair rides / ring toss</b> — ride or play
       </p>
       <p>
         Move to face a direction. She keeps that heading when you stop, and axes
@@ -131,6 +158,6 @@
       WebGL could not start. Please open this game in a browser with hardware
       acceleration enabled.
     </div>
-    <script type="module" src="game.js?v=20261003-night"></script>
+    <script type="module" src="game.js?v=20261004-no-labels"></script>
   </body>
 </html>

@@ -1,3 +1,7 @@
+import {
+  createFunfair,
+  createFunfairActivities,
+} from "./funfair.js?v=20261004-no-labels";
 import { createCharacterEyes } from "./character-eyes.js?v=20261003-hug";
 import { createBedRest } from "./bed-rest.js?v=20261003-night";
 import { createCastleRoom } from "./castle-room.js?v=20261003-night";
@@ -516,6 +520,12 @@ const riverside = createRiverside({ mesh, box, cyl, ball });
 garden.add(riverside.entrance);
 scene.add(riverside.group);
 blockers.push({ x: -32, z: -2, r: 0.45 }, { x: -32, z: 2, r: 0.45 });
+const funfair = createFunfair({ mesh, box, cyl, ball });
+garden.add(funfair.entrance);
+scene.add(funfair.group);
+funfair.tossCamera.aspect = camera.aspect;
+funfair.tossCamera.updateProjectionMatrix();
+blockers.push({ x: 32, z: -2.6, r: 0.32 }, { x: 32, z: 2.6, r: 0.32 });
 const castleRoom = createCastleRoom({ mesh, box, cyl, ball });
 scene.add(castleRoom.group);
 const companion = createCompanion({ ball, box, cyl, mesh });
@@ -535,6 +545,19 @@ const bedRest = createBedRest({
     scene.background.set(sleeping ? "#363440" : "#cab5b0");
     scene.fog.color.copy(scene.background);
     scene.fog.density = sleeping ? 0.018 : 0.009;
+  },
+});
+const funfairActivities = createFunfairActivities({
+  park: funfair,
+  hero,
+  heroRig: { body, legs, arms, held },
+  companion,
+  toast,
+  onPrize(total, position) {
+    $("#funfairPrizes").textContent = total;
+    $("#objective").textContent = funfairActivities.objective();
+    burst(position, "#ffe399", 24);
+    beep(880, 0.3);
   },
 });
 const companionObstacles = [
@@ -677,7 +700,12 @@ function boardBoat() {
 }
 $("#boatAction").onclick = boardBoat;
 $("#benchAction").onclick = () => {
-  if (!insideCave && !insideRiver && !passageTransition.active)
+  if (
+    !insideCave &&
+    !insideRiver &&
+    !insideFunfair &&
+    !passageTransition.active
+  )
     benchMoment.sit();
 };
 $("#benchStand").onclick = () => benchMoment.stand();
@@ -685,6 +713,7 @@ let insideCastle = false,
   castleOutsideView = null;
 let insideCave = false,
   insideRiver = false,
+  insideFunfair = false,
   riverCollected = 0,
   passageCooldown = 0,
   outsideView = null,
@@ -692,6 +721,114 @@ let insideCave = false,
 const passageTransition = createSceneTransition((opacity) => {
   $("#sceneTransition").style.opacity = String(opacity);
 });
+function useFunfairPassage(enter, activity = null) {
+  if (
+    enter === insideFunfair ||
+    insideCave ||
+    insideRiver ||
+    funfairActivities.riding
+  )
+    return;
+  if (
+    passageTransition.start(() => {
+      changeFunfairPassage(enter);
+      if (enter && activity === "ring-toss") {
+        hero.position.copy(funfair.tossSpot);
+        companion.reset(hero.position, funfair.blockers, funfair);
+        funfairActivities.interact();
+      }
+    })
+  )
+    clearRestInput();
+}
+function changeFunfairPassage(enter) {
+  if (enter === insideFunfair) return;
+  benchMoment.stand();
+  funfairActivities.reset();
+  hearts.clear();
+  if (enter) {
+    outsideView = {
+      yaw,
+      pitch,
+      zoom,
+      instructions: $(".instructions").innerHTML,
+    };
+    outsideObjective = $("#objective").textContent;
+  }
+  insideFunfair = enter;
+  funfair.group.visible = enter;
+  garden.visible = !enter;
+  held.visible = !enter;
+  (enter ? funfair.group : garden).add(companion.character);
+  hero.position.copy(enter ? funfair.arrival : new THREE.Vector3(28, 0, 0));
+  hero.rotation.set(0, enter ? Math.PI : 0, 0);
+  companion.reset(
+    hero.position,
+    enter ? funfair.blockers : companionObstacles,
+    enter ? funfair : gardenTerrain,
+  );
+  if (enter) {
+    yaw = 0;
+    pitch = THREE.MathUtils.degToRad(30);
+    zoom = 42;
+  } else if (outsideView) ({ yaw, pitch, zoom } = outsideView);
+  scene.background.set(enter ? "#b9deda" : "#96c4b0");
+  scene.fog.color.copy(scene.background);
+  scene.fog.density = enter ? 0.005 : 0.018;
+  $("#gardenCounts").hidden = enter;
+  $("#funfairCounts").hidden = !enter;
+  $(".quest .eyebrow").textContent = enter
+    ? "THE SUNFLOWER FUNFAIR"
+    : "THE SUNKEN GARDEN";
+  $(".quest h1").innerHTML = enter
+    ? "A little fair.<br />A day for two."
+    : "A little wander.<br />A mighty axe.";
+  $("#objective").textContent = enter
+    ? funfairActivities.objective()
+    : outsideObjective;
+  $("#caveHint").textContent = enter
+    ? "Ferris wheel: northwest. Carousel: northeast. Ring toss: southeast. Return gate: south."
+    : "Funfair gate: east path. River gate: west. Treasure cave: north. Lake & bench: southeast.";
+  $(".instructions").innerHTML = enter
+    ? "<kbd>W A S D</kbd> move <kbd>X</kbd> ride / play <kbd>DRAG / Q E</kbd> rotate <kbd>R / F</kbd> view"
+    : outsideView?.instructions;
+  axes.forEach((a) => scene.remove(a.g));
+  axes.length = 0;
+  particles.forEach((p) => {
+    scene.remove(p.m);
+    p.m.geometry.dispose();
+  });
+  particles.length = 0;
+  camera.position
+    .set(
+      Math.sin(yaw) * Math.cos(pitch) * zoom,
+      1 + Math.sin(pitch) * zoom,
+      Math.cos(yaw) * Math.cos(pitch) * zoom,
+    )
+    .add(hero.position);
+  camera.lookAt(
+    hero.position.x,
+    hero.position.y + cameraTargetHeight(),
+    hero.position.z,
+  );
+  passageCooldown = 1;
+  toast(
+    enter
+      ? "Sunflower Funfair · Walk up to a ride or the ring-toss booth and press X."
+      : "Back in the sunken garden",
+  );
+  beep(enter ? 660 : 440, 0.35);
+}
+function interactFunfair() {
+  if (!insideFunfair || $("#guide").open || passageTransition.active) return;
+  if (funfairActivities.interact()) clearRestInput();
+}
+$("#funfairAction").onclick = interactFunfair;
+function leaveRingToss() {
+  if (!insideFunfair || $("#guide").open || passageTransition.active) return;
+  if (funfairActivities.leaveToss()) clearRestInput();
+}
+$("#funfairExit").onclick = leaveRingToss;
 function useCastlePassage(enter) {
   if (
     enter === insideCastle ||
@@ -915,7 +1052,7 @@ function changePassage(enter, river = false) {
     ? "Enjoy the mountain waterfall. Return gate: beside the rainbow lookout."
     : enter
       ? "Exit: south passage, through the blue light."
-      : "River gate: west path. Treasure cave: north. Lake & bench: southeast.";
+      : "Funfair gate: east path. River gate: west. Treasure cave: north. Lake & bench: southeast.";
   toast(
     insideRiver
       ? "Rainbow Riverside · Follow the banks and gather colourful treasures"
@@ -927,15 +1064,19 @@ function changePassage(enter, river = false) {
 }
 function cameraTargetHeight() {
   // Frame the characters in the foreground and the tall mountain above them.
-  return insideCastle
-    ? 1
-    : cableCar.atSummit && !cableCar.riding
-      ? 5
-      : cableCar.riding
-        ? 3
-        : insideRiver && !boatTrip.atLagoon && !boatTrip.rowing
-          ? 9
-          : 1;
+  return insideFunfair
+    ? funfairActivities.riding
+      ? 2
+      : 8
+    : insideCastle
+      ? 1
+      : cableCar.atSummit && !cableCar.riding
+        ? 5
+        : cableCar.riding
+          ? 3
+          : insideRiver && !boatTrip.atLagoon && !boatTrip.rowing
+            ? 9
+            : 1;
 }
 function riverObjective() {
   return riverCollected === riverside.treasures.length
@@ -1001,6 +1142,7 @@ function fire() {
     cooldown > 0 ||
     $("#guide").open ||
     insideCastle ||
+    insideFunfair ||
     benchMoment.seated ||
     boatTrip.rowing ||
     cableCar.riding ||
@@ -1037,15 +1179,22 @@ addEventListener("keydown", (e) => {
     !e.repeat &&
     !$("#guide").open &&
     !insideCave &&
-    !insideRiver
+    !insideRiver &&
+    !insideFunfair
   ) {
     if (benchMoment.seated) benchMoment.stand();
     else benchMoment.sit();
   }
   if (e.code === "KeyT" && !e.repeat) boardBoat();
   if (e.code === "KeyC" && !e.repeat) boardCableCar();
-  if (e.code === "KeyX" && !e.repeat) interactCastle();
-  if (e.code === "Space") fire();
+  if (e.code === "KeyX" && !e.repeat) {
+    if (insideFunfair) interactFunfair();
+    else interactCastle();
+  }
+  if (insideFunfair && funfairActivities.playing && !$("#guide").open) {
+    if (e.code === "Escape") leaveRingToss();
+    if (e.code === "Space" && !e.repeat) interactFunfair();
+  } else if (e.code === "Space") fire();
 });
 addEventListener("keyup", (e) => (keys[e.code] = false));
 addEventListener("blur", () => {
@@ -1055,16 +1204,24 @@ addEventListener("blur", () => {
 });
 const cameraDrag = bindCameraDrag(renderer.domElement, {
   rotate(dx) {
-    yaw -= dx * 0.006;
+    if (!funfairActivities.playing) yaw -= dx * 0.006;
   },
-  throwAxe: fire,
+  throwAxe: () => (funfairActivities.playing ? interactFunfair() : fire()),
   paused: () => $("#guide").open || passageTransition.active,
 });
 renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
 renderer.domElement.addEventListener(
   "wheel",
   (e) => {
-    zoom = THREE.MathUtils.clamp(zoom + e.deltaY * 0.012, 10, 26);
+    if (funfairActivities.playing) {
+      e.preventDefault();
+      return;
+    }
+    zoom = THREE.MathUtils.clamp(
+      zoom + e.deltaY * 0.012,
+      10,
+      insideFunfair ? 50 : 26,
+    );
     e.preventDefault();
   },
   { passive: false },
@@ -1104,6 +1261,9 @@ $("#restart").onclick = () => {
   passageTransition.cancel();
   cameraDrag.reset();
   benchMoment.stand();
+  if (insideFunfair) changeFunfairPassage(false);
+  funfairActivities.reset(true);
+  $("#funfairPrizes").textContent = 0;
   if (insideCastle) changeCastlePassage(false);
   castleRoom.reset();
   cableCar.reset();
@@ -1165,13 +1325,25 @@ function frame() {
   if (!paused) {
     benchMoment.update(dt);
     passageCooldown = Math.max(0, passageCooldown - dt);
-    yaw += ((keys.KeyQ ? 1 : 0) - (keys.KeyE ? 1 : 0)) * dt * 1.4;
-    pitch = THREE.MathUtils.clamp(
-      pitch + ((keys.KeyR ? 1 : 0) - (keys.KeyF ? 1 : 0)) * dt * 0.65,
-      THREE.MathUtils.degToRad(6),
-      THREE.MathUtils.degToRad(70),
-    );
-    if (bedRest.resting) {
+    if (!funfairActivities.playing) {
+      yaw += ((keys.KeyQ ? 1 : 0) - (keys.KeyE ? 1 : 0)) * dt * 1.4;
+      pitch = THREE.MathUtils.clamp(
+        pitch + ((keys.KeyR ? 1 : 0) - (keys.KeyF ? 1 : 0)) * dt * 0.65,
+        THREE.MathUtils.degToRad(6),
+        THREE.MathUtils.degToRad(70),
+      );
+    }
+    if (insideFunfair) {
+      const wasPlaying = funfairActivities.playing;
+      funfairActivities.update(dt, time);
+      if (wasPlaying && !funfairActivities.playing) clearRestInput();
+    }
+    if (
+      insideFunfair &&
+      (funfairActivities.riding || funfairActivities.playing)
+    ) {
+      isMoving = false;
+    } else if (bedRest.resting) {
       bedRest.update(dt, camera);
       isMoving = false;
     } else if (cableCar.riding) {
@@ -1181,13 +1353,15 @@ function frame() {
       boatTrip.update(dt);
       isMoving = false;
     } else {
-      const riverTerrain = insideCastle
-        ? castleRoom
-        : cableCar.atSummit
-          ? cableCar.summit
-          : boatTrip.atLagoon
-            ? boatTrip.lagoon
-            : riverside;
+      const riverTerrain = insideFunfair
+        ? funfair
+        : insideCastle
+          ? castleRoom
+          : cableCar.atSummit
+            ? cableCar.summit
+            : boatTrip.atLagoon
+              ? boatTrip.lagoon
+              : riverside;
       let dx =
           (keys.KeyD || keys.ArrowRight ? 1 : 0) -
           (keys.KeyA || keys.ArrowLeft ? 1 : 0) +
@@ -1205,13 +1379,13 @@ function frame() {
       hero.position.addScaledVector(movement, dt * speed);
       const movementObstacles = benchMoment.seated
         ? []
-        : insideRiver
+        : insideFunfair || insideRiver
           ? riverTerrain.blockers
           : insideCave
             ? cave.blockers
             : blockers;
       resolveObstacleCollisions(hero.position, old, movementObstacles);
-      if (insideRiver) {
+      if (insideFunfair || insideRiver) {
         if (!riverTerrain.contains(hero.position.x, hero.position.z))
           hero.position.copy(old);
         hero.position.y = riverTerrain.heightAt(
@@ -1238,13 +1412,17 @@ function frame() {
         const playerBump = companion.blocksPlayer(hero.position, old);
         const companionBump = companion.update(
           dt,
-          insideRiver
+          insideFunfair || insideRiver
             ? riverTerrain.blockers
             : insideCave
               ? cave.blockers
               : companionObstacles,
           hero.position,
-          insideRiver ? riverTerrain : insideCave ? cave : gardenTerrain,
+          insideFunfair || insideRiver
+            ? riverTerrain
+            : insideCave
+              ? cave
+              : gardenTerrain,
         );
         hearts.contact(
           playerBump || companionBump,
@@ -1278,7 +1456,9 @@ function frame() {
         a.g.position.addScaledVector(a.dir, dt * 19);
         a.g.rotation.x += dt * 18;
         a.g.rotation.z += dt * 6;
-        for (const t of insideCave || insideRiver ? [] : targets) {
+        for (const t of insideCave || insideRiver || insideFunfair
+          ? []
+          : targets) {
           if (!t.hit && a.g.position.distanceTo(t.pos) < 0.93) {
             t.hit = true;
             t.blocker.active = false;
@@ -1301,7 +1481,7 @@ function frame() {
           axes.splice(i, 1);
         }
       }
-      for (const g of insideCave || insideRiver ? [] : gems) {
+      for (const g of insideCave || insideRiver || insideFunfair ? [] : gems) {
         if (!g.got && g.g.position.distanceTo(hero.position) < 1.35) {
           g.got = true;
           g.g.visible = false;
@@ -1359,6 +1539,7 @@ function frame() {
       if (
         !insideCave &&
         !insideRiver &&
+        !insideFunfair &&
         score === 12 &&
         collected === 8 &&
         !won
@@ -1385,7 +1566,16 @@ function frame() {
         }
       }
       if (passageCooldown === 0) {
-        if (insideCastle && castleRoom.isExit(hero.position))
+        if (insideFunfair && funfair.isExit(hero.position))
+          useFunfairPassage(false);
+        else if (
+          !insideCave &&
+          !insideRiver &&
+          !insideFunfair &&
+          funfair.isEntrance(hero.position)
+        )
+          useFunfairPassage(true);
+        else if (insideCastle && castleRoom.isExit(hero.position))
           useCastlePassage(false);
         else if (
           insideRiver &&
@@ -1403,10 +1593,16 @@ function frame() {
         else if (
           !insideCave &&
           !insideRiver &&
+          !insideFunfair &&
           riverside.isEntrance(hero.position)
         )
           usePassage(true, true);
-        else if (!insideCave && !insideRiver && cave.isEntrance(hero.position))
+        else if (
+          !insideCave &&
+          !insideRiver &&
+          !insideFunfair &&
+          cave.isEntrance(hero.position)
+        )
           usePassage(true);
         else if (insideCave && cave.isExit(hero.position)) usePassage(false);
       }
@@ -1442,11 +1638,37 @@ function frame() {
   $("#benchAction").hidden =
     insideCave ||
     insideRiver ||
+    insideFunfair ||
     paused ||
     benchMoment.seated ||
     !benchMoment.nearby();
   $("#benchStand").hidden = !benchMoment.seated || paused;
-  $("#throw").hidden = insideCastle;
+  $("#throw").hidden = insideCastle || insideFunfair;
+  const fairAction = insideFunfair ? funfairActivities.nearby() : null;
+  $("#funfairAction").hidden = !fairAction || paused;
+  $("#funfairAction").textContent = funfairActivities.aiming
+    ? "Throw ring · X"
+    : (fairAction?.label ?? "Explore the funfair · X");
+  $("#funfairAction").disabled =
+    funfairActivities.throwing ||
+    (fairAction?.kind === "toss" && funfairActivities.collected === 3);
+  $("#funfairExit").hidden =
+    !insideFunfair || !funfairActivities.playing || paused;
+  $("#stick").hidden = insideFunfair && funfairActivities.playing;
+  $("#ringMeter").hidden =
+    !insideFunfair || !funfairActivities.aiming || paused;
+  $("#ringNeedle").style.left = `${(funfairActivities.aim + 1) * 50}%`;
+  $("#ringTarget").style.left = `${(funfairActivities.target + 1) * 50}%`;
+  $("#ringMeter").setAttribute(
+    "aria-valuenow",
+    String(Math.round((funfairActivities.aim + 1) * 50)),
+  );
+  if (insideFunfair)
+    $("#caveHint").textContent = funfairActivities.playing
+      ? "Ring toss · X, Space or click to throw. Leave booth or Esc to return to the park."
+      : funfairActivities.riding
+        ? "Enjoy the ride together · X to finish early. Camera controls still work."
+        : "Ferris wheel: northwest. Carousel: northeast. Ring toss: southeast · X nearby. Return gate: south.";
   const castleActivity = insideCastle
     ? bedRest.resting
       ? { label: "Get up · X" }
@@ -1516,7 +1738,7 @@ function frame() {
   hearts.update(paused ? 0 : dt, camera);
   if (insideRiver && !insideCastle)
     riverside.updateVisibility(camera, [hero, companion.character], dt);
-  else if (!insideCave && !insideCastle)
+  else if (!insideCave && !insideCastle && !insideFunfair)
     treeVisibility.update(camera, [hero, companion.character], dt);
   sun.position.set(
     hero.position.x - 18,
@@ -1527,41 +1749,51 @@ function frame() {
   if (performance.now() > toastUntil) $("#toast").style.opacity = 0;
   const x = hero.position.x,
     z = hero.position.z;
-  const region = insideCastle
-    ? bedRest.resting
-      ? "The Cloud Castle · Resting together"
-      : "The Cloud Castle · Great Room"
-    : insideRiver
-      ? cableCar.riding
-        ? "Above the treetops"
-        : cableCar.atSummit
-          ? cableCar.summit.castle.inside(hero.position)
-            ? "Inside the summit castle"
-            : "Summit castle"
-          : boatTrip.rowing
-            ? "Rowing together"
-            : boatTrip.atLagoon
-              ? "Lotus Lagoon"
-              : riverside.locationAt(hero.position)
-      : insideCave
-        ? "The Golden Grotto"
-        : z < -38
-          ? "Treasure cave entrance"
-          : z < -20
-            ? "The sun shrine"
-            : Math.hypot(x - 8, z - 12) < 7
-              ? "Sunflower lake"
-              : x > 16
-                ? "Whispering grove"
-                : x < -16
-                  ? "Old garden ruins"
-                  : z > 16
-                    ? "Wildflower trail"
-                    : "Petal clearing";
+  const region = insideFunfair
+    ? funfairActivities.riding
+      ? funfairActivities.ride === "ferris"
+        ? "Sunflower Funfair · Ferris wheel"
+        : "Sunflower Funfair · Woodland carousel"
+      : funfairActivities.playing
+        ? "Sunflower Funfair · Ring toss"
+        : "Sunflower Funfair"
+    : insideCastle
+      ? bedRest.resting
+        ? "The Cloud Castle · Resting together"
+        : "The Cloud Castle · Great Room"
+      : insideRiver
+        ? cableCar.riding
+          ? "Above the treetops"
+          : cableCar.atSummit
+            ? cableCar.summit.castle.inside(hero.position)
+              ? "Inside the summit castle"
+              : "Summit castle"
+            : boatTrip.rowing
+              ? "Rowing together"
+              : boatTrip.atLagoon
+                ? "Lotus Lagoon"
+                : riverside.locationAt(hero.position)
+        : insideCave
+          ? "The Golden Grotto"
+          : z < -38
+            ? "Treasure cave entrance"
+            : z < -20
+              ? "The sun shrine"
+              : Math.hypot(x - 8, z - 12) < 7
+                ? "Sunflower lake"
+                : x > 16
+                  ? "Whispering grove"
+                  : x < -16
+                    ? "Old garden ruins"
+                    : z > 16
+                      ? "Wildflower trail"
+                      : "Petal clearing";
   if ($("#region").firstChild.textContent !== region)
     $("#region").firstChild.textContent = region;
   cave.update(time, camera);
-  renderer.render(scene, camera);
+  if (insideFunfair && funfairActivities.playing)
+    renderer.render(funfair.tossScene, funfair.tossCamera);
+  else renderer.render(scene, camera);
 }
 camera.position
   .set(0, 1 + Math.sin(pitch) * zoom, Math.cos(pitch) * zoom)
@@ -1569,10 +1801,18 @@ camera.position
 addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
+  funfair.tossCamera.aspect = camera.aspect;
+  funfair.tossCamera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
 toast("WASD to move · Drag to look around · Click to throw");
 frame();
+// A direct link lets players start their visit at the fairground entrance.
+if (
+  typeof location !== "undefined" &&
+  new URLSearchParams(location.search).get("area") === "funfair"
+)
+  useFunfairPassage(true, new URLSearchParams(location.search).get("activity"));
 if (document.modelContext?.registerTool) {
   const lifecycle = new AbortController();
   try {
@@ -1596,19 +1836,24 @@ if (document.modelContext?.registerTool) {
             )
               throw new Error("Expected an empty object");
             return {
-              location: insideCastle
-                ? "castle great room"
-                : insideRiver
-                  ? cableCar.riding
-                    ? "cable car"
-                    : cableCar.atSummit
-                      ? "mountain summit"
-                      : boatTrip.atLagoon
-                        ? "lotus lagoon"
-                        : "riverside"
-                  : insideCave
-                    ? "treasure cave"
-                    : "garden",
+              funfairPrizes: funfairActivities.collected,
+              funfairRide: funfairActivities.ride,
+              ringTossFirstPerson: funfairActivities.playing,
+              location: insideFunfair
+                ? "sunflower funfair"
+                : insideCastle
+                  ? "castle great room"
+                  : insideRiver
+                    ? cableCar.riding
+                      ? "cable car"
+                      : cableCar.atSummit
+                        ? "mountain summit"
+                        : boatTrip.atLagoon
+                          ? "lotus lagoon"
+                          : "riverside"
+                    : insideCave
+                      ? "treasure cave"
+                      : "garden",
               riversideTreasures: riverCollected,
               lagoonTreasures: boatTrip.lagoon.collected,
               sunStones: collected,
