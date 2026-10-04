@@ -70,7 +70,7 @@ const assert = require("assert/strict");
   // Execute the actual game with only browser/rendering APIs stubbed.
   const setup =
     game.replace("new THREE.WebGLRenderer(", "new FakeRenderer(") +
-    "\nexport {scene, mesh, box, cyl, ball, blockers, hero, body, legs, arms, held, lakeside, targets, shrine, inLake, createBenchMoment, clock, frame, axes, gems, won, camera, riverside, usePassage, yaw, insideRiver, insideCave, passageTransition, cableCar, boatTrip, companion, boardCableCar, boardBoat, fire, keys, insideCastle, castleRoom, useCastlePassage, changeCastlePassage, interactCastle, bedRest, eyes, funfair, funfairActivities, insideFunfair, useFunfairPassage, interactFunfair, garden, renderer, pitch, zoom};";
+    "\nexport {scene, mesh, box, cyl, ball, blockers, hero, body, legs, arms, held, lakeside, targets, shrine, inLake, createBenchMoment, clock, frame, axes, gems, won, camera, riverside, usePassage, yaw, insideRiver, insideCave, passageTransition, cableCar, boatTrip, companion, boardCableCar, boardBoat, fire, keys, insideCastle, castleRoom, useCastlePassage, changeCastlePassage, interactCastle, bedRest, eyes, funfair, funfairActivities, insideFunfair, useFunfairPassage, interactFunfair, garden, renderer, pitch, zoom, village, alpineOutfits, insideVillage, activeVillageShop, mountainView, useVillagePassage, useVillageShop, interactVillage};";
   const G = (await module("review-setup", setup)).namespace;
   const T = (await module("vendor/three.module.js")).namespace;
   const C = (await module("companion.js")).namespace.createCompanion(G);
@@ -954,6 +954,326 @@ const assert = require("assert/strict");
   );
   console.log(
     "PASS: east funfair gate, separate scene and companion, clear activity approaches, park collisions, full Ferris circuit with seated riders, paused rides, clockwise carousel orbit and early exit, dedicated first-person booth, movement and camera locks, paused aiming, Space throws, booth exit and Escape cancellation, shared prize visuals, ring-toss misses and three timed prizes, duplicate prevention, return gate, progress persistence, and restart during rides, throws and transitions",
+  );
+  // The Swiss village is a separate terrain with shops, sheep and a real climb.
+  const village = G.village;
+  assert.equal(village.sheep.length, 8);
+  assert.equal(village.shops.length, 3);
+  assert(
+    village.lookout.y >= 40,
+    "The ferrata must climb into the mountain range",
+  );
+  assert(
+    village.route.reduce(
+      (distance, p, i) =>
+        distance + (i ? p.distanceTo(village.route[i - 1]) : 0),
+      0,
+    ) > 125,
+  );
+  assert(village.ladders.length > 25, "Steep climbs need usable iron rungs");
+  assert(
+    village.cliffFaces.some((face) => {
+      const positions = face.geometry.attributes.position;
+      for (let i = 0; i < positions.count; i++)
+        if (positions.getY(i) > village.lookout.y + 20) return true;
+      return false;
+    }),
+    "The mountain must rise above the trail, not just support it from below",
+  );
+  // Every rock chunk is a closed, consistently wound volume with a base on
+  // the valley floor. Open ends or inverted facets create the floating sheets.
+  for (const rock of village.cliffFaces) {
+    const vertices = rock.geometry.getAttribute("position"),
+      indices = rock.geometry.index;
+    const edges = new Map();
+    let volume = 0,
+      groundVertices = 0;
+    const point = (index) =>
+      new T.Vector3().fromBufferAttribute(vertices, index);
+    for (let i = 0; i < vertices.count; i++)
+      if (vertices.getY(i) === -5) groundVertices++;
+    for (let i = 0; i < indices.count; i += 3) {
+      const triangle = [
+        indices.getX(i),
+        indices.getX(i + 1),
+        indices.getX(i + 2),
+      ];
+      volume +=
+        point(triangle[0]).dot(point(triangle[1]).cross(point(triangle[2]))) /
+        6;
+      for (let j = 0; j < 3; j++) {
+        const u = triangle[j],
+          v = triangle[(j + 1) % 3],
+          key = `${Math.min(u, v)}:${Math.max(u, v)}`;
+        const edge = edges.get(key) ?? { count: 0, direction: 0 };
+        edge.count++;
+        edge.direction += u < v ? 1 : -1;
+        edges.set(key, edge);
+      }
+    }
+    assert(
+      groundVertices >= 4 && volume > 500,
+      "Mountain chunks must have grounded bases and solid volume",
+    );
+    for (const edge of edges.values())
+      assert(
+        edge.count === 2 && edge.direction === 0,
+        "Every edge must join two consistently wound rock faces",
+      );
+  }
+  const visibilityCamera = new T.PerspectiveCamera(60, 1, 0.1, 200);
+  const hikers = [new T.Group(), new T.Group()];
+  hikers[0].position.copy(village.route[9]);
+  hikers[1].position.copy(village.route[10]);
+  visibilityCamera.position.set(17, 50, -72);
+  visibilityCamera.lookAt(hikers[0].position);
+  visibilityCamera.updateMatrixWorld(true);
+  village.group.updateWorldMatrix(true, true);
+  const raycaster = new T.Raycaster();
+  const occluders = new Set();
+  for (const hiker of hikers) {
+    const head = hiker.position.clone().add(new T.Vector3(0, 1.6, 0));
+    raycaster.set(
+      visibilityCamera.position,
+      head.clone().sub(visibilityCamera.position).normalize(),
+    );
+    raycaster.far = head.distanceTo(visibilityCamera.position);
+    for (const hit of raycaster.intersectObjects(village.cliffFaces, false))
+      occluders.add(hit.object);
+  }
+  assert(
+    occluders.size > 0,
+    "The regression camera must start behind obstructing rock",
+  );
+  village.updateVisibility(visibilityCamera, hikers, 1);
+  for (const rock of occluders)
+    assert(
+      rock.material.opacity < 0.05 && !rock.material.depthWrite,
+      "Rock in front of either hiker must stop concealing them",
+    );
+  const insideRock = village.cliffFaces[7];
+  const rockBounds = new T.Box3().setFromObject(insideRock);
+  visibilityCamera.position.copy(rockBounds.getCenter(new T.Vector3()));
+  visibilityCamera.lookAt(hikers[0].position);
+  visibilityCamera.updateMatrixWorld(true);
+  village.updateVisibility(visibilityCamera, hikers, 1);
+  assert(
+    insideRock.material.opacity < 0.05,
+    "A camera entering the mountain must still reveal the hikers",
+  );
+  visibilityCamera.position.set(60, 50, 80);
+  visibilityCamera.lookAt(hikers[0].position);
+  visibilityCamera.updateMatrixWorld(true);
+  village.updateVisibility(visibilityCamera, hikers, 1);
+  for (const rock of village.cliffFaces)
+    assert(
+      rock.material.opacity === 1 && rock.material.depthWrite,
+      "Rock must become opaque again when the camera clears it",
+    );
+  assert(
+    allowed({ x: 0, z: 33 }) && allowed({ x: 0, z: 28 }),
+    "Garden south gate and return landing must be clear",
+  );
+  for (const shop of village.shops)
+    assert(allowed(shop.doorway, village.blockers));
+  G.hero.position.set(0, 0, 33);
+  for (let i = 0; i < 40; i++) G.frame();
+  assert(G.insideVillage && village.group.visible && !G.garden.visible);
+  assert(G.companion.character.parent === village.group);
+  assert.equal(element("#villageCounts").hidden, false);
+  assert(!G.held.visible && G.camera.fov === 60);
+  G.fire();
+  assert.equal(G.axes.length, 0);
+  const villageCamera = {
+    yaw: G.yaw,
+    pitch: G.pitch,
+    zoom: G.zoom,
+    fov: G.camera.fov,
+  };
+  for (const shop of village.shops) {
+    G.hero.position.copy(shop.doorway);
+    G.interactVillage();
+    assert(
+      G.passageTransition.active,
+      "Entering a chalet must use the scene fade",
+    );
+    for (let i = 0; i < 12; i++) G.frame();
+    assert(
+      G.activeVillageShop === shop &&
+        shop.room.group.visible &&
+        !village.group.visible,
+    );
+    assert(G.companion.character.parent === shop.room.group);
+    assert(shop.room.contains(G.hero.position.x, G.hero.position.z));
+    G.hero.position.set(0, 0, -1.1);
+    G.interactVillage();
+    assert(village.stamps.has(shop.kind));
+    for (let i = 0; i < 30; i++) G.frame();
+    G.interactVillage();
+    assert.equal(
+      village.stamps.size,
+      village.shops.indexOf(shop) + 1,
+      "Shop souvenirs must not count twice",
+    );
+    G.hero.position.set(0, 0, 6);
+    for (let i = 0; i < 12; i++) G.frame();
+    assert(
+      !G.activeVillageShop && village.group.visible && !shop.room.group.visible,
+    );
+    assert(G.companion.character.parent === village.group);
+    assert(allowed(G.hero.position, village.blockers));
+    assert.equal(G.camera.fov, villageCamera.fov);
+  }
+  assert(G.alpineOutfits.scarves.every((scarf) => scarf.visible));
+  assert(G.alpineOutfits.bouquet.visible);
+  const firstSheep = village.sheep[0];
+  G.hero.position.copy(firstSheep.group.position).add(new T.Vector3(0, 0, 1.7));
+  for (let i = 0; i < 22; i++) G.frame();
+  G.interactVillage();
+  assert(firstSheep.petTime > 0 && village.stamps.has("sheep"));
+  for (let i = 0; i < 100; i++) village.update(0.04, i * 0.04, G.hero.position);
+  for (const sheep of village.sheep) {
+    assert(sheep.group.position.x > 20 && sheep.group.position.x < 35);
+    assert(sheep.group.position.z > 15 && sheep.group.position.z < 27);
+    assert(Number.isFinite(sheep.head.rotation.x));
+  }
+  G.hero.position.copy(village.returnGate.position);
+  for (let i = 0; i < 12; i++) G.frame();
+  assert(
+    !G.insideVillage &&
+      !village.group.visible &&
+      G.garden.visible &&
+      G.held.visible,
+    "Village return gate must restore the garden",
+  );
+  assert.equal(G.camera.fov, 43);
+  assert.equal(
+    village.stamps.size,
+    4,
+    "Village memories must persist between visits",
+  );
+  G.useVillagePassage(true);
+  for (let i = 0; i < 12; i++) G.frame();
+  G.hero.position.set(-30, 0, -6);
+  G.companion.reset(G.hero.position, village.blockers, village);
+  // Walk each segment through the real movement loop, including the bridge.
+  for (const waypoint of village.route.slice(1)) {
+    let frames = 0;
+    while (
+      Math.hypot(
+        G.hero.position.x - waypoint.x,
+        G.hero.position.z - waypoint.z,
+      ) > 0.3 &&
+      frames++ < 180
+    ) {
+      G.keys.KeyD = waypoint.x - G.hero.position.x > 0.15;
+      G.keys.KeyA = waypoint.x - G.hero.position.x < -0.15;
+      G.keys.KeyS = waypoint.z - G.hero.position.z > 0.15;
+      G.keys.KeyW = waypoint.z - G.hero.position.z < -0.15;
+      G.frame();
+      assert(
+        village.contains(G.hero.position.x, G.hero.position.z),
+        "Hikers must stay on the trail",
+      );
+      assert(Number.isFinite(G.companion.character.position.y));
+      assert(
+        village.contains(
+          G.companion.character.position.x,
+          G.companion.character.position.z,
+        ),
+        "The companion must stay on the mountain ledges",
+      );
+    }
+    G.keys.KeyD = G.keys.KeyA = G.keys.KeyS = G.keys.KeyW = false;
+    assert(
+      frames < 180,
+      `Walk to ${waypoint.toArray()} stalled at ${G.hero.position.toArray()} with companion ${G.companion.character.position.toArray()}`,
+    );
+    assert(
+      Math.abs(G.hero.position.y - waypoint.y) < 0.4,
+      `Height at ${waypoint.toArray()}: ${G.hero.position.toArray()}`,
+    );
+  }
+  assert(
+    G.hero.position.y > 42.9 &&
+      G.alpineOutfits.harnesses.every((h) => h.visible),
+  );
+  G.frame();
+  const savedHikeCamera = { yaw: G.yaw, pitch: G.pitch, zoom: G.zoom };
+  G.interactVillage();
+  assert(G.mountainView && village.stamps.size === 5);
+  const viewpoint = G.hero.position.clone();
+  G.keys.KeyW = true;
+  for (let i = 0; i < 30; i++) G.frame();
+  assert(
+    G.hero.position.equals(viewpoint),
+    "Mountain panorama must pause walking",
+  );
+  G.interactVillage();
+  assert(!G.mountainView && !G.keys.KeyW);
+  assert.equal(G.yaw, savedHikeCamera.yaw);
+  assert.equal(G.pitch, savedHikeCamera.pitch);
+  assert.equal(G.zoom, savedHikeCamera.zoom);
+  // Descend the entire mountain route using the same real keyboard movement.
+  for (const waypoint of village.route.slice(0, -1).reverse()) {
+    let frames = 0;
+    while (
+      Math.hypot(
+        G.hero.position.x - waypoint.x,
+        G.hero.position.z - waypoint.z,
+      ) > 0.3 &&
+      frames++ < 200
+    ) {
+      G.keys.KeyD = waypoint.x - G.hero.position.x > 0.15;
+      G.keys.KeyA = waypoint.x - G.hero.position.x < -0.15;
+      G.keys.KeyS = waypoint.z - G.hero.position.z > 0.15;
+      G.keys.KeyW = waypoint.z - G.hero.position.z < -0.15;
+      G.frame();
+      assert(village.contains(G.hero.position.x, G.hero.position.z));
+    }
+    G.keys.KeyD = G.keys.KeyA = G.keys.KeyS = G.keys.KeyW = false;
+    assert(
+      frames < 200,
+      `Descent to ${waypoint.toArray()} stalled at ${G.hero.position.toArray()}, companion ${G.companion.character.position.toArray()}`,
+    );
+  }
+  assert.equal(
+    G.body.rotation.x,
+    0,
+    "The hiking pose must clear on the approach path",
+  );
+  // The bridge edge blocks stepping into the gorge.
+  const bridgeCenter = village.route[village.bridgeSegment]
+    .clone()
+    .lerp(village.route[village.bridgeSegment + 1], 0.5);
+  G.hero.position.copy(bridgeCenter);
+  G.companion.reset(G.hero.position, village.blockers, village);
+  G.keys.KeyW = true;
+  for (let i = 0; i < 30; i++) G.frame();
+  G.keys.KeyW = false;
+  assert(
+    G.hero.position.z > bridgeCenter.z - 1.3 &&
+      G.hero.position.y === bridgeCenter.y,
+  );
+  G.useVillageShop(village.shops[0]);
+  for (let i = 0; i < 12; i++) G.frame();
+  element("#restart").onclick();
+  G.frame();
+  assert(!G.insideVillage && !G.activeVillageShop && !G.mountainView);
+  assert(village.shops.every((shop) => !shop.room.group.visible));
+  assert.equal(village.stamps.size, 0);
+  assert(G.alpineOutfits.harnesses.every((h) => !h.visible));
+  assert(
+    G.alpineOutfits.scarves.every((scarf) => !scarf.visible) &&
+      !G.alpineOutfits.bouquet.visible,
+  );
+  assert(G.garden.visible && G.held.visible && G.camera.fov === 43);
+  G.useVillagePassage(true);
+  element("#restart").onclick();
+  for (let i = 0; i < 12; i++) G.frame();
+  assert(!G.insideVillage && !G.passageTransition.active);
+  console.log(
+    "PASS: Swiss village gate and return, three accessible chalet interiors and shop activities, persistent souvenirs, eight pettable sheep contained in their meadow, walking every elevated trail segment, solid closed mountains and grounded foothills, rock fading for both hikers and cameras inside the mountain, companion harnesses, cable bridge boundary, mountain panorama, camera restoration, and restart inside shops and transitions",
   );
   const disabled = { x: 0, z: 0, r: 0.7, active: false };
   const center = new T.Vector3();
