@@ -8,6 +8,127 @@ export function createFunfair({ mesh, box, cyl, ball }) {
   group.name = "sunflower-funfair";
   group.visible = false;
   const blockers = [];
+  const balloons = [],
+    wavingFlags = [];
+  const balloonMaterials = colors.map(
+    (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.32 }),
+  );
+  function balloonCluster(
+    parent,
+    x,
+    z,
+    anchorHeight,
+    height,
+    count = 5,
+    radius = 0.8,
+  ) {
+    const cluster = new THREE.Group();
+    cluster.name = "festive-balloon-cluster";
+    cluster.position.set(x, 0, z);
+    parent.add(cluster);
+    for (let i = 0; i < count; i++) {
+      const a = i * 2.4;
+      const base = new THREE.Vector3(
+        Math.cos(a) * radius * 1.7,
+        height + (i % 3) * radius * 1.8,
+        Math.sin(a) * radius,
+      );
+      const balloon = new THREE.Group();
+      balloon.name = "festive-balloon";
+      balloon.position.copy(base);
+      cluster.add(balloon);
+      const skin = mesh(
+        new THREE.SphereGeometry(radius, 12, 10),
+        balloonMaterials[i % colors.length],
+        0,
+        0,
+        0,
+        balloon,
+      );
+      skin.scale.y = 1.25;
+      mesh(
+        new THREE.ConeGeometry(radius * 0.12, radius * 0.2, 5),
+        balloonMaterials[i % colors.length],
+        0,
+        -radius * 1.3,
+        0,
+        balloon,
+      );
+      const shine = ball(
+        radius * 0.15,
+        "#fff5e4",
+        -radius * 0.32,
+        radius * 0.45,
+        radius * 0.82,
+        balloon,
+      );
+      shine.scale.set(0.65, 1.8, 0.4);
+      const tether = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, anchorHeight, 0),
+        base.clone().add(new THREE.Vector3(0, -radius * 1.35, 0)),
+      ]);
+      const string = new THREE.Line(
+        tether,
+        new THREE.LineBasicMaterial({ color: "#f4e8c8" }),
+      );
+      cluster.add(string);
+      balloons.push({
+        balloon,
+        base,
+        tether,
+        radius,
+        phase: balloons.length * 1.7,
+      });
+    }
+    return cluster;
+  }
+  function flagPole(x, z, color, phase) {
+    const pole = new THREE.Group();
+    pole.name = "funfair-flag-pole";
+    pole.position.set(x, 0, z);
+    group.add(pole);
+    cyl(0.08, 0.13, 6, "#e9d7ad", 0, 3, 0, pole);
+    ball(0.15, "#f6cf65", 0, 6.1, 0, pole);
+    const vertices = [],
+      indices = [],
+      segments = 12;
+    for (let i = 0; i <= segments; i++) {
+      const t = i / segments;
+      vertices.push(
+        0.1 + t * 1.9,
+        5.8 - t * 0.55,
+        0,
+        0.1 + t * 1.9,
+        4.7 + t * 0.55,
+        0,
+      );
+      if (i < segments) {
+        const a = i * 2;
+        indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(vertices, 3),
+    );
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    mesh(
+      geometry,
+      new THREE.MeshStandardMaterial({
+        color,
+        side: THREE.DoubleSide,
+        roughness: 0.8,
+      }),
+      0,
+      0,
+      0,
+      pole,
+    );
+    wavingFlags.push({ geometry, phase, segments });
+    blockers.push({ x, z, r: 0.16 });
+  }
   const entrance = new THREE.Group();
   entrance.position.set(32, 0, 0);
   entrance.rotation.y = Math.PI / 2;
@@ -43,6 +164,29 @@ export function createFunfair({ mesh, box, cyl, ball }) {
   }
   gate(entrance);
   gate(returnGate);
+  // These float above the tallest garden trees and mark the east entrance.
+  for (const side of [-1, 1])
+    balloonCluster(entrance, side * 3.4, 0, 4.3, 12.5, 5, 0.95);
+  for (const side of [-1, 1])
+    balloonCluster(returnGate, side * 3.4, 0, 4.3, 7, 3, 0.65);
+  for (const [x, z] of [
+    [-26, 11],
+    [25, 10],
+    [-25, -18],
+    [25, -18],
+  ]) {
+    cyl(0.075, 0.12, 3.4, "#e9d7ad", x, 1.7, z, group);
+    blockers.push({ x, z, r: 0.15 });
+    balloonCluster(group, x, z, 3.4, 6.5, 4, 0.7);
+  }
+  [
+    [-9, 21],
+    [9, 21],
+    [-25, 4],
+    [25, 4],
+    [-9, -18],
+    [9, -18],
+  ].forEach(([x, z], i) => flagPole(x, z, colors[i % colors.length], i));
   for (const s of [-1, 1]) blockers.push({ x: s * 2.6, z: 29, r: 0.32 });
   cyl(40, 41, 2, "#80a976", 0, -1.03, 0, group, 96);
   cyl(8, 8, 0.08, "#efdfb9", 0, 0, 4, group, 64);
@@ -338,6 +482,39 @@ export function createFunfair({ mesh, box, cyl, ball }) {
     flag.rotation.z = Math.PI;
     flag.scale.z = 0.1;
   }
+  // More bunting spans the plaza and ride paths above head height.
+  for (const [halfWidth, z] of [
+    [9, 21],
+    [25, 4],
+    [9, -18],
+  ]) {
+    const count = Math.round(halfWidth * 1.5);
+    const points = [];
+    for (let i = 0; i <= count; i++) {
+      const t = i / count;
+      const x = -halfWidth + halfWidth * 2 * t;
+      const y = 5.5 - Math.sin(t * Math.PI) * 0.7;
+      points.push(new THREE.Vector3(x, y, z));
+      if (i < count) {
+        const flag = mesh(
+          new THREE.ConeGeometry(0.25, 0.55, 3),
+          colors[i % colors.length],
+          x,
+          y - 0.25,
+          z,
+          bunting,
+        );
+        flag.rotation.z = Math.PI;
+        flag.scale.z = 0.1;
+      }
+    }
+    bunting.add(
+      new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(points),
+        new THREE.LineBasicMaterial({ color: "#f4e8c8" }),
+      ),
+    );
+  }
   function update(time, angle = 0, carouselAngle = 0) {
     wheel.rotation.z = angle;
     cabins.forEach((c, i) => {
@@ -348,7 +525,37 @@ export function createFunfair({ mesh, box, cyl, ball }) {
     mounts.forEach(({ animal }, i) => {
       animal.position.y = Math.sin(carouselAngle * 2 + (i * TAU) / 6) * 0.18;
     });
-    bunting.rotation.x = Math.sin(time * 1.5) * 0.04;
+    bunting.rotation.x = Math.sin(time * 1.5) * 0.012;
+    balloons.forEach(({ balloon, base, tether, radius, phase }) => {
+      balloon.position.set(
+        base.x + Math.sin(time * 0.8 + phase) * 0.18,
+        base.y + Math.sin(time * 1.1 + phase) * 0.16,
+        base.z + Math.cos(time * 0.7 + phase) * 0.12,
+      );
+      balloon.rotation.z = Math.sin(time * 0.8 + phase) * 0.06;
+      const string = tether.getAttribute("position");
+      string.setXYZ(
+        1,
+        balloon.position.x,
+        balloon.position.y - radius * 1.35,
+        balloon.position.z,
+      );
+      string.needsUpdate = true;
+      tether.computeBoundingSphere();
+    });
+    wavingFlags.forEach(({ geometry, phase, segments }) => {
+      const position = geometry.getAttribute("position");
+      for (let i = 0; i <= segments; i++) {
+        const wave =
+          ((Math.sin((i / segments) * Math.PI * 3 - time * 2 + phase) * i) /
+            segments) *
+          0.18;
+        position.setZ(i * 2, wave);
+        position.setZ(i * 2 + 1, wave);
+      }
+      position.needsUpdate = true;
+      geometry.computeVertexNormals();
+    });
   }
   update(0);
   return {

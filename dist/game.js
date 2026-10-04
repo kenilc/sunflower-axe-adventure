@@ -1,7 +1,7 @@
 import {
   createFunfair,
   createFunfairActivities,
-} from "./funfair.js?v=20261004-no-labels";
+} from "./funfair.js?v=20261004-balloons";
 import { createCharacterEyes } from "./character-eyes.js?v=20261003-hug";
 import { createBedRest } from "./bed-rest.js?v=20261003-night";
 import { createCastleRoom } from "./castle-room.js?v=20261003-night";
@@ -1678,6 +1678,7 @@ function frame() {
   $("#castleAction").textContent =
     castleActivity?.label ?? "Explore the castle · X";
   $("#castleAction").disabled = castleActivityCooldown > 0;
+  if (!insideFunfair) funfair.update(time);
   lakeside.update(time);
   if (insideCastle) {
     castleRoom.update(time, camera, paused ? 0 : dt);
