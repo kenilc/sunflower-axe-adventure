@@ -70,7 +70,7 @@ const assert = require("assert/strict");
   // Execute the actual game with only browser/rendering APIs stubbed.
   const setup =
     game.replace("new THREE.WebGLRenderer(", "new FakeRenderer(") +
-    "\nexport {scene, mesh, box, cyl, ball, blockers, hero, body, legs, arms, held, lakeside, targets, shrine, inLake, createBenchMoment, clock, frame, axes, gems, won, camera, riverside, usePassage, yaw, insideRiver, insideCave, passageTransition, cableCar, boatTrip, companion, boardCableCar, boardBoat, fire, keys, insideCastle, castleRoom, useCastlePassage, changeCastlePassage, interactCastle, bedRest, eyes, funfair, funfairActivities, insideFunfair, useFunfairPassage, interactFunfair, garden, renderer, pitch, zoom, village, alpineOutfits, insideVillage, activeVillageShop, mountainView, useVillagePassage, useVillageShop, interactVillage};";
+    "\nexport {scene, mesh, box, cyl, ball, blockers, hero, body, legs, arms, held, lakeside, targets, shrine, inLake, createBenchMoment, clock, frame, axes, gems, won, camera, riverside, usePassage, yaw, insideRiver, insideCave, passageTransition, cableCar, boatTrip, companion, boardCableCar, boardBoat, fire, keys, insideCastle, castleRoom, useCastlePassage, changeCastlePassage, interactCastle, bedRest, eyes, funfair, funfairActivities, insideFunfair, useFunfairPassage, interactFunfair, garden, renderer, pitch, zoom, village, alpineOutfits, insideVillage, activeVillageShop, alpineCart, useVillagePassage, useVillageShop, interactVillage};";
   const G = (await module("review-setup", setup)).namespace;
   const T = (await module("vendor/three.module.js")).namespace;
   const C = (await module("companion.js")).namespace.createCompanion(G);
@@ -980,6 +980,198 @@ const assert = require("assert/strict");
     }),
     "The mountain must rise above the trail, not just support it from below",
   );
+  const nature = village.nature;
+  assert.equal(nature.trees.length, 3600);
+  assert.equal(
+    nature.forest.children.length,
+    8,
+    "The dense forest must use instanced batches",
+  );
+  assert.deepEqual(Array.from(nature.forest.userData.varieties).sort(), [
+    "birch",
+    "fir",
+    "pine",
+    "spruce",
+  ]);
+  const sizes = nature.trees.map((tree) => tree.size);
+  assert(
+    Math.max(...sizes) / Math.min(...sizes) > 4,
+    "The forest needs saplings and tall trees",
+  );
+  assert(
+    nature.trees.filter((tree) => tree.site.y > 30).length > 300,
+    "Trees must cover the higher mountain slopes as well as the valley",
+  );
+  village.group.updateWorldMatrix(true, true);
+  const natureRay = new T.Raycaster();
+  for (let i = 0; i < nature.trees.length; i += 23) {
+    const tree = nature.trees[i];
+    natureRay.set(
+      new T.Vector3(tree.site.x, 150, tree.site.z),
+      new T.Vector3(0, -1, 0),
+    );
+    const ground = natureRay.intersectObjects(nature.surfaces, false)[0];
+    assert(
+      ground && Math.abs(ground.point.y - tree.site.y) < 1e-5,
+      "Tree roots must follow the visible mountain surface",
+    );
+    assert(tree.site.y <= 55, "The snowy summits must stay above the forest");
+    const distance = Math.min(
+      ...village.route.slice(0, -1).map((a, i) => {
+        const b = village.route[i + 1],
+          dx = b.x - a.x,
+          dz = b.z - a.z;
+        const t = T.MathUtils.clamp(
+          ((tree.site.x - a.x) * dx + (tree.site.z - a.z) * dz) /
+            (dx * dx + dz * dz),
+          0,
+          1,
+        );
+        return Math.hypot(
+          tree.site.x - a.x - t * dx,
+          tree.site.z - a.z - t * dz,
+        );
+      }),
+    );
+    assert(
+      distance > 4.3 + tree.width / 1.12,
+      "Trees must leave the hiking route clear",
+    );
+  }
+  assert(
+    nature.grass.userData.tuftCount >= 18000,
+    "Mountain meadows need dense grass, including planted trunk bases",
+  );
+  assert.equal(nature.grassCovers.length, nature.grassSurfaces.length);
+  for (let i = 0; i < nature.grassSites.length; i += 97) {
+    const plant = nature.grassSites[i];
+    natureRay.set(
+      plant.site.clone().addScaledVector(plant.normal, 0.5),
+      plant.normal.clone().negate(),
+    );
+    natureRay.far = 0.6;
+    const ground = natureRay.intersectObject(plant.source, false)[0];
+    assert(
+      ground && ground.point.distanceTo(plant.site) < 1e-4,
+      "Grass must remain attached to its supporting slope or meadow",
+    );
+    natureRay.far = Infinity;
+  }
+  for (const tree of nature.trees)
+    assert(
+      Math.abs(tree.matrix.elements[13] - (tree.site.y - tree.rootDepth)) <
+        1e-5,
+      "Trunk bases must sit in the planted ground",
+    );
+  assert(
+    nature.grassSites.filter((plant) => plant.normal.y < 0.1).length > 300,
+    "Bare mountain end faces must also have attached grass",
+  );
+  assert(
+    nature.grassSites.some(
+      (plant) =>
+        plant.source.name === "alpine-village-ground" && plant.site.z > 14,
+    ),
+    "The open village lawns need grass",
+  );
+  assert(
+    nature.grassSites.some(
+      (plant) => plant.source.name === "alpine-valley-ground",
+    ),
+    "The valley floor needs grass",
+  );
+  assert(
+    nature.grassSites.some((plant) => plant.source.userData.side === -1) &&
+      nature.grassSites.some((plant) => plant.source.userData.side === 1),
+    "Both sides of the stream need planted banks",
+  );
+  const stream = village.ravine.children.filter(
+    (mesh) => mesh.name === "ravine-stream-water",
+  );
+  assert(
+    stream.length > 5 && village.ravineBanks.length > 1,
+    "The bridge gap must lead into a continuous stream ravine",
+  );
+  for (const water of stream)
+    assert(
+      new T.Box3().setFromObject(water).max.y <
+        village.route[village.bridgeSegment].y - 10,
+      "The stream must stay well below the walkable bridge",
+    );
+  assert.equal(nature.birds.length, 12);
+  assert.equal(
+    nature.birdGroup.children.length,
+    3,
+    "Flying flocks must share instanced drawing batches",
+  );
+  const birdStart = nature.birds[0].position.clone(),
+    firstFlap = nature.birds[0].flap;
+  nature.update(2);
+  assert(
+    nature.birds[0].position.distanceTo(birdStart) > 1 &&
+      nature.birds[0].flap !== firstFlap,
+    "Birds must fly and flap their wings",
+  );
+  for (let step = 0; step < 24; step++) {
+    nature.update(8);
+    for (const bird of nature.birds) {
+      assert(bird.position.toArray().every(Number.isFinite));
+      natureRay.set(
+        new T.Vector3(bird.position.x, 150, bird.position.z),
+        new T.Vector3(0, -1, 0),
+      );
+      const ground = natureRay.intersectObjects(nature.surfaces, false)[0];
+      assert(
+        !ground || bird.position.y > ground.point.y + 3,
+        "Flying birds must remain above the mountain rock",
+      );
+    }
+  }
+  const treeCamera = new T.PerspectiveCamera(60, 1, 0.1, 200);
+  const testTree = nature.trees[0],
+    treeHiker = new T.Group();
+  treeCamera.position.set(
+    testTree.site.x,
+    testTree.site.y + testTree.height * 0.5,
+    testTree.site.z + 9,
+  );
+  treeHiker.position.set(
+    testTree.site.x,
+    testTree.site.y + testTree.height * 0.5 - 1.6,
+    testTree.site.z - 9,
+  );
+  nature.updateVisibility(treeCamera, [treeHiker]);
+  assert(testTree.hidden, "A forest tree must not conceal a hiker");
+  const treeMatrix = new T.Matrix4();
+  testTree.crowns.getMatrixAt(testTree.index, treeMatrix);
+  assert(
+    treeMatrix.determinant() === 0,
+    "Occluding tree geometry and shadows must be hidden",
+  );
+  treeCamera.position.x += 300;
+  treeHiker.position.x += 300;
+  nature.updateVisibility(treeCamera, [treeHiker]);
+  assert(!testTree.hidden, "The tree must reappear after the camera clears it");
+  const sourceOpacity = testTree.groundSurface.material.opacity;
+  testTree.groundSurface.material.opacity = 0.035;
+  nature.updateVisibility(treeCamera, [treeHiker]);
+  assert(
+    testTree.hidden,
+    "Trees must disappear with faded supporting rock instead of floating in the air",
+  );
+  const fadedMeadow = nature.grassCovers.find(
+    (patch) => patch.source === testTree.groundSurface,
+  );
+  assert(
+    !fadedMeadow.mesh.visible,
+    "Meadow cover must follow its supporting rock visibility",
+  );
+  testTree.groundSurface.material.opacity = sourceOpacity;
+  nature.updateVisibility(treeCamera, [treeHiker]);
+  assert(
+    !testTree.hidden && fadedMeadow.mesh.visible,
+    "Trees and grass must reappear with opaque terrain",
+  );
   // Every rock chunk is a closed, consistently wound volume with a base on
   // the valley floor. Open ends or inverted facets create the floating sheets.
   for (const rock of village.cliffFaces) {
@@ -1201,19 +1393,78 @@ const assert = require("assert/strict");
   G.frame();
   const savedHikeCamera = { yaw: G.yaw, pitch: G.pitch, zoom: G.zoom };
   G.interactVillage();
-  assert(G.mountainView && village.stamps.size === 5);
-  const viewpoint = G.hero.position.clone();
-  G.keys.KeyW = true;
+  assert(G.alpineCart.riding && village.stamps.size === 4);
+  assert.equal(G.camera.fov, 48);
+  assert(G.arms.every((arm) => arm.rotation.x < -2));
+  assert(G.legs.every((leg) => Math.abs(leg.rotation.x + Math.PI / 2) < 1e-6));
+  assert(G.body.getObjectByName("cart-excited-face").visible);
+  assert(G.companion.rig.body.getObjectByName("cart-excited-face").visible);
+  assert(G.eyes.open.visible && !G.eyes.closed.visible);
+  G.keys.KeyW = G.keys.KeyQ = true;
   for (let i = 0; i < 30; i++) G.frame();
-  assert(
-    G.hero.position.equals(viewpoint),
-    "Mountain panorama must pause walking",
+  assert(G.alpineCart.progress > 0 && G.hero.position.y > 40);
+  assert.equal(
+    G.yaw,
+    savedHikeCamera.yaw,
+    "Camera keys must not rotate the ride shot",
   );
-  G.interactVillage();
-  assert(!G.mountainView && !G.keys.KeyW);
+  assert(G.camera.position.distanceTo(G.alpineCart.cart.position) < 9);
+  const pausedProgress = G.alpineCart.progress;
+  element("#guide").open = true;
+  for (let i = 0; i < 20; i++) G.frame();
+  assert.equal(G.alpineCart.progress, pausedProgress);
+  element("#guide").open = false;
+  let rideFrames = 0;
+  while (G.alpineCart.riding && rideFrames++ < 650) {
+    G.frame();
+    assert(
+      village.contains(
+        G.alpineCart.cart.position.x,
+        G.alpineCart.cart.position.z,
+      ),
+      "The cart must stay on the mountain route",
+    );
+    assert(G.hero.position.distanceTo(G.companion.character.position) < 3);
+  }
+  assert(
+    rideFrames < 650 && !G.alpineCart.riding && !G.keys.KeyW && !G.keys.KeyQ,
+  );
+  assert.equal(village.stamps.size, 5);
+  assert.equal(G.hero.position.y, 0);
+  assert(G.hero.position.z > -7);
+  assert(!G.body.getObjectByName("cart-excited-face").visible);
+  assert(!G.companion.rig.body.getObjectByName("cart-excited-face").visible);
+  assert(
+    G.alpineOutfits.bouquet.visible &&
+      G.alpineOutfits.scarves.every((scarf) => scarf.visible),
+  );
+  assert.equal(G.camera.fov, villageCamera.fov);
   assert.equal(G.yaw, savedHikeCamera.yaw);
   assert.equal(G.pitch, savedHikeCamera.pitch);
   assert.equal(G.zoom, savedHikeCamera.zoom);
+  assert(G.alpineCart.vanishing, "Magic begins after both riders disembark");
+  const landingPosition = G.hero.position.clone();
+  for (let i = 0; i < 12; i++) G.frame();
+  assert(G.alpineCart.cart.scale.x < 0.5);
+  assert(G.alpineCart.magic.children.some((sparkle) => sparkle.scale.x > 0));
+  const pausedShrink = G.alpineCart.cart.scale.x;
+  element("#guide").open = true;
+  for (let i = 0; i < 20; i++) G.frame();
+  assert.equal(G.alpineCart.cart.scale.x, pausedShrink);
+  element("#guide").open = false;
+  for (let i = 0; i < 60; i++) G.frame();
+  assert(
+    !G.alpineCart.cart.visible && !G.alpineCart.vanishing,
+    "The cart and magic clear the path",
+  );
+  assert(G.hero.position.equals(landingPosition));
+  assert.equal(village.stamps.size, 5);
+  assert(
+    G.camera.position.distanceTo(G.hero.position) > 30,
+    "Normal walking camera resumes after the magic",
+  );
+  G.hero.position.copy(village.lookout);
+  G.companion.reset(G.hero.position, village.blockers, village);
   // Descend the entire mountain route using the same real keyboard movement.
   for (const waypoint of village.route.slice(0, -1).reverse()) {
     let frames = 0;
@@ -1259,7 +1510,7 @@ const assert = require("assert/strict");
   for (let i = 0; i < 12; i++) G.frame();
   element("#restart").onclick();
   G.frame();
-  assert(!G.insideVillage && !G.activeVillageShop && !G.mountainView);
+  assert(!G.insideVillage && !G.activeVillageShop && !G.alpineCart.riding);
   assert(village.shops.every((shop) => !shop.room.group.visible));
   assert.equal(village.stamps.size, 0);
   assert(G.alpineOutfits.harnesses.every((h) => !h.visible));
@@ -1268,12 +1519,24 @@ const assert = require("assert/strict");
       !G.alpineOutfits.bouquet.visible,
   );
   assert(G.garden.visible && G.held.visible && G.camera.fov === 43);
+  G.useVillagePassage(true, "lookout");
+  for (let i = 0; i < 30; i++) G.frame();
+  G.interactVillage();
+  for (let i = 0; i < 100; i++) G.frame();
+  assert(G.alpineCart.riding);
+  element("#restart").onclick();
+  G.frame();
+  assert(!G.alpineCart.riding && !G.insideVillage && G.camera.fov === 43);
+  assert(!G.body.getObjectByName("cart-excited-face").visible);
+  assert.equal(G.body.rotation.x, 0);
+  assert.equal(G.hero.rotation.x, 0);
+  assert.equal(village.stamps.size, 0);
   G.useVillagePassage(true);
   element("#restart").onclick();
   for (let i = 0; i < 12; i++) G.frame();
   assert(!G.insideVillage && !G.passageTransition.active);
   console.log(
-    "PASS: Swiss village gate and return, three accessible chalet interiors and shop activities, persistent souvenirs, eight pettable sheep contained in their meadow, walking every elevated trail segment, solid closed mountains and grounded foothills, rock fading for both hikers and cameras inside the mountain, companion harnesses, cable bridge boundary, mountain panorama, camera restoration, and restart inside shops and transitions",
+    "PASS: Swiss village gate and return, three accessible chalet interiors and shop activities, persistent souvenirs, eight pettable sheep contained in their meadow, walking every elevated trail segment, solid closed mountains and grounded foothills, 3600 varied grounded trees with a clear hiking route, 12 pale birds gliding above the rock, grounded meadow grass on cliff ends, village lawns and valley floor, tapered stream ravine below the bridge, planted trunk bases, forest camera clearance and synchronized rock/forest visibility, rock fading for both hikers and cameras inside the mountain, companion harnesses, cable bridge boundary, two seated excited cart riders, full rail descent, flower-and-star disappearance and paused magic, paused ride, close camera and input lock, camera restoration, and restart inside shops and transitions",
   );
   const disabled = { x: 0, z: 0, r: 0.7, active: false };
   const center = new T.Vector3();

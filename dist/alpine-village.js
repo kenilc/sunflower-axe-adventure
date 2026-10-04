@@ -1,5 +1,6 @@
 import * as THREE from "./vendor/three.module.js";
 import { createTreeVisibility } from "./tree-visibility.js";
+import { createAlpineNature } from "./alpine-nature.js?v=20261004-alpine-ravine";
 
 export function createAlpineVillage({ mesh, box, cyl, ball }) {
   const group = new THREE.Group();
@@ -37,7 +38,8 @@ export function createAlpineVillage({ mesh, box, cyl, ball }) {
   gate(entrance);
   gate(returnGate);
   blockers.push({ x: -2.5, z: 29, r: 0.3 }, { x: 2.5, z: 29, r: 0.3 });
-  box(78, 2, 43, "#8bad75", 0, -1.03, 12.5, group);
+  const villageGround = box(78, 2, 43, "#8bad75", 0, -1.03, 12.5, group);
+  villageGround.name = "alpine-village-ground";
   box(70, 0.05, 9, "#b5b9aa", 0, 0, 9, group);
   box(5, 0.05, 19, "#c7bca3", 0, 0.015, 22, group);
   box(5, 0.05, 18, "#c7bca3", -30, 0.015, -1, group);
@@ -401,7 +403,20 @@ export function createAlpineVillage({ mesh, box, cyl, ball }) {
         (end ? b : a)
           .clone()
           .addScaledVector(inward[i + end], offset)
-          .setY(height),
+          .setY(height)
+          // Widen the gorge toward the sky, with banks meeting at the stream
+          // bed instead of two parallel walls making a rectangular slot.
+          .add(
+            new THREE.Vector3(
+              i + end === bridgeSegment
+                ? -(height - route[bridgeSegment].y) * 0.17
+                : i + end === bridgeSegment + 1
+                  ? (height - route[bridgeSegment + 1].y) * 0.17
+                  : 0,
+              0,
+              0,
+            ),
+          ),
       ),
     );
     const count = profiles[0].length,
@@ -583,8 +598,81 @@ export function createAlpineVillage({ mesh, box, cyl, ball }) {
   box(0.8, 0.22, 0.035, cream, 0.7, 3.3, 0.02, flag);
   box(0.22, 0.8, 0.035, cream, 0.7, 3.3, 0.02, flag);
   blockers.push({ x: flag.position.x, z: flag.position.z, r: 0.15 });
-  box(200, 2, 190, "#83a87a", 0, -6, -65, group);
-  box(12, 0.045, 9, "#85c1d0", -7, -4.95, -36, group);
+  const valleyGround = box(200, 2, 190, "#83a87a", 0, -6, -65, group);
+  valleyGround.name = "alpine-valley-ground";
+  const ravine = new THREE.Group();
+  ravine.name = "alpine-stream-ravine";
+  group.add(ravine);
+  const ravineBanks = [];
+  const creekCenter = (z) =>
+    -7 + (z + 36) * 0.15 + Math.sin((z + 36) * 0.065) * 0.35;
+  for (let i = 0; i < 14; i++) {
+    const z0 = -76 + i * 4.5,
+      z1 = z0 + 4.5;
+    const c0 = creekCenter(z0),
+      c1 = creekCenter(z1);
+    const water = surface(
+      [
+        new THREE.Vector3(c0 - 1.4, -4.91, z0),
+        new THREE.Vector3(c0 + 1.4, -4.91, z0),
+        new THREE.Vector3(c1 - 1.4, -4.91, z1),
+        new THREE.Vector3(c1 + 1.4, -4.91, z1),
+      ],
+      [0, 2, 1, 1, 2, 3],
+      "#90cdd0",
+      "ravine-stream-water",
+    );
+    water.castShadow = false;
+    ravine.add(water);
+    for (const side of [-1, 1]) {
+      const points = [];
+      for (const [center, z] of [
+        [c0, z0],
+        [c1, z1],
+      ]) {
+        points.push(
+          new THREE.Vector3(center + side * 1.5, -4.94, z),
+          new THREE.Vector3(center + side * 4.2, -3.2, z),
+          new THREE.Vector3(center + side * 6, -5, z),
+        );
+      }
+      const bank = surface(
+        points,
+        [
+          0, 3, 1, 1, 3, 4, 1, 4, 2, 2, 4, 5, 0, 2, 3, 2, 5, 3, 0, 1, 2, 3, 5,
+          4,
+        ],
+        "#8b997d",
+        "ravine-sloping-bank",
+      );
+      if (side < 0) {
+        const indices = bank.geometry.index;
+        for (let j = 0; j < indices.count; j += 3) {
+          const middle = indices.getX(j + 1);
+          indices.setX(j + 1, indices.getX(j + 2));
+          indices.setX(j + 2, middle);
+        }
+        bank.geometry.computeVertexNormals();
+      }
+      bank.userData.side = side;
+      ravine.add(bank);
+      ravineBanks.push(bank);
+    }
+    if (i % 3 === 0) {
+      const stone = ball(
+        0.65,
+        "#9b9e8a",
+        c0 + (i % 2 ? -1.7 : 1.7),
+        -4.72,
+        z0 + 1,
+        ravine,
+      );
+      stone.scale.set(0.7, 0.6, 1.1);
+      box(0.8, 0.015, 0.07, "#d5e8da", c0, -4.88, z0 + 2, ravine).castShadow =
+        false;
+    }
+  }
+  const mountainSurfaces = [...cliffFaces];
   // A distant alpine panorama frames the village and the high viewpoint.
   for (const [x, z, r, h] of [
     [-58, -78, 30, 47],
@@ -604,6 +692,7 @@ export function createAlpineVillage({ mesh, box, cyl, ball }) {
       peak,
     );
     mountain.name = "swiss-mountain";
+    mountainSurfaces.push(mountain);
     mesh(
       new THREE.ConeGeometry(r * 0.3, h * 0.3, 7),
       "#edf3e9",
@@ -614,42 +703,33 @@ export function createAlpineVillage({ mesh, box, cyl, ball }) {
     );
     rockVisibility.add(peak);
   }
-  // Root the forest on the actual foothill surfaces, including overlapping
-  // rock volumes, so trees do not float above the valley or pierce a cliff.
-  group.updateWorldMatrix(true, true);
-  const groundRay = new THREE.Raycaster();
-  function pine(x, z) {
-    groundRay.set(new THREE.Vector3(x, 100, z), new THREE.Vector3(0, -1, 0));
-    const ground = groundRay.intersectObjects(cliffFaces, false)[0];
-    const y = ground ? ground.point.y : -5;
-    if (y > 25) return;
-    const tree = new THREE.Group();
-    tree.name = "alpine-foothill-pine";
-    tree.position.set(x, y, z);
-    group.add(tree);
-    cyl(0.12, 0.2, 3, wood, 0, 1.5, 0, tree);
-    for (let layer = 0; layer < 3; layer++)
-      mesh(
-        new THREE.ConeGeometry(1.4 - layer * 0.25, 2.5, 6),
-        "#547965",
-        0,
-        2.6 + layer,
-        0,
-        tree,
-      );
-    rockVisibility.add(tree);
-  }
-  for (let i = 0; i < route.length - 1; i++) {
-    if (i === bridgeSegment) continue;
-    for (let j = 0; j < 4; j++) {
-      const t = (j + 0.5) / 4;
-      const p = route[i].clone().lerp(route[i + 1], t);
-      const n = inward[i].clone().lerp(inward[i + 1], t);
-      p.addScaledVector(n, -9 - (j % 2) * 2);
-      pine(p.x, p.z);
-    }
-  }
-  for (let i = 0; i < 28; i++) pine(-45 + i * 4, -91 - (i % 4) * 5);
+  const nature = createAlpineNature({
+    parent: group,
+    surfaces: mountainSurfaces,
+    trailDistance: (x, z) => trailSample(x, z).distance,
+    lookout,
+    meadowSurfaces: [villageGround, valleyGround, ...ravineBanks],
+    treeAllowed: (x, z) =>
+      !(z < -18 && z > -78 && Math.abs(x - creekCenter(z)) < 5.5),
+    grassAllowed(x, z) {
+      if (Math.abs(x) < 36 && z >= -7 && z < 32) {
+        if (
+          Math.abs(z - 9) < 5.2 ||
+          (Math.abs(x) < 3 && z > 12) ||
+          (Math.abs(x + 30) < 3 && z < 12)
+        )
+          return false;
+        if (shops.some((shop) => Math.abs(x - shop.doorway.x) < 6 && z < 5.5))
+          return false;
+        if (
+          Math.hypot(x + 13, z - 18) < 2.3 ||
+          [-22, -17].some((tx) => Math.hypot(x - tx, z - 13.8) < 1.6)
+        )
+          return false;
+      }
+      return !(z < -12 && z > -77 && Math.abs(x - creekCenter(z)) < 1.65);
+    },
+  });
   function onTrail(x, z) {
     return z < -7 && trailSample(x, z).distance < trailRadius;
   }
@@ -689,10 +769,11 @@ export function createAlpineVillage({ mesh, box, cyl, ball }) {
     );
     if (pet) return { kind: "sheep", sheep: pet, label: "Pet the sheep · X" };
     if (p.distanceTo(lookout) < 3.2)
-      return { kind: "lookout", label: "Enjoy the mountain view · X" };
+      return { kind: "lookout", label: "Ride the mountain cart together · X" };
     return null;
   }
   function update(dt, time, heroPosition) {
+    nature.update(dt);
     for (const s of sheep) {
       const old = s.group.position.clone();
       const destination = s.home
@@ -786,7 +867,13 @@ export function createAlpineVillage({ mesh, box, cyl, ball }) {
     bridgeSegment,
     cliffFaces,
     ladders,
-    updateVisibility: rockVisibility.update,
+    nature,
+    ravine,
+    ravineBanks,
+    updateVisibility(camera, characters, dt) {
+      rockVisibility.update(camera, characters, dt);
+      nature.updateVisibility(camera, characters);
+    },
     trailInfo(p) {
       const sample = trailSample(p.x, p.z);
       const a = route[sample.segment],
