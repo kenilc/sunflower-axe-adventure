@@ -1,3 +1,8 @@
+import {
+  createNightFestival,
+  createSummerOutfits,
+  createFestivalMoment,
+} from "./night-festival.js?v=20261005-dry-banks";
 import { createAlpineCart } from "./alpine-cart.js?v=20261004-cart-magic";
 import {
   createAlpineVillage,
@@ -15,7 +20,7 @@ import { createBoatTrip } from "./boat-trip.js?v=20261003-cable-car";
 import * as THREE from "./vendor/three.module.js";
 import { createRiverside } from "./riverside.js?v=20261003-cable-car";
 import { createCave } from "./cave.js?v=20261003-rocks";
-import { createGameAudio } from "./audio.js";
+import { createGameAudio } from "./audio.js?v=20261005-festival-soft";
 import { createCompanion } from "./companion.js?v=20261003-hug";
 import { createHearts } from "./hearts.js?v=20261001-climb";
 import { createTreeVisibility } from "./tree-visibility.js?v=20261002-camera-clear";
@@ -536,6 +541,9 @@ garden.add(village.entrance);
 scene.add(village.group);
 village.shops.forEach((shop) => scene.add(shop.room.group));
 blockers.push({ x: -2.5, z: 33, r: 0.3 }, { x: 2.5, z: 33, r: 0.3 });
+const festival = createNightFestival({ mesh, box, cyl, ball });
+funfair.group.add(festival.entrance);
+scene.add(festival.group);
 const castleRoom = createCastleRoom({ mesh, box, cyl, ball });
 scene.add(castleRoom.group);
 const companion = createCompanion({ ball, box, cyl, mesh });
@@ -577,6 +585,18 @@ const alpineOutfits = createAlpineOutfits({
   box,
   cyl,
   ball,
+});
+const summerOutfits = createSummerOutfits({
+  rigs: [{ body, legs, arms }, companion.rig],
+  box,
+  cyl,
+});
+const festivalMoment = createFestivalMoment({
+  festival,
+  hero,
+  companion,
+  rigs: [{ body, legs, arms, eyes }, companion.rig],
+  camera,
 });
 const alpineCart = createAlpineCart({
   village,
@@ -759,6 +779,7 @@ $("#benchAction").onclick = () => {
   if (
     !insideCave &&
     !insideRiver &&
+    !insideFestival &&
     !insideFunfair &&
     !insideVillage &&
     !passageTransition.active
@@ -771,6 +792,8 @@ let insideCastle = false,
 let insideCave = false,
   insideRiver = false,
   insideFunfair = false,
+  insideFestival = false,
+  festivalBridgeSeen = false,
   insideVillage = false,
   activeVillageShop = null,
   villageView = null,
@@ -788,7 +811,13 @@ function villageObjective() {
     : "Visit the three shops, meet the sheep, and follow the west trail to the summit cart.";
 }
 function useVillagePassage(enter, activity = null) {
-  if (enter === insideVillage || insideCave || insideRiver || insideFunfair)
+  if (
+    enter === insideVillage ||
+    insideFestival ||
+    insideCave ||
+    insideRiver ||
+    insideFunfair
+  )
     return;
   if (
     passageTransition.start(() => {
@@ -989,6 +1018,7 @@ $("#villageAction").onclick = interactVillage;
 function useFunfairPassage(enter, activity = null) {
   if (
     enter === insideFunfair ||
+    insideFestival ||
     insideCave ||
     insideRiver ||
     insideVillage ||
@@ -1328,27 +1358,116 @@ function changePassage(enter, river = false) {
   );
   beep(enter ? 660 : 440, 0.35);
 }
+let festivalView = null;
+function useFestivalPassage(enter) {
+  if (
+    enter === insideFestival ||
+    festivalMoment.active ||
+    (enter && !insideFunfair)
+  )
+    return;
+  if (passageTransition.start(() => changeFestivalPassage(enter)))
+    clearRestInput();
+}
+function changeFestivalPassage(enter) {
+  if (enter === insideFestival) return;
+  festivalMoment.stop();
+  hearts.clear();
+  if (enter) {
+    funfairActivities.reset();
+    festivalView = { yaw, pitch, zoom };
+    alpineOutfits.reset();
+  }
+  insideFestival = enter;
+  insideFunfair = !enter;
+  festival.group.visible = enter;
+  funfair.group.visible = !enter;
+  held.visible = false;
+  summerOutfits.set(enter);
+  (enter ? festival.group : funfair.group).add(companion.character);
+  hero.position.copy(enter ? festival.arrival : new THREE.Vector3(0, 0, -23));
+  hero.rotation.set(0, Math.PI, 0);
+  companion.reset(
+    hero.position,
+    enter ? festival.blockers : funfair.blockers,
+    enter ? festival : funfair,
+  );
+  if (enter) {
+    yaw = 0;
+    pitch = THREE.MathUtils.degToRad(27);
+    zoom = 30;
+    festivalBridgeSeen = false;
+  } else if (festivalView) ({ yaw, pitch, zoom } = festivalView);
+  scene.background.set(enter ? "#132e59" : "#b9deda");
+  scene.fog.color.copy(scene.background);
+  scene.fog.density = enter ? 0.004 : 0.005;
+  sun.intensity = enter ? 0.8 : 3.4;
+  const fill = scene.children.find((c) => c.isHemisphereLight);
+  fill.intensity = enter ? 1.8 : 2.4;
+  fill.color.set(enter ? "#b9d5ff" : "#fff4cf");
+  fill.groundColor.set(enter ? "#586779" : "#346457");
+  $("#funfairCounts").hidden = enter;
+  $(".quest .eyebrow").textContent = enter
+    ? "SUMMER NIGHT IN JAPAN"
+    : "THE SUNFLOWER FUNFAIR";
+  $(".quest h1").innerHTML = enter
+    ? "Lantern lights.<br />A summer for two."
+    : "A little fair.<br />A day for two.";
+  $("#objective").textContent = enter
+    ? "Wander the lantern street, then share the fireworks on the river bridge."
+    : funfairActivities.objective();
+  $("#caveHint").textContent = enter
+    ? "Food stalls line the street. Tea house: northwest bank. Firefly gardens: northeast. Bridge: straight ahead. Return gate: south."
+    : "Festival lantern gate: north. Return to the garden: south.";
+  $(".instructions").innerHTML = enter
+    ? "<kbd>W A S D</kbd> move <kbd>X</kbd> fireworks together <kbd>DRAG / Q E</kbd> rotate <kbd>R / F</kbd> view"
+    : "<kbd>W A S D</kbd> move <kbd>X</kbd> ride / play <kbd>DRAG / Q E</kbd> rotate <kbd>R / F</kbd> view";
+  passageCooldown = 1;
+  clearRestInput();
+  toast(
+    enter
+      ? "A summer festival for two ♥ Follow the lanterns to the bridge."
+      : "Back at the funfair · The garden gate is to the south.",
+  );
+}
+function interactFestival() {
+  if (!insideFestival || $("#guide").open || passageTransition.active) return;
+  if (festivalMoment.active) {
+    festivalMoment.stop();
+    clearRestInput();
+    return;
+  }
+  if (festival.nearBridge(hero.position)) {
+    festivalBridgeSeen = true;
+    festivalMoment.start();
+    clearRestInput();
+    toast("Together under the summer sky ♥");
+  }
+}
+$("#festivalAction").onclick = interactFestival;
 function cameraTargetHeight() {
   // Frame the characters in the foreground and the tall mountain above them.
-  return insideVillage
-    ? activeVillageShop
-      ? 1
-      : hero.position.y > 0.5
-        ? 6
-        : 12
-    : insideFunfair
-      ? funfairActivities.riding
-        ? 2
-        : 8
-      : insideCastle
+  return insideFestival
+    ? 3
+    : insideVillage
+      ? activeVillageShop
         ? 1
-        : cableCar.atSummit && !cableCar.riding
-          ? 5
-          : cableCar.riding
-            ? 3
-            : insideRiver && !boatTrip.atLagoon && !boatTrip.rowing
-              ? 9
-              : 1;
+        : hero.position.y > 0.5
+          ? 6
+          : 12
+      : insideFunfair
+        ? funfairActivities.riding
+          ? 2
+          : 8
+        : insideCastle
+          ? 1
+          : cableCar.atSummit && !cableCar.riding
+            ? 5
+            : cableCar.riding
+              ? 3
+              : insideRiver && !boatTrip.atLagoon && !boatTrip.rowing
+                ? 9
+                : 1;
 }
 function riverObjective() {
   return riverCollected === riverside.treasures.length
@@ -1369,7 +1488,10 @@ let yaw = 0,
 const axes = [],
   particles = [];
 let sound = true;
-const audio = createGameAudio(() => insideCave);
+const audio = createGameAudio(
+  () => insideCave,
+  () => insideFestival,
+);
 function beep(freq, duration = 0.1) {
   audio.effect(freq, duration);
 }
@@ -1414,6 +1536,7 @@ function fire() {
     cooldown > 0 ||
     $("#guide").open ||
     insideCastle ||
+    insideFestival ||
     insideFunfair ||
     insideVillage ||
     benchMoment.seated ||
@@ -1453,6 +1576,7 @@ addEventListener("keydown", (e) => {
     !$("#guide").open &&
     !insideCave &&
     !insideRiver &&
+    !insideFestival &&
     !insideFunfair &&
     !insideVillage
   ) {
@@ -1462,7 +1586,8 @@ addEventListener("keydown", (e) => {
   if (e.code === "KeyT" && !e.repeat) boardBoat();
   if (e.code === "KeyC" && !e.repeat) boardCableCar();
   if (e.code === "KeyX" && !e.repeat) {
-    if (insideVillage) interactVillage();
+    if (insideFestival) interactFestival();
+    else if (insideVillage) interactVillage();
     else if (insideFunfair) interactFunfair();
     else interactCastle();
   }
@@ -1479,7 +1604,12 @@ addEventListener("blur", () => {
 });
 const cameraDrag = bindCameraDrag(renderer.domElement, {
   rotate(dx) {
-    if (!funfairActivities.playing && !alpineCart.riding) yaw -= dx * 0.006;
+    if (
+      !festivalMoment.active &&
+      !funfairActivities.playing &&
+      !alpineCart.riding
+    )
+      yaw -= dx * 0.006;
   },
   throwAxe: () => (funfairActivities.playing ? interactFunfair() : fire()),
   paused: () => $("#guide").open || passageTransition.active,
@@ -1488,14 +1618,18 @@ renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
 renderer.domElement.addEventListener(
   "wheel",
   (e) => {
-    if (funfairActivities.playing || alpineCart.riding) {
+    if (
+      festivalMoment.active ||
+      funfairActivities.playing ||
+      alpineCart.riding
+    ) {
       e.preventDefault();
       return;
     }
     zoom = THREE.MathUtils.clamp(
       zoom + e.deltaY * 0.012,
       10,
-      insideVillage ? 52 : insideFunfair ? 50 : 26,
+      insideFestival ? 44 : insideVillage ? 52 : insideFunfair ? 50 : 26,
     );
     e.preventDefault();
   },
@@ -1537,6 +1671,7 @@ $("#restart").onclick = () => {
   cameraDrag.reset();
   benchMoment.stand();
   if (insideVillage) changeVillagePassage(false);
+  if (insideFestival) changeFestivalPassage(false);
   village.reset();
   alpineOutfits.reset();
   $("#villageStamps").textContent = 0;
@@ -1605,7 +1740,11 @@ function frame() {
   if (!paused) {
     benchMoment.update(dt);
     passageCooldown = Math.max(0, passageCooldown - dt);
-    if (!funfairActivities.playing && !alpineCart.riding) {
+    if (
+      !festivalMoment.active &&
+      !funfairActivities.playing &&
+      !alpineCart.riding
+    ) {
       yaw += ((keys.KeyQ ? 1 : 0) - (keys.KeyE ? 1 : 0)) * dt * 1.4;
       pitch = THREE.MathUtils.clamp(
         pitch + ((keys.KeyR ? 1 : 0) - (keys.KeyF ? 1 : 0)) * dt * 0.65,
@@ -1623,12 +1762,18 @@ function frame() {
             hero.position.y > 0.5),
       );
     }
+    if (insideFestival) {
+      festival.update(dt);
+      festivalMoment.update(dt);
+    }
     if (insideFunfair) {
       const wasPlaying = funfairActivities.playing;
       funfairActivities.update(dt, time);
       if (wasPlaying && !funfairActivities.playing) clearRestInput();
     }
-    if (wasCartRiding) {
+    if (insideFestival && festivalMoment.active) {
+      isMoving = false;
+    } else if (wasCartRiding) {
       isMoving = false;
     } else if (
       insideFunfair &&
@@ -1645,19 +1790,21 @@ function frame() {
       boatTrip.update(dt);
       isMoving = false;
     } else {
-      const riverTerrain = insideVillage
-        ? activeVillageShop
-          ? activeVillageShop.room
-          : village
-        : insideFunfair
-          ? funfair
-          : insideCastle
-            ? castleRoom
-            : cableCar.atSummit
-              ? cableCar.summit
-              : boatTrip.atLagoon
-                ? boatTrip.lagoon
-                : riverside;
+      const riverTerrain = insideFestival
+        ? festival
+        : insideVillage
+          ? activeVillageShop
+            ? activeVillageShop.room
+            : village
+          : insideFunfair
+            ? funfair
+            : insideCastle
+              ? castleRoom
+              : cableCar.atSummit
+                ? cableCar.summit
+                : boatTrip.atLagoon
+                  ? boatTrip.lagoon
+                  : riverside;
       let dx =
           (keys.KeyD || keys.ArrowRight ? 1 : 0) -
           (keys.KeyA || keys.ArrowLeft ? 1 : 0) +
@@ -1675,13 +1822,13 @@ function frame() {
       hero.position.addScaledVector(movement, dt * speed);
       const movementObstacles = benchMoment.seated
         ? []
-        : insideVillage || insideFunfair || insideRiver
+        : insideFestival || insideVillage || insideFunfair || insideRiver
           ? riverTerrain.blockers
           : insideCave
             ? cave.blockers
             : blockers;
       resolveObstacleCollisions(hero.position, old, movementObstacles);
-      if (insideVillage || insideFunfair || insideRiver) {
+      if (insideFestival || insideVillage || insideFunfair || insideRiver) {
         riverTerrain.constrain?.(hero.position, old);
         if (!riverTerrain.contains(hero.position.x, hero.position.z))
           hero.position.copy(old);
@@ -1716,13 +1863,13 @@ function frame() {
         const playerBump = companion.blocksPlayer(hero.position, old);
         const companionBump = companion.update(
           dt,
-          insideVillage || insideFunfair || insideRiver
+          insideFestival || insideVillage || insideFunfair || insideRiver
             ? riverTerrain.blockers
             : insideCave
               ? cave.blockers
               : companionObstacles,
           hero.position,
-          insideVillage || insideFunfair || insideRiver
+          insideFestival || insideVillage || insideFunfair || insideRiver
             ? riverTerrain
             : insideCave
               ? cave
@@ -1762,6 +1909,7 @@ function frame() {
         a.g.rotation.z += dt * 6;
         for (const t of insideCave ||
         insideRiver ||
+        insideFestival ||
         insideFunfair ||
         insideVillage
           ? []
@@ -1790,6 +1938,7 @@ function frame() {
       }
       for (const g of insideCave ||
       insideRiver ||
+      insideFestival ||
       insideFunfair ||
       insideVillage
         ? []
@@ -1851,6 +2000,7 @@ function frame() {
       if (
         !insideCave &&
         !insideRiver &&
+        !insideFestival &&
         !insideFunfair &&
         !insideVillage &&
         score === 12 &&
@@ -1878,8 +2028,23 @@ function frame() {
           $("#objective").textContent = castleRoom.objective();
         }
       }
+      if (
+        insideFestival &&
+        !festivalBridgeSeen &&
+        festival.nearBridge(hero.position)
+      )
+        interactFestival();
       if (passageCooldown === 0) {
-        if (
+        if (insideFestival && festival.isExit(hero.position))
+          useFestivalPassage(false);
+        else if (
+          insideFunfair &&
+          !funfairActivities.riding &&
+          !funfairActivities.playing &&
+          festival.isEntrance(hero.position)
+        )
+          useFestivalPassage(true);
+        else if (
           insideVillage &&
           activeVillageShop &&
           activeVillageShop.room.isExit(hero.position)
@@ -1893,6 +2058,7 @@ function frame() {
           useVillagePassage(false);
         else if (
           !insideVillage &&
+          !insideFestival &&
           !insideFunfair &&
           !insideCave &&
           !insideRiver &&
@@ -1904,6 +2070,7 @@ function frame() {
         else if (
           !insideCave &&
           !insideRiver &&
+          !insideFestival &&
           !insideFunfair &&
           !insideVillage &&
           funfair.isEntrance(hero.position)
@@ -1927,6 +2094,7 @@ function frame() {
         else if (
           !insideCave &&
           !insideRiver &&
+          !insideFestival &&
           !insideFunfair &&
           !insideVillage &&
           riverside.isEntrance(hero.position)
@@ -1935,6 +2103,7 @@ function frame() {
         else if (
           !insideCave &&
           !insideRiver &&
+          !insideFestival &&
           !insideFunfair &&
           !insideVillage &&
           cave.isEntrance(hero.position)
@@ -1974,13 +2143,26 @@ function frame() {
   $("#benchAction").hidden =
     insideCave ||
     insideRiver ||
+    insideFestival ||
     insideFunfair ||
     insideVillage ||
     paused ||
     benchMoment.seated ||
     !benchMoment.nearby();
   $("#benchStand").hidden = !benchMoment.seated || paused;
-  $("#throw").hidden = insideCastle || insideFunfair || insideVillage;
+  $("#throw").hidden =
+    insideFestival || insideCastle || insideFunfair || insideVillage;
+  const festivalAction =
+    insideFestival &&
+    (festivalMoment.active || festival.nearBridge(hero.position));
+  $("#festivalAction").hidden = !festivalAction || paused;
+  $("#festivalAction").textContent = festivalMoment.active
+    ? "Keep exploring · X"
+    : "Watch fireworks together · X";
+  if (insideFestival)
+    $("#caveHint").textContent = festivalMoment.active
+      ? "A happy moment on the bridge ♥ · X to keep exploring."
+      : "Bridge: center of the river · X to watch together. Tea house: northwest. Firefly gardens: northeast. Return gate: south. Festival lantern gate: north.";
   const villageAction = insideVillage
     ? alpineCart.riding
       ? { label: "Wheee! Sliding down the mountain…" }
@@ -2019,7 +2201,7 @@ function frame() {
       ? "Ring toss · X, Space or click to throw. Leave booth or Esc to return to the park."
       : funfairActivities.riding
         ? "Enjoy the ride together · X to finish early. Camera controls still work."
-        : "Ferris wheel: northwest. Carousel: northeast. Ring toss: southeast · X nearby. Return gate: south.";
+        : "Ferris wheel: northwest. Carousel: northeast. Ring toss: southeast · X nearby. Return gate: south. Festival lantern gate: north.";
   const castleActivity = insideCastle
     ? bedRest.resting
       ? { label: "Get up · X" }
@@ -2074,7 +2256,8 @@ function frame() {
   relic.position.y = 2.8 + Math.sin(time) * 0.15;
   ring.rotation.y = time * 0.25;
   ring.rotation.z = 0.2;
-  if (alpineCart.riding || alpineCart.vanishing) alpineCart.updateCamera();
+  if (insideFestival && festivalMoment.active) festivalMoment.updateCamera();
+  else if (alpineCart.riding || alpineCart.vanishing) alpineCart.updateCamera();
   else {
     desired
       .set(
@@ -2124,7 +2307,13 @@ function frame() {
     village.updateVisibility(camera, [hero, companion.character], dt);
   else if (insideRiver && !insideCastle)
     riverside.updateVisibility(camera, [hero, companion.character], dt);
-  else if (!insideCave && !insideCastle && !insideFunfair && !insideVillage)
+  else if (
+    !insideCave &&
+    !insideCastle &&
+    !insideFestival &&
+    !insideFunfair &&
+    !insideVillage
+  )
     treeVisibility.update(camera, [hero, companion.character], dt);
   sun.position.set(
     hero.position.x - 18,
@@ -2135,59 +2324,63 @@ function frame() {
   if (performance.now() > toastUntil) $("#toast").style.opacity = 0;
   const x = hero.position.x,
     z = hero.position.z;
-  const region = insideVillage
-    ? activeVillageShop
-      ? activeVillageShop.name
-      : alpineCart.riding
-        ? "Alpine cart · Down the mountain"
-        : village.onTrail(x, z)
-          ? village.trailInfo(hero.position).bridge
-            ? "Via Ferrata · Gorge crossing"
-            : village.trailInfo(hero.position).climbing
-              ? "Via Ferrata · Iron-rung ascent"
-              : "Via Ferrata · Mountain traverse"
-          : hero.position.y > 8
-            ? "Via Ferrata · Summit rest"
-            : "Edelweiss Village"
-    : insideFunfair
-      ? funfairActivities.riding
-        ? funfairActivities.ride === "ferris"
-          ? "Sunflower Funfair · Ferris wheel"
-          : "Sunflower Funfair · Woodland carousel"
-        : funfairActivities.playing
-          ? "Sunflower Funfair · Ring toss"
-          : "Sunflower Funfair"
-      : insideCastle
-        ? bedRest.resting
-          ? "The Cloud Castle · Resting together"
-          : "The Cloud Castle · Great Room"
-        : insideRiver
-          ? cableCar.riding
-            ? "Above the treetops"
-            : cableCar.atSummit
-              ? cableCar.summit.castle.inside(hero.position)
-                ? "Inside the summit castle"
-                : "Summit castle"
-              : boatTrip.rowing
-                ? "Rowing together"
-                : boatTrip.atLagoon
-                  ? "Lotus Lagoon"
-                  : riverside.locationAt(hero.position)
-          : insideCave
-            ? "The Golden Grotto"
-            : z < -38
-              ? "Treasure cave entrance"
-              : z < -20
-                ? "The sun shrine"
-                : Math.hypot(x - 8, z - 12) < 7
-                  ? "Sunflower lake"
-                  : x > 16
-                    ? "Whispering grove"
-                    : x < -16
-                      ? "Old garden ruins"
-                      : z > 16
-                        ? "Wildflower trail"
-                        : "Petal clearing";
+  const region = insideFestival
+    ? festivalMoment.active
+      ? "Summer Festival · Fireworks for two"
+      : "Japanese Summer Festival"
+    : insideVillage
+      ? activeVillageShop
+        ? activeVillageShop.name
+        : alpineCart.riding
+          ? "Alpine cart · Down the mountain"
+          : village.onTrail(x, z)
+            ? village.trailInfo(hero.position).bridge
+              ? "Via Ferrata · Gorge crossing"
+              : village.trailInfo(hero.position).climbing
+                ? "Via Ferrata · Iron-rung ascent"
+                : "Via Ferrata · Mountain traverse"
+            : hero.position.y > 8
+              ? "Via Ferrata · Summit rest"
+              : "Edelweiss Village"
+      : insideFunfair
+        ? funfairActivities.riding
+          ? funfairActivities.ride === "ferris"
+            ? "Sunflower Funfair · Ferris wheel"
+            : "Sunflower Funfair · Woodland carousel"
+          : funfairActivities.playing
+            ? "Sunflower Funfair · Ring toss"
+            : "Sunflower Funfair"
+        : insideCastle
+          ? bedRest.resting
+            ? "The Cloud Castle · Resting together"
+            : "The Cloud Castle · Great Room"
+          : insideRiver
+            ? cableCar.riding
+              ? "Above the treetops"
+              : cableCar.atSummit
+                ? cableCar.summit.castle.inside(hero.position)
+                  ? "Inside the summit castle"
+                  : "Summit castle"
+                : boatTrip.rowing
+                  ? "Rowing together"
+                  : boatTrip.atLagoon
+                    ? "Lotus Lagoon"
+                    : riverside.locationAt(hero.position)
+            : insideCave
+              ? "The Golden Grotto"
+              : z < -38
+                ? "Treasure cave entrance"
+                : z < -20
+                  ? "The sun shrine"
+                  : Math.hypot(x - 8, z - 12) < 7
+                    ? "Sunflower lake"
+                    : x > 16
+                      ? "Whispering grove"
+                      : x < -16
+                        ? "Old garden ruins"
+                        : z > 16
+                          ? "Wildflower trail"
+                          : "Petal clearing";
   if ($("#region").firstChild.textContent !== region)
     $("#region").firstChild.textContent = region;
   cave.update(time, camera);
@@ -2207,6 +2400,17 @@ addEventListener("resize", () => {
 });
 toast("WASD to move · Drag to look around · Click to throw");
 frame();
+if (
+  typeof location !== "undefined" &&
+  new URLSearchParams(location.search).get("area") === "festival"
+) {
+  changeFunfairPassage(true);
+  changeFestivalPassage(true);
+  if (new URLSearchParams(location.search).get("activity") === "fireworks") {
+    hero.position.set(0, festival.heightAt(0, -6), -6);
+    interactFestival();
+  }
+}
 // A direct link lets players start their visit at the fairground entrance.
 if (
   typeof location !== "undefined" &&
@@ -2247,25 +2451,29 @@ if (document.modelContext?.registerTool) {
               villageMemories: village.stamps.size,
               villageCart: alpineCart.riding,
               villageShop: activeVillageShop?.kind ?? null,
-              location: insideVillage
-                ? activeVillageShop
-                  ? activeVillageShop.name
-                  : "edelweiss village"
-                : insideFunfair
-                  ? "sunflower funfair"
-                  : insideCastle
-                    ? "castle great room"
-                    : insideRiver
-                      ? cableCar.riding
-                        ? "cable car"
-                        : cableCar.atSummit
-                          ? "mountain summit"
-                          : boatTrip.atLagoon
-                            ? "lotus lagoon"
-                            : "riverside"
-                      : insideCave
-                        ? "treasure cave"
-                        : "garden",
+              festivalFireworks: festivalMoment.active,
+              summerClothes: insideFestival,
+              location: insideFestival
+                ? "japanese night festival"
+                : insideVillage
+                  ? activeVillageShop
+                    ? activeVillageShop.name
+                    : "edelweiss village"
+                  : insideFunfair
+                    ? "sunflower funfair"
+                    : insideCastle
+                      ? "castle great room"
+                      : insideRiver
+                        ? cableCar.riding
+                          ? "cable car"
+                          : cableCar.atSummit
+                            ? "mountain summit"
+                            : boatTrip.atLagoon
+                              ? "lotus lagoon"
+                              : "riverside"
+                        : insideCave
+                          ? "treasure cave"
+                          : "garden",
               riversideTreasures: riverCollected,
               lagoonTreasures: boatTrip.lagoon.collected,
               sunStones: collected,

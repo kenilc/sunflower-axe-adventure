@@ -32,6 +32,15 @@ const assert = require("assert/strict");
     },
     document: {
       querySelector: element,
+      createElement() {
+        return {
+          width: 0,
+          height: 0,
+          getContext() {
+            return { fillRect() {}, fillText() {} };
+          },
+        };
+      },
       addEventListener() {},
       body: { classList: { toggle() {} } },
     },
@@ -70,7 +79,7 @@ const assert = require("assert/strict");
   // Execute the actual game with only browser/rendering APIs stubbed.
   const setup =
     game.replace("new THREE.WebGLRenderer(", "new FakeRenderer(") +
-    "\nexport {scene, mesh, box, cyl, ball, blockers, hero, body, legs, arms, held, lakeside, targets, shrine, inLake, createBenchMoment, clock, frame, axes, gems, won, camera, riverside, usePassage, yaw, insideRiver, insideCave, passageTransition, cableCar, boatTrip, companion, boardCableCar, boardBoat, fire, keys, insideCastle, castleRoom, useCastlePassage, changeCastlePassage, interactCastle, bedRest, eyes, funfair, funfairActivities, insideFunfair, useFunfairPassage, interactFunfair, garden, renderer, pitch, zoom, village, alpineOutfits, insideVillage, activeVillageShop, alpineCart, useVillagePassage, useVillageShop, interactVillage};";
+    "\nexport {scene, mesh, box, cyl, ball, blockers, hero, body, legs, arms, held, lakeside, targets, shrine, inLake, createBenchMoment, clock, frame, axes, gems, won, camera, riverside, usePassage, yaw, insideRiver, insideCave, passageTransition, cableCar, boatTrip, companion, boardCableCar, boardBoat, fire, keys, insideCastle, castleRoom, useCastlePassage, changeCastlePassage, interactCastle, bedRest, eyes, funfair, funfairActivities, insideFunfair, useFunfairPassage, interactFunfair, garden, renderer, pitch, zoom, village, alpineOutfits, insideVillage, activeVillageShop, alpineCart, useVillagePassage, useVillageShop, interactVillage, festival, insideFestival, changeFestivalPassage, useFestivalPassage, festivalMoment, summerOutfits, interactFestival};";
   const G = (await module("review-setup", setup)).namespace;
   const T = (await module("vendor/three.module.js")).namespace;
   const C = (await module("companion.js")).namespace.createCompanion(G);
@@ -1537,6 +1546,174 @@ const assert = require("assert/strict");
   assert(!G.insideVillage && !G.passageTransition.active);
   console.log(
     "PASS: Swiss village gate and return, three accessible chalet interiors and shop activities, persistent souvenirs, eight pettable sheep contained in their meadow, walking every elevated trail segment, solid closed mountains and grounded foothills, 3600 varied grounded trees with a clear hiking route, 12 pale birds gliding above the rock, grounded meadow grass on cliff ends, village lawns and valley floor, tapered stream ravine below the bridge, planted trunk bases, forest camera clearance and synchronized rock/forest visibility, rock fading for both hikers and cameras inside the mountain, companion harnesses, cable bridge boundary, two seated excited cart riders, full rail descent, flower-and-star disappearance and paused magic, paused ride, close camera and input lock, camera restoration, and restart inside shops and transitions",
+  );
+  // Festival entry follows the fair, and preserves the garden's saved view.
+  G.useFunfairPassage(true);
+  for (let i = 0; i < 12; i++) G.frame();
+  G.hero.position.set(0, 0, -27);
+  for (let i = 0; i < 40; i++) G.frame();
+  assert(G.insideFestival && !G.insideFunfair);
+  assert(
+    G.festival.group.visible && !G.funfair.group.visible && !G.garden.visible,
+  );
+  assert(!G.held.visible);
+  assert(G.body.getObjectByName("summer-t-shirt").visible);
+  assert(G.companion.rig.body.getObjectByName("summer-t-shirt").visible);
+  for (let z = 23; z > -29; z -= 0.2) {
+    assert(
+      G.festival.contains(0, z),
+      "Street and bridge form a continuous walkable route",
+    );
+    assert(
+      allowed({ x: 0, z }, G.festival.blockers),
+      "Central route must remain clear",
+    );
+  }
+  assert(
+    !G.festival.contains(8, -6),
+    "River banks cannot be crossed away from the bridge",
+  );
+  assert(!G.festival.contains(NaN, 0));
+  const riverWater = G.festival.group.getObjectByName("festival-river-water");
+  // A downward ray must reach visible water, rather than a ground or path slab.
+  G.festival.group.updateWorldMatrix(true, true);
+  const festivalBuildings = G.festival.group.children.filter(
+    (child) =>
+      child.name === "festival-street-house" ||
+      child.name === "riverside-tea-house",
+  );
+  assert.equal(festivalBuildings.length, 9);
+  for (const building of festivalBuildings) {
+    const bounds = new T.Box3().setFromObject(building);
+    assert(
+      bounds.min.z >= -1.3 || bounds.max.z <= -10.7,
+      "Buildings and their roof overhangs must be entirely on dry banks",
+    );
+  }
+  const waterRay = new T.Raycaster(
+    new T.Vector3(5, 10, -6),
+    new T.Vector3(0, -1, 0),
+  );
+  const waterHits = waterRay.intersectObjects(G.festival.group.children, true);
+  assert.equal(
+    waterHits[0].object,
+    riverWater,
+    "Ground and paths must leave the river channel exposed",
+  );
+  assert.equal(
+    G.festival.group.getObjectByName("sakura-riverbanks").userData.treeCount,
+    20,
+  );
+  assert.equal(
+    G.festival.group.getObjectByName("dense-sakura-blossoms").count,
+    460,
+  );
+  assert.equal(
+    G.festival.group.getObjectByName("drifting-sakura-petals").count,
+    160,
+  );
+  const festivalFireworks =
+    G.festival.group.getObjectByName("festival-fireworks");
+  const waterReflection = G.festival.group.getObjectByName(
+    "fireworks-water-reflection",
+  );
+  G.festival.restartFireworks();
+  G.festival.update(0);
+  assert(!festivalFireworks.visible, "Quiet sky between displays");
+  G.festival.update(5.2);
+  assert(festivalFireworks.visible && waterReflection.visible);
+  assert(
+    Array.from(festivalFireworks.geometry.attributes.position.array).every(
+      Number.isFinite,
+    ),
+  );
+  assert(
+    Array.from(waterReflection.geometry.attributes.position.array).every(
+      Number.isFinite,
+    ),
+  );
+  G.festival.update(5);
+  assert(
+    !festivalFireworks.visible && !waterReflection.visible,
+    "Each bloom fades before the next launch",
+  );
+  assert(G.festival.heightAt(0, -6) > 0.5);
+  G.hero.position.set(0, G.festival.heightAt(0, -6), -6);
+  G.frame();
+  assert(
+    G.festivalMoment.active,
+    "Arriving on the bridge starts the moment automatically",
+  );
+  const pairPositions = [
+    G.hero.position.clone(),
+    G.companion.character.position.clone(),
+  ];
+  assert(
+    Math.cos(G.hero.rotation.y) < -0.9 &&
+      Math.cos(G.companion.character.rotation.y) < -0.9,
+    "Both characters face the fireworks to the north",
+  );
+  assert(G.body.getObjectByName("festival-upturned-head").rotation.x < -0.25);
+  assert(G.body.getObjectByName("festival-amazed-mouth").visible);
+  const giant = G.festival.group.getObjectByName("gigantic-firework-trails");
+  G.festival.restartFireworks();
+  G.festival.update(6);
+  giant.geometry.computeBoundingBox();
+  assert(
+    giant.geometry.boundingBox.max.x - giant.geometry.boundingBox.min.x > 50,
+    "Bouquet spans the skyline",
+  );
+  const closeCamera = G.camera.position.clone();
+  G.keys.KeyW = true;
+  for (let i = 0; i < 20; i++) G.frame();
+  assert(
+    G.hero.position.equals(pairPositions[0]) &&
+      G.companion.character.position.equals(pairPositions[1]),
+  );
+  const pausedCamera = G.camera.position.clone();
+  element("#guide").open = true;
+  for (let i = 0; i < 100; i++) G.frame();
+  assert(G.camera.position.equals(pausedCamera), "Help pauses the cinematic");
+  element("#guide").open = false;
+  G.keys.KeyW = false;
+  for (let i = 0; i < 200; i++) G.frame();
+  assert(
+    G.camera.position.y > closeCamera.y && G.camera.position.z < 3,
+    "Tilt clears the overhead lantern string",
+  );
+  G.interactFestival();
+  assert(!G.festivalMoment.active);
+  assert.equal(
+    G.camera.fov,
+    43,
+    "Normal field of view restored after the reveal",
+  );
+  assert.equal(G.body.getObjectByName("festival-upturned-head").rotation.x, 0);
+  assert(!G.body.getObjectByName("festival-amazed-mouth").visible);
+  assert(G.eyes.open.parent === G.body, "Ordinary face rig restored on exit");
+  G.interactFestival();
+  assert(G.festivalMoment.active, "The moment can be replayed");
+  G.interactFestival();
+  G.hero.position.set(0, 0, 27);
+  for (let i = 0; i < 40; i++) G.frame();
+  assert(!G.insideFestival && G.insideFunfair && G.funfair.group.visible);
+  assert(!G.body.getObjectByName("summer-t-shirt").visible);
+  G.hero.position.set(0, 0, -27);
+  for (let i = 0; i < 40; i++) G.frame();
+  G.hero.position.set(0, G.festival.heightAt(0, -6), -6);
+  G.frame();
+  assert(G.festivalMoment.active);
+  element("#restart").onclick();
+  G.frame();
+  assert(!G.insideFestival && !G.insideFunfair && !G.festivalMoment.active);
+  assert(G.garden.visible && G.held.visible);
+  assert(!G.body.getObjectByName("summer-t-shirt").visible);
+  assert.equal(
+    G.scene.children.find((c) => c.isHemisphereLight).intensity,
+    2.4,
+  );
+  console.log(
+    "PASS: festival gate from funfair and return, summer clothes for both characters, clear street and bridge, river boundaries, automatic paired happy-face moment, movement lock, paused cinematic, unobstructed fireworks tilt, replay and safe restart restoring clothes and lighting",
   );
   const disabled = { x: 0, z: 0, r: 0.7, active: false };
   const center = new T.Vector3();

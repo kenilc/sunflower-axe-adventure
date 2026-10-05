@@ -1,14 +1,57 @@
 // A small original score, synthesized locally: no downloads or audio services.
-export function createGameAudio(isInCave) {
+export function createGameAudio(isInCave, isInFestival = () => false) {
   let ctx,
     master,
     music,
     enabled = false,
     timer = null,
     nextTime = 0,
-    step = 0;
+    step = 0,
+    soft = false;
   const voices = new Set();
   const beat = 60 / 96 / 2;
+  // A slower, spacious pentatonic melody for the summer lantern streets.
+  const festivalBeat = 60 / 68 / 2;
+  const festivalMelody = [
+    72,
+    null,
+    null,
+    null,
+    74,
+    null,
+    76,
+    null,
+    79,
+    null,
+    null,
+    null,
+    76,
+    null,
+    74,
+    null,
+    69,
+    null,
+    null,
+    null,
+    72,
+    null,
+    74,
+    null,
+    76,
+    null,
+    72,
+    null,
+    null,
+    null,
+    null,
+    null,
+  ];
+  const festivalChords = [
+    [48, 55, 62],
+    [45, 52, 60],
+    [41, 48, 55],
+    [43, 50, 57],
+  ];
   const melody = [
     76,
     null,
@@ -94,7 +137,8 @@ export function createGameAudio(isInCave) {
     master.gain.value = 0.65;
     master.connect(ctx.destination);
     music = ctx.createGain();
-    music.gain.value = 0.32;
+    soft = isInFestival();
+    music.gain.value = soft ? 0.21 : 0.32;
     music.connect(master);
     const delay = ctx.createDelay(1),
       feedback = ctx.createGain(),
@@ -134,31 +178,58 @@ export function createGameAudio(isInCave) {
     if (!enabled || document.hidden || ctx.state !== "running") return;
     if (nextTime < ctx.currentTime) nextTime = ctx.currentTime + 0.04;
     while (nextTime < ctx.currentTime + 0.18) {
+      const festival = isInFestival();
+      if (festival !== soft) {
+        soft = festival;
+        step = 0;
+        // Crossfade the music bus without changing sound effects or mute state.
+        music.gain.cancelScheduledValues(ctx.currentTime);
+        music.gain.setValueAtTime(music.gain.value, ctx.currentTime);
+        music.gain.linearRampToValueAtTime(
+          soft ? 0.21 : 0.32,
+          ctx.currentTime + 0.8,
+        );
+      }
       const cave = isInCave(),
-        chord = chords[Math.floor(step / 8)],
-        n = melody[step];
+        phrase = soft ? festivalMelody : melody,
+        pulse = soft ? festivalBeat : beat,
+        chord = (soft ? festivalChords : chords)[Math.floor(step / 8)],
+        n = phrase[step];
       if (n !== null)
         tone(
           hz(n - (cave ? 12 : 0)),
           nextTime,
-          beat * 2.6,
-          cave ? 0.13 : 0.17,
+          pulse * (soft ? 3.8 : 2.6),
+          soft ? 0.1 : cave ? 0.13 : 0.17,
           "sine",
           music,
         );
       const arp = chord[[0, 1, 2, 1][step % 4]] + 12;
-      tone(
-        hz(arp),
-        nextTime,
-        beat * 1.8,
-        cave ? 0.05 : 0.08,
-        "triangle",
-        music,
-      );
-      if (step % 8 === 0)
-        tone(hz(chord[0] - 12), nextTime, beat * 7, 0.14, "sine", music);
-      nextTime += beat;
-      step = (step + 1) % melody.length;
+      if (!soft || step % 2 === 0)
+        tone(
+          hz(arp),
+          nextTime,
+          pulse * (soft ? 3 : 1.8),
+          soft ? 0.032 : cave ? 0.05 : 0.08,
+          soft ? "sine" : "triangle",
+          music,
+        );
+      if (step % 8 === 0) {
+        tone(
+          hz(chord[0] - 12),
+          nextTime,
+          pulse * 7,
+          soft ? 0.055 : 0.14,
+          "sine",
+          music,
+        );
+        if (soft)
+          chord.forEach((note) =>
+            tone(hz(note), nextTime, pulse * 9, 0.024, "sine", music),
+          );
+      }
+      nextTime += pulse;
+      step = (step + 1) % phrase.length;
     }
   }
   function clearVoices() {
