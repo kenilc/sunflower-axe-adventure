@@ -1574,6 +1574,21 @@ const assert = require("assert/strict");
     "River banks cannot be crossed away from the bridge",
   );
   assert(!G.festival.contains(NaN, 0));
+  assert.equal(G.festival.crowd.group.userData.visitorCount, 22);
+  for (let time = 0; time < 80; time += 0.5) {
+    G.festival.crowd.update(time);
+    for (const { character } of G.festival.crowd.people) {
+      assert(
+        G.festival.contains(character.position.x, character.position.z),
+        "Visitors stay on dry land",
+      );
+      assert(
+        Math.abs(character.position.x) > 4,
+        "Visitors leave the main aisle and bridge for the player pair",
+      );
+    }
+  }
+  G.festival.crowd.update(0);
   const riverWater = G.festival.group.getObjectByName("festival-river-water");
   // A downward ray must reach visible water, rather than a ground or path slab.
   G.festival.group.updateWorldMatrix(true, true);

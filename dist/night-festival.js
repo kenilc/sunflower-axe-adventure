@@ -1,3 +1,4 @@
+import { createFestivalCrowd } from "./festival-crowd.js?v=20261005-visitors";
 import * as THREE from "./vendor/three.module.js";
 
 // A summer matsuri, reached through the funfair's north lantern gate.
@@ -414,6 +415,14 @@ export function createNightFestival({ mesh, box, cyl, ball }) {
       );
       ripples.push({ glint, phase: x + j, width: glint.scale.x });
     }
+  const crowd = createFestivalCrowd({
+    parent: group,
+    blockers,
+    mesh,
+    box,
+    cyl,
+    ball,
+  });
   // Each ten-second display is a sky-wide bouquet, followed by quiet blue sky.
   const shells = 5,
     rays = 120,
@@ -500,6 +509,7 @@ export function createNightFestival({ mesh, box, cyl, ball }) {
   );
   function update(dt) {
     festivalTime += dt;
+    crowd.update(festivalTime);
     const time = festivalTime,
       cycle = Math.floor(time / 10),
       phase = time % 10;
@@ -628,6 +638,7 @@ export function createNightFestival({ mesh, box, cyl, ball }) {
   return {
     group,
     entrance,
+    crowd,
     blockers,
     update,
     contains,

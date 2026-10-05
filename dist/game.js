@@ -2,7 +2,7 @@ import {
   createNightFestival,
   createSummerOutfits,
   createFestivalMoment,
-} from "./night-festival.js?v=20261005-dry-banks";
+} from "./night-festival.js?v=20261005-visitors";
 import { createAlpineCart } from "./alpine-cart.js?v=20261004-cart-magic";
 import {
   createAlpineVillage,
