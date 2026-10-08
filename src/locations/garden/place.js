@@ -36,12 +36,11 @@ export function createGardenPlace(context) {
     progressLabel: "garden",
     initiallyVisible: true,
     constrainMovement(position, previous, { seated }) {
+      // The bench animation owns the seated pose, including its position.
+      if (seated) return;
       if (position.length() > 49) position.setLength(49);
       resolveObstacleCollisions(position, previous, blockers);
-      if (
-        position.length() > 49 ||
-        (!seated && inLake(position.x, position.z, 0.4))
-      )
+      if (position.length() > 49 || inLake(position.x, position.z, 0.4))
         position.copy(previous);
     },
     getGate() {

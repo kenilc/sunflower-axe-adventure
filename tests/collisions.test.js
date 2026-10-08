@@ -89,6 +89,23 @@ test("gameplay, collisions, travel, activities and restart", async () => {
     );
     bench.stand();
   }
+  G.characters.hero.position.copy(world(-2, -1));
+  G.characters.companion.character.position.copy(world(2, -1));
+  G.rendering.clock.getDelta = () => 0.04;
+  element("#benchAction").onclick();
+  for (let i = 0; i < 120; i++) G.update();
+  for (const [character, side] of [
+    [G.characters.hero, -1],
+    [G.characters.companion.character, 1],
+  ]) {
+    const expected = world(side * 0.64, 0.04);
+    expected.y += 0.3;
+    assert(
+      character.position.distanceTo(expected) < 1e-7,
+      "The full game loop must preserve both bench seats without collision displacement",
+    );
+  }
+  element("#benchStand").onclick();
   const { resolveObstacleCollisions: resolve, overlapsObstacle: overlaps } =
     await import("../src/systems/collision.js");
   const cave = (await import("../src/locations/cave/world.js")).createCave();
