@@ -1,3 +1,4 @@
+import { clothing, head } from "./character-parts.js";
 import { createCharacterEyes } from "../../src/characters/eyes.js";
 import * as THREE from "three";
 
@@ -24,6 +25,12 @@ export function createCompanionModel({ ball, box, cyl, mesh }) {
     ball(0.17, "#f0bd8a", side * 0.1, -0.63, 0.03, arm);
     arms.push(arm);
   }
+  legs.forEach((leg) => {
+    clothing([leg.children[0]], "trousers");
+    clothing([leg.children[1]], "shoes");
+  });
+  arms.forEach((arm) => clothing(arm.children.slice(0, 3), "sleeves"));
+  const torsoStart = body.children.length;
   cyl(0.46, 0.6, 1.05, "#353a44", 0, 1.17, 0, body);
   // Horizontal quilt seams, a zipper and two backpack straps.
   for (let i = 0; i < 3; i++)
@@ -54,6 +61,8 @@ export function createCompanionModel({ ball, box, cyl, mesh }) {
     strap.rotation.z = side * 0.12;
   }
   cyl(0.35, 0.4, 0.22, "#464953", 0, 1.72, 0.03, body);
+  clothing(body.children.slice(torsoStart), "torso");
+  const headStart = body.children.length;
   ball(0.57, "#352f2c", 0, 2.1, 0, body);
   ball(0.49, "#f0bd8a", 0, 2.12, 0.23, body);
   // A swept fringe stays visible when the summer outfit removes his beanie.
@@ -93,11 +102,20 @@ export function createCompanionModel({ ball, box, cyl, mesh }) {
     body,
   );
   smile.rotation.z = Math.PI;
+  const hatStart = body.children.length;
   const hat = ball(0.61, "#30313a", 0, 2.47, 0, body);
   hat.scale.set(1, 0.65, 0.92);
   cyl(0.58, 0.58, 0.21, "#252832", 0, 2.46, 0, body, 12);
   // A small stitched patch keeps the beanie readable at game scale.
   box(0.2, 0.12, 0.035, "#c8c7bd", -0.19, 2.47, 0.553, body);
 
-  return { character, rig: { body, legs, arms, eyes } };
+  clothing(body.children.slice(hatStart), "headwear");
+  head(body, body.children.slice(headStart));
+  const held = new THREE.Group();
+  held.name = "held-item-anchor";
+  held.scale.setScalar(0.8);
+  held.rotation.z = -0.3;
+  held.position.set(0.08, -0.58, 0.25);
+  arms[1].add(held);
+  return { character, rig: { body, legs, arms, eyes, held } };
 }

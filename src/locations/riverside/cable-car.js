@@ -207,7 +207,7 @@ export function createCableCar({
       rig.feet.forEach((foot) => {
         foot.rotation.x = 0;
       });
-      if (rig.held) rig.held.visible = true;
+      rig.items?.setHidden("cable", false);
     });
   }
   function nearby() {
@@ -225,7 +225,7 @@ export function createCableCar({
         .copy(cabin.position)
         .add(new THREE.Vector3(i ? 0.78 : -0.78, 0.1, 0));
       character.rotation.y = atSummit ? 0 : Math.PI;
-      if (rigs[i].held) rigs[i].held.visible = false;
+      rigs[i].items?.setHidden("cable", true);
     });
   }
   function start() {

@@ -388,7 +388,7 @@ export function createBoatTrip({
       r.feet.forEach((foot) => {
         foot.rotation.x = 0;
       });
-      if (r.held) r.held.visible = true;
+      r.items?.setHidden("boat", false);
     });
   }
   function seat(time) {
@@ -411,7 +411,7 @@ export function createBoatTrip({
         a.rotation.x = -0.65 + Math.sin(time * 4) * 0.35;
         a.rotation.z = (j ? 1 : -1) * 0.2;
       });
-      if (r.held) r.held.visible = false;
+      r.items?.setHidden("boat", true);
     });
     oars.forEach((o, i) => {
       o.rotation.y = Math.sin(time * 4) * (i ? 1 : -1) * 0.5;

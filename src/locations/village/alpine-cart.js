@@ -175,7 +175,8 @@ export function createAlpineCart({
   for (const rider of riders) {
     const face = new THREE.Group();
     face.name = "cart-excited-face";
-    rider.rig.body.add(face);
+    rider.rig.head.add(face);
+    face.position.y = -1.8;
     // Flat, upturned smile shapes keep the expression flush with the face.
     const smileShape = new THREE.Shape();
     smileShape.moveTo(-0.13, 0.035);
@@ -189,9 +190,10 @@ export function createAlpineCart({
     teethShape.quadraticCurveTo(0, -0.04, -0.082, -0.014);
     teethShape.quadraticCurveTo(-0.099, -0.005, -0.105, 0.02);
     mesh(new THREE.ShapeGeometry(teethShape), "#fff7dc", 0, 2, 0.729, face);
-    rider.restingSmile = rider.rig.smile;
-    face.visible = false;
-    rider.face = face;
+    rider.rig.appearance.registerExpression("cart-excited", {
+      mouthNode: face,
+      eyeScale: 1.035,
+    });
   }
   let riding = false,
     elapsed = 0,
@@ -260,7 +262,7 @@ export function createAlpineCart({
     camera.lookAt(cart.localToWorld(new THREE.Vector3(0, 1.7, 0)));
   }
   function restore() {
-    riders.forEach(({ character, rig, face, restingSmile }, i) => {
+    riders.forEach(({ character, rig }, i) => {
       const saved = snapshots[i];
       if (!saved) return;
       character.position.copy(saved.position);
@@ -270,12 +272,8 @@ export function createAlpineCart({
       [...rig.legs, ...rig.arms].forEach((part, j) =>
         part.rotation.copy(saved.limbs[j]),
       );
-      rig.eyes.open.scale.copy(saved.eyeScale);
-      rig.eyes.open.visible = saved.open;
-      rig.eyes.closed.visible = saved.closed;
-      face.visible = false;
-      if (restingSmile) restingSmile.visible = saved.smile;
-      if (rig.held) rig.held.visible = saved.held;
+      saved.releaseExpression();
+      rig.items?.setHidden("alpine-cart", false);
     });
     accessories.forEach((item, i) => {
       item.visible = savedAccessories[i];
@@ -308,7 +306,7 @@ export function createAlpineCart({
         item.visible = false;
         return visible;
       });
-      snapshots = riders.map(({ character, rig, face, restingSmile }) => {
+      snapshots = riders.map(({ character, rig }) => {
         const saved = {
           position: character.position.clone(),
           rotation: character.rotation.clone(),
@@ -317,17 +315,12 @@ export function createAlpineCart({
           limbs: [...rig.legs, ...rig.arms].map((part) =>
             part.rotation.clone(),
           ),
-          eyeScale: rig.eyes.open.scale.clone(),
-          open: rig.eyes.open.visible,
-          closed: rig.eyes.closed.visible,
-          held: rig.held?.visible,
-          smile: restingSmile?.visible,
+          releaseExpression: rig.appearance.override({
+            expression: "cart-excited",
+            accessories: { scarf: null, harness: null },
+          }),
         };
-        rig.eyes.setClosed(false);
-        rig.eyes.open.scale.set(1, 1.035, 1);
-        face.visible = true;
-        if (restingSmile) restingSmile.visible = false;
-        if (rig.held) rig.held.visible = false;
+        rig.items?.setHidden("alpine-cart", true);
         return saved;
       });
       elapsed = travelled = 0;

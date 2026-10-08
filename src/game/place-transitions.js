@@ -35,7 +35,7 @@ export function createPlaceTransitions({
     };
   }
   function applyStandard(place, options, snapshot) {
-    const { state, camera, hero, companion, scene, sun, held, $ } = context;
+    const { state, camera, hero, companion, scene, sun, $ } = context;
     locations.select(place.id);
     if (place.group) {
       place.group.visible = true;
@@ -72,7 +72,6 @@ export function createPlaceTransitions({
       fill.color.set(environment.fillColor);
     if (environment.groundColor !== undefined)
       fill.groundColor.set(environment.groundColor);
-    held.visible = place.canThrow;
     if (snapshot) {
       $(".instructions").innerHTML = snapshot.instructions;
       $(".quest .eyebrow").textContent = snapshot.quest.eyebrow;
@@ -140,6 +139,8 @@ export function createPlaceTransitions({
       applyStandard(target, options);
       target.enter?.({ from: source.id, options, returning: false });
     }
+    for (const rig of [context.heroRig, context.companion.rig])
+      rig.items.setWeaponsAllowed(locations.active.canThrow);
     context.state.passageCooldown = 1;
     return true;
   }

@@ -8,7 +8,6 @@ export function createCastlePlace(context) {
     passageTransition,
     state,
     bedRest,
-    held,
     hearts,
     effects,
     $,
@@ -35,7 +34,6 @@ export function createCastlePlace(context) {
     locations.setRoom(enter ? "castle" : null);
     state.castleActivityCooldown = 0;
     state.castleMusicSession++;
-    held.visible = !enter;
     hearts.clear();
     effects.clearProjectiles();
     if (enter)

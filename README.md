@@ -93,3 +93,5 @@ The existing control methods remain available for regression coverage. New code 
 `tests/places.test.js` registers an additional place and room without changes to the coordinator, then verifies entry gates, movement, actions, pause, return position, camera restoration, and reset. Shared browser/model fixtures are in `tests/helpers/game.js`.
 
 Built-in worlds are still constructed at startup. Loading their geometry on demand is a separate performance step; this refactor establishes the registration and lifecycle boundaries first.
+
+For clothing, expressions, and held-item APIs, see [Character appearance](docs/character-appearance.md).

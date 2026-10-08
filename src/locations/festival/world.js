@@ -655,31 +655,17 @@ export function createNightFestival({ mesh, box, cyl, ball }) {
 }
 
 export function createSummerOutfits({ rigs, box, cyl }) {
-  const saved = [],
-    additions = [];
+  const additions = [];
   rigs.forEach((rig, index) => {
-    // Capture winter clothes independently; shared materials remain untouched.
-    for (const child of rig.body.children)
-      if (
-        child.isMesh &&
-        (child.position.y < 1.9 ||
-          (index === 1 &&
-            child.position.y > 2.4 &&
-            !child.name.startsWith("companion-hair-")))
-      )
-        saved.push(child);
-    [...rig.legs, ...rig.arms].forEach((limb) =>
-      limb.children.forEach((child) => {
-        if (child.isMesh) saved.push(child);
-      }),
-    );
+    const start = additions.length;
     const shirt = new THREE.Group();
     shirt.name = "summer-t-shirt";
+    shirt.userData.clothingSlot = "torso";
     rig.body.add(shirt);
     additions.push(shirt);
     const color = index ? "#8bc9cd" : "#ffe098";
     cyl(0.45, 0.53, 0.78, color, 0, 1.28, 0, shirt, 12);
-    cyl(0.3, 0.33, 0.1, "#f0bd8a", 0, 1.72, 0.03, shirt, 12);
+    additions.push(cyl(0.3, 0.33, 0.1, "#f0bd8a", 0, 1.72, 0.03, rig.body, 12));
     box(
       0.24,
       0.17,
@@ -693,33 +679,53 @@ export function createSummerOutfits({ rigs, box, cyl }) {
     rig.legs.forEach((leg) => {
       const summer = new THREE.Group();
       summer.name = "summer-shorts";
+      summer.userData.clothingSlot = "trousers";
       leg.add(summer);
       additions.push(summer);
       box(0.34, 0.32, 0.37, index ? "#526f8c" : "#c17e73", 0, 0.04, 0, summer);
-      box(0.24, 0.35, 0.26, "#f0bd8a", 0, -0.25, 0, summer);
-      box(0.35, 0.2, 0.52, "#eee4ca", 0, -0.45, 0.1, summer);
+      additions.push(box(0.24, 0.35, 0.26, "#f0bd8a", 0, -0.25, 0, leg));
+      const shoe = box(0.35, 0.2, 0.52, "#eee4ca", 0, -0.45, 0.1, leg);
+      shoe.userData.clothingSlot = "shoes";
+      additions.push(shoe);
     });
     rig.arms.forEach((arm, i) => {
       const summer = new THREE.Group();
+      summer.userData.clothingSlot = "sleeves";
       arm.add(summer);
       additions.push(summer);
       box(0.34, 0.27, 0.38, color, (i ? 1 : -1) * 0.09, -0.07, 0, summer);
-      cyl(0.13, 0.14, 0.5, "#f0bd8a", (i ? 1 : -1) * 0.09, -0.43, 0.02, summer);
+      additions.push(
+        cyl(0.13, 0.14, 0.5, "#f0bd8a", (i ? 1 : -1) * 0.09, -0.43, 0.02, arm),
+      );
+    });
+    rig.appearance.registerOutfit("summer", {
+      parts: additions.slice(start),
+      hideSlots: [
+        "torso",
+        "sleeves",
+        "trousers",
+        "shoes",
+        "scarf",
+        ...(index ? ["headwear"] : []),
+      ],
     });
   });
-  let previous = null;
-  additions.forEach((child) => (child.visible = false));
+  let releases = [];
   return {
     set(active) {
-      if (active && !previous) {
-        previous = saved.map((child) => child.visible);
-        saved.forEach((child) => (child.visible = false));
-      }
-      if (!active && previous) {
-        saved.forEach((child, i) => (child.visible = previous[i]));
-        previous = null;
-      }
-      additions.forEach((child) => (child.visible = active));
+      releases.forEach((release) => release());
+      releases = active
+        ? rigs.map((rig, index) =>
+            rig.appearance.override({
+              outfit: "summer",
+              accessories: {
+                scarf: null,
+                harness: null,
+                ...(index ? { headwear: null } : {}),
+              },
+            }),
+          )
+        : [];
     },
   };
 }
@@ -734,21 +740,8 @@ export function createFestivalMoment({
   let elapsed = null,
     originalFov = camera.fov;
   const characters = [hero, companion.character];
-  const heads = rigs.map((rig) => {
-    const head = new THREE.Group();
-    head.name = "festival-upturned-head";
-    head.position.y = 1.8;
-    rig.body.add(head);
-    const mouth = new THREE.Mesh(
-      new THREE.TorusGeometry(0.075, 0.025, 8, 20),
-      new THREE.MeshStandardMaterial({ color: "#704938" }),
-    );
-    mouth.name = "festival-amazed-mouth";
-    mouth.position.set(0, 0.2, 0.7);
-    mouth.visible = false;
-    head.add(mouth);
-    return { head, mouth, children: [], smile: null };
-  });
+  const heads = rigs.map((rig) => ({ head: rig.head }));
+  let expressionReleases = [];
   const smooth = (t) => {
     t = THREE.MathUtils.clamp(t, 0, 1);
     return t * t * (3 - 2 * t);
@@ -756,20 +749,15 @@ export function createFestivalMoment({
   function restore() {
     camera.fov = originalFov;
     camera.updateProjectionMatrix();
-    heads.forEach(({ head, mouth, children, smile }, i) => {
+    expressionReleases.forEach((release) => release());
+    expressionReleases = [];
+    heads.forEach(({ head }, i) => {
       head.rotation.set(0, 0, 0);
-      mouth.visible = false;
-      children.forEach((child) => {
-        rigs[i].body.add(child);
-        child.position.y += 1.8;
-      });
-      children.length = 0;
-      if (smile) smile.visible = true;
-      rigs[i].eyes?.open.children.forEach((eye) => eye.scale.setScalar(1));
       rigs[i].body.rotation.x = 0;
       rigs[i].arms.forEach((arm) => arm.rotation.set(0, 0, 0));
     });
   }
+
   function stop() {
     if (elapsed !== null) restore();
     elapsed = null;
@@ -789,22 +777,10 @@ export function createFestivalMoment({
         const rig = rigs[i],
           pose = heads[i];
         rig.body.position.set(0, 0, 0);
-        // Reparent only for the moment; other activities retain their original rigs.
-        pose.children = [...rig.body.children].filter(
-          (child) =>
-            (child.isMesh && child.position.y > 1.9) ||
-            child.name === "open-eyes" ||
-            child.name === "closed-eyes",
+        expressionReleases.push(
+          rig.appearance.override({ expression: "delighted" }),
         );
-        pose.smile = rig.smile;
-        pose.children.forEach((child) => {
-          pose.head.add(child);
-          child.position.y -= 1.8;
-        });
-        if (pose.smile) pose.smile.visible = false;
-        pose.mouth.visible = true;
         pose.head.rotation.x = -0.34;
-        rig.eyes?.open.children.forEach((eye) => eye.scale.setScalar(1.13));
         [...rig.arms, ...rig.legs].forEach((limb) =>
           limb.rotation.set(0, 0, 0),
         );

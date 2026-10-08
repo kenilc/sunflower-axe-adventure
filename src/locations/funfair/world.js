@@ -615,7 +615,7 @@ export function createFunfairActivities({
     rigs.forEach((rig) => {
       rig.body.position.set(0, 0, 0);
       [...rig.legs, ...rig.arms].forEach((limb) => limb.rotation.set(0, 0, 0));
-      if (rig.held) rig.held.visible = false;
+      rig.items?.setHidden("funfair-ride", false);
     });
     characters.forEach((c) => c.rotation.set(0, 0, 0));
   }
@@ -655,7 +655,7 @@ export function createFunfairActivities({
       rig.arms.forEach((a) => {
         a.rotation.x = -0.65;
       });
-      if (rig.held) rig.held.visible = false;
+      rig.items?.setHidden("funfair-ride", true);
     });
   }
   function leaveToss() {

@@ -17,7 +17,6 @@ export function createVillagePlace(context) {
     $,
     alpineCart,
     garden,
-    held,
     alpineOutfits,
     hikingTethers,
     companionObstacles,
@@ -64,7 +63,6 @@ export function createVillagePlace(context) {
     locations.setArea(enter ? "village" : "garden");
     village.group.visible = enter;
     garden.visible = !enter;
-    held.visible = !enter;
     alpineOutfits.setHiking(false);
     hikingTethers.forEach((rope) => (rope.visible = false));
     (enter ? village.group : garden).add(companion.character);
@@ -203,7 +201,7 @@ export function createVillagePlace(context) {
     } else if (action.kind === "bakery") {
       toast("A warm pastry for each of you ♥ · Fresh from the village bakery.");
     } else if (action.kind === "outfit") {
-      alpineOutfits.scarves.forEach((scarf) => (scarf.visible = true));
+      alpineOutfits.setScarves();
       toast("Matching alpine scarves ♥ · Ready for the mountain air.");
     } else if (action.kind === "flowers") {
       alpineOutfits.bouquet.visible = true;

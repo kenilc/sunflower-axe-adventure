@@ -98,9 +98,7 @@ export function createGame({ createRenderer, models } = {}) {
     body,
     legs,
     arms,
-    held,
     eyes,
-    axe,
   } = createHero({ scene, model: models.hero, axeModel: models.axe });
   const cave = createCave();
   garden.add(cave.entrance);
@@ -382,7 +380,6 @@ export function createGame({ createRenderer, models } = {}) {
     },
     alpineCart,
     garden,
-    held,
     alpineOutfits,
     hikingTethers,
     companionObstacles,
@@ -551,6 +548,7 @@ export function createGame({ createRenderer, models } = {}) {
       state.cooldown > 0 ||
       $("#guide").open ||
       !locations.active.canThrow ||
+      !heroRig.items.canThrow ||
       benchMoment.seated ||
       boatTrip.rowing ||
       cableCar.riding ||
@@ -564,7 +562,7 @@ export function createGame({ createRenderer, models } = {}) {
       0,
       Math.cos(hero.rotation.y),
     );
-    const a = axe();
+    const a = heroRig.items.createProjectile();
     a.position
       .copy(hero.position)
       .add(new THREE.Vector3(0, 1.5, 0))
@@ -611,6 +609,10 @@ export function createGame({ createRenderer, models } = {}) {
     benchMoment.stand();
     transitions.jump("garden");
     places.reset();
+    heroRig.appearance.reset();
+    companion.rig.appearance.reset();
+    heroRig.items.reset("axe");
+    companion.rig.items.reset();
     hero.position.set(0, 0, 7);
     hero.rotation.set(0, 0, 0);
     companion.reset();
@@ -651,6 +653,7 @@ export function createGame({ createRenderer, models } = {}) {
     getPlace: () => locations.active,
     getHud,
     canInteract: () => !$("#guide").open && !passageTransition.active,
+    canThrow: () => locations.active.canThrow && heroRig.items.canThrow,
   });
   const clock = new THREE.Clock();
   const desired = new THREE.Vector3();
@@ -919,6 +922,14 @@ export function createGame({ createRenderer, models } = {}) {
       boardCableCar,
       boardBoat,
       fire,
+      equipItem(id) {
+        heroRig.items.equip(id);
+        toast(
+          id === null
+            ? "Hands free for a wander"
+            : `Holding ${heroRig.items.label}`,
+        );
+      },
     },
     state: {
       location: locations.state,

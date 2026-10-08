@@ -1,3 +1,4 @@
+import { clothing, head } from "./character-parts.js";
 import * as THREE from "three";
 import { createCharacterEyes } from "../../src/characters/eyes.js";
 
@@ -18,10 +19,13 @@ export function createHeroModel({ scene, mesh, box, ball, cyl }) {
     box(0.37, 0.35, 0.55, "#715644", 0, -0.43, 0.1, leg);
     legs.push(leg);
   }
+  const torsoStart = body.children.length;
   cyl(0.46, 0.6, 1.05, "#414b44", 0, 1.17, 0, body);
   box(0.98, 0.12, 0.72, "#85624a", 0, 0.94, 0, body);
   box(0.18, 0.18, 0.06, "#d8b76d", 0, 0.94, 0.39, body);
   box(0.3, 0.34, 0.22, "#76583c", 0.5, 0.9, 0.18, body);
+  clothing(body.children.slice(torsoStart), "torso");
+  const headStart = body.children.length;
   ball(0.61, "#473b32", 0, 2.1, 0, body);
   ball(0.49, "#f0bd8a", 0, 2.12, 0.23, body);
   for (let i = 0; i < 12; i++) {
@@ -35,6 +39,8 @@ export function createHeroModel({ scene, mesh, box, ball, cyl }) {
       body,
     );
     p.scale.set(1, 1.14, 0.88);
+    p.name = `flower-petal-${i}`;
+    clothing([p], "headwear");
   }
   const fringe = ball(0.4, "#46362b", -0.17, 2.47, 0.29, body);
   fringe.scale.set(1, 0.52, 0.65);
@@ -53,6 +59,8 @@ export function createHeroModel({ scene, mesh, box, ball, cyl }) {
     body,
   );
   smile.rotation.z = Math.PI;
+  head(body, body.children.slice(headStart));
+  const scarfStart = body.children.length;
   const scarf = cyl(0.49, 0.37, 0.28, "#bed7db", 0, 1.72, 0.07, body);
   for (let i = 0; i < 5; i++)
     for (let j = 0; j < 2; j++)
@@ -66,6 +74,11 @@ export function createHeroModel({ scene, mesh, box, ball, cyl }) {
         0.49,
         body,
       );
+  clothing(body.children.slice(scarfStart), "scarf");
+  legs.forEach((leg) => {
+    clothing([leg.children[0]], "trousers");
+    clothing([leg.children[1]], "shoes");
+  });
   const arms = [];
   for (const s of [-1, 1]) {
     const a = new THREE.Group();
@@ -75,6 +88,7 @@ export function createHeroModel({ scene, mesh, box, ball, cyl }) {
     ball(0.19, "#70513b", s * 0.1, -0.63, 0.03, a);
     arms.push(a);
   }
+  arms.forEach((arm) => clothing([arm.children[0]], "sleeves"));
   function axe() {
     const g = new THREE.Group();
     cyl(0.045, 0.06, 1.45, "#855338", 0, 0, 0, g);
@@ -93,7 +107,8 @@ export function createHeroModel({ scene, mesh, box, ball, cyl }) {
     ball(0.12, "#6a7770", 0, 0.5, 0, g);
     return g;
   }
-  const held = axe();
+  const held = new THREE.Group();
+  held.name = "held-item-anchor";
   held.scale.setScalar(0.8);
   held.rotation.z = -0.3;
   held.position.set(0.08, -0.58, 0.25);

@@ -6,6 +6,12 @@ export function createHero({ scene, model, axeModel }) {
   hero.position.set(0, 0, 7);
   scene.add(hero);
   const rig = createCharacterRig(hero);
-  if (!rig.held) throw new Error("Hero model is missing its held axe");
-  return { hero, rig, ...rig, axe: () => instantiateModel(axeModel) };
+  if (!rig.held) throw new Error("Hero model is missing its item anchor");
+  rig.items.register("axe", {
+    create: () => instantiateModel(axeModel),
+    throwable: true,
+    weapon: true,
+  });
+  rig.items.equip("axe");
+  return { hero, rig, ...rig };
 }

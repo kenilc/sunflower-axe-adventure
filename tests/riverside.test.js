@@ -322,11 +322,17 @@ test("riverside scenery and transport", async () => {
       }),
       arms: [new T.Group(), new T.Group()],
       held: { visible: true },
+      items: {
+        setHidden(reason, value) {
+          this.anchor.visible = !value;
+        },
+      },
     };
   };
   const rider = new T.Group(),
     friend = new T.Group(),
     heroRig = rig();
+  heroRig.items.anchor = heroRig.held;
   const companion = {
     character: friend,
     rig: rig(),
@@ -334,6 +340,7 @@ test("riverside scenery and transport", async () => {
       friend.position.copy(p).add(new T.Vector3(1, 0, 0));
     },
   };
+  companion.rig.items.anchor = companion.rig.held;
   const scene = new T.Scene();
   scene.add(river.group, rider);
   const transitions = [];

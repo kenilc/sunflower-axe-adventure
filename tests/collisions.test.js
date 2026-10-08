@@ -1842,12 +1842,9 @@ test("gameplay, collisions, travel, activities and restart", async () => {
       Math.cos(G.characters.companion.character.rotation.y) < -0.9,
     "Both characters face the fireworks to the north",
   );
+  assert(G.characters.rig.body.getObjectByName("head").rotation.x < -0.25);
   assert(
-    G.characters.rig.body.getObjectByName("festival-upturned-head").rotation.x <
-      -0.25,
-  );
-  assert(
-    G.characters.rig.body.getObjectByName("festival-amazed-mouth").visible,
+    G.characters.rig.body.getObjectByName("expression-amazed-mouth").visible,
   );
   const giant = G.worlds.festival.group.getObjectByName(
     "gigantic-firework-trails",
@@ -1888,15 +1885,12 @@ test("gameplay, collisions, travel, activities and restart", async () => {
     43,
     "Normal field of view restored after the reveal",
   );
-  assert.equal(
-    G.characters.rig.body.getObjectByName("festival-upturned-head").rotation.x,
-    0,
+  assert.equal(G.characters.rig.body.getObjectByName("head").rotation.x, 0);
+  assert(
+    !G.characters.rig.body.getObjectByName("expression-amazed-mouth").visible,
   );
   assert(
-    !G.characters.rig.body.getObjectByName("festival-amazed-mouth").visible,
-  );
-  assert(
-    G.characters.rig.eyes.open.parent === G.characters.rig.body,
+    G.characters.rig.eyes.open.parent === G.characters.rig.head,
     "Ordinary face rig restored on exit",
   );
   G.controls.interactFestival();

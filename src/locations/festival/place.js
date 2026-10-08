@@ -13,7 +13,6 @@ export function createFestivalPlace(context) {
     alpineOutfits,
     festival,
     funfair,
-    held,
     summerOutfits,
     companion,
     hero,
@@ -43,7 +42,6 @@ export function createFestivalPlace(context) {
     locations.setArea(enter ? "festival" : "funfair");
     festival.group.visible = enter;
     funfair.group.visible = !enter;
-    held.visible = false;
     summerOutfits.set(enter);
     (enter ? festival.group : funfair.group).add(companion.character);
     hero.position.copy(enter ? festival.arrival : new THREE.Vector3(0, 0, -23));

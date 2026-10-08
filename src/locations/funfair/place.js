@@ -15,7 +15,6 @@ export function createFunfairPlace(context) {
     state,
     $,
     garden,
-    held,
     companionObstacles,
     gardenTerrain,
     scene,
@@ -51,7 +50,6 @@ export function createFunfairPlace(context) {
     locations.setArea(enter ? "funfair" : "garden");
     funfair.group.visible = enter;
     garden.visible = !enter;
-    held.visible = !enter;
     (enter ? funfair.group : garden).add(companion.character);
     hero.position.copy(enter ? funfair.arrival : new THREE.Vector3(28, 0, 0));
     hero.rotation.set(0, enter ? Math.PI : 0, 0);

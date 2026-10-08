@@ -1,9 +1,10 @@
 export function createGardenHud(context) {
-  const { hero, benchMoment } = context;
+  const { hero, heroRig, benchMoment } = context;
   return () => {
     const x = hero.position.x,
       z = hero.position.z;
     return {
+      instructions: `<kbd>W A S D</kbd> move <kbd>SHIFT</kbd> run ${heroRig.items.canThrow ? "<kbd>CLICK</kbd> throw " : ""}<kbd>DRAG / Q E</kbd> rotate <kbd>R / F</kbd> view up / down`,
       countsId: "gardenCounts",
       region:
         z < -38

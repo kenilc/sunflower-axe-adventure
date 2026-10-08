@@ -16,6 +16,7 @@ export function createBedRest({
   );
   let resting = false,
     elapsed = 0;
+  let expressionReleases = [];
   function restorePose() {
     characters.forEach((c) => c.rotation.set(0, Math.PI, 0));
     rigs.forEach((rig, i) => {
@@ -24,8 +25,8 @@ export function createBedRest({
       [...rig.legs, ...rig.arms].forEach((limb) => limb.rotation.set(0, 0, 0));
       rig.feet.forEach((foot) => (foot.rotation.x = 0));
       rig.arms.forEach((arm, j) => arm.position.copy(armPositions[i][j]));
-      rig.eyes.setClosed(false);
-      if (rig.held) rig.held.visible = false;
+
+      rig.items?.setHidden("bed", resting);
     });
   }
   return {
@@ -61,7 +62,9 @@ export function createBedRest({
           new THREE.Matrix4().makeBasis(right, up, front),
         );
         const rig = rigs[i];
-        rig.eyes.setClosed(true);
+        expressionReleases.push(
+          rig.appearance.override({ expression: "sleeping" }),
+        );
         rig.arms.forEach((arm, j) => {
           arm.position.x *= 0.8;
           arm.position.y -= 0.3;
@@ -82,6 +85,8 @@ export function createBedRest({
     stand(notify = true) {
       if (!resting) return false;
       resting = false;
+      expressionReleases.forEach((release) => release());
+      expressionReleases = [];
       terrain.setSleeping(false);
       onRestChange(false);
       restorePose();

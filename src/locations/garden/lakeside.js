@@ -147,7 +147,7 @@ export function createBenchMoment({
       arm.rotation.x = inner ? -0.5 * hug : -0.9;
       arm.rotation.z = inner ? -side * hug * 1.2 : 0;
     });
-    if (rig.held) rig.held.visible = false;
+    rig.items?.setHidden("bench", true);
   }
   function sit() {
     if (seated || !nearby()) return false;
@@ -177,7 +177,7 @@ export function createBenchMoment({
       rig.feet.forEach((foot) => {
         foot.rotation.x = 0;
       });
-      if (rig.held) rig.held.visible = true;
+      rig.items?.setHidden("bench", false);
     });
     const exit = new THREE.Vector3(0, 0, -2.8)
       .applyAxisAngle(new THREE.Vector3(0, 1, 0), bench.rotation.y)

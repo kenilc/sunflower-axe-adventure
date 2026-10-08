@@ -974,6 +974,8 @@ export function createAlpineOutfits({
     cyl(0.41, 0.43, 0.18, "#bd6665", 0, 1.73, 0.04, scarf, 12);
     box(0.2, 0.7, 0.06, "#bd6665", 0.3, 1.33, 0.52, scarf);
     scarves.push(scarf);
+    rig.appearance.registerAccessory("scarf", "alpine", [scarf]);
+    rig.appearance.registerAccessory("harness", "alpine", [harness]);
   }
   const bouquet = new THREE.Group();
   bouquet.name = "alpine-bouquet";
@@ -990,8 +992,15 @@ export function createAlpineOutfits({
     harnesses,
     scarves,
     bouquet,
+    setScarves() {
+      rigs.forEach((rig) => rig.appearance.setAccessory("scarf", "alpine"));
+    },
     setHiking(value) {
-      harnesses.forEach((h) => (h.visible = value));
+      rigs.forEach((rig) =>
+        value
+          ? rig.appearance.setAccessory("harness", "alpine")
+          : rig.appearance.clearAccessory("harness"),
+      );
       if (!value)
         rigs.forEach((rig, i) => {
           if (climbing[i]) {
@@ -1027,8 +1036,10 @@ export function createAlpineOutfits({
           climbing[i] = false;
         }
       });
-      harnesses.forEach((h) => (h.visible = false));
-      scarves.forEach((s) => (s.visible = false));
+      rigs.forEach((rig) => {
+        rig.appearance.clearAccessory("harness");
+        rig.appearance.clearAccessory("scarf");
+      });
       bouquet.visible = false;
     },
   };

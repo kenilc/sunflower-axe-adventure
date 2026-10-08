@@ -20,7 +20,13 @@ const countIds = [
   "placeCounts",
 ];
 
-export function createHud({ $, getPlace, getHud, canInteract = () => true }) {
+export function createHud({
+  $,
+  getPlace,
+  getHud,
+  canInteract = () => true,
+  canThrow = () => getPlace().canThrow,
+}) {
   let idleDelay = 0;
   const buttons = new Map();
   function button(id) {
@@ -60,7 +66,7 @@ export function createHud({ $, getPlace, getHud, canInteract = () => true }) {
       element.disabled = Boolean(action.disabled);
       element.textContent = action.label ?? "Interact · X";
     }
-    $("#throw").hidden = !getPlace().canThrow;
+    $("#throw").hidden = !canThrow();
     for (const id of countIds) $(`#${id}`).hidden = id !== model.countsId;
     if (model.progress !== undefined) {
       $("#placeCounts").textContent = model.progress;

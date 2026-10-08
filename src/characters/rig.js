@@ -1,3 +1,5 @@
+import { createAppearance } from "./appearance.js";
+import { createHeldItems, createIceCream } from "./held-items.js";
 import { bindCharacterEyes } from "./eyes.js";
 
 export function createCharacterRig(character) {
@@ -24,7 +26,16 @@ export function createCharacterRig(character) {
     closed: required("closed-eyes"),
   });
   eyes.setClosed(false);
+  const head = required("head");
+  const held = required("held-item-anchor");
+  const appearance = createAppearance({ body, head, eyes, smile });
+  const items = createHeldItems(held);
+  items.register("ice-cream", { create: createIceCream, label: "ice cream" });
+  items.equip(null);
   return {
+    head,
+    appearance,
+    items,
     body,
     leftLeg,
     rightLeg,
@@ -40,6 +51,6 @@ export function createCharacterRig(character) {
     hands: [leftHand, rightHand],
     smile,
     eyes,
-    held: character.getObjectByName("held-axe") ?? null,
+    held,
   };
 }

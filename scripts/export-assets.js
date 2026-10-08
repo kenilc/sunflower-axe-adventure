@@ -31,14 +31,16 @@ function nameRig(root, rig, handIndex) {
     rig.arms[index].name = `${side}-arm`;
     rig.arms[index].children[handIndex].name = `${side}-hand`;
   }
-  const smile = rig.body.children.find(
-    (node) =>
-      node.geometry?.type === "TorusGeometry" &&
-      node.geometry.parameters.radius === 0.09,
-  );
+  const smile = root
+    .getObjectByName("head")
+    .children.find(
+      (node) =>
+        node.geometry?.type === "TorusGeometry" &&
+        node.geometry.parameters.radius === 0.09,
+    );
   if (!smile) throw new Error(`${root.name} has no resting smile`);
   smile.name = "rest-smile";
-  if (rig.held) rig.held.name = "held-axe";
+  if (rig.held) rig.held.name = "held-item-anchor";
 }
 
 function sharePrimitiveGeometry(root) {

@@ -63,6 +63,8 @@ test("rig lookup ignores child order and model instances have independent poses"
   first.traverse((node) => node.children.reverse());
   const a = createCharacterRig(first),
     b = createCharacterRig(second);
+  a.items.equip("ice-cream");
+  b.items.equip("ice-cream");
   a.leftLeg.rotation.x = 1;
   a.leftFoot.rotation.x = -1;
   a.eyes.setClosed(true);
