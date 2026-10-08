@@ -99,6 +99,12 @@ test("sheep photos pause, restore walking, survive travel, and reset with the ad
   expect(rig.body.rotation.x).toBeCloseTo(0);
   expect(village.sheep.every((s) => !s.interacting)).toBe(true);
   expect(game.input.keys.KeyW).toBe(false);
+  const viewingPosition = hero.position.clone();
+  game.input.keys.KeyW = true;
+  for (let i = 0; i < 5; i++) game.update();
+  expect(hero.position.equals(viewingPosition)).toBe(true);
+  sheepMoment.update(12);
+  expect(sheepMoment.viewing).toBe(true);
   for (const actor of [hero, companion.character]) {
     expect(village.contains(actor.position.x, actor.position.z)).toBe(true);
     expect(
@@ -111,6 +117,7 @@ test("sheep photos pause, restore walking, survive travel, and reset with the ad
   }
   element("#closeSheepPhoto").onclick();
   expect(element("#sheepPhoto").hidden).toBe(true);
+  expect(game.input.keys.KeyW).toBe(false);
   sheepMoment.showPhoto();
   expect(element("#sheepPhotoImage").src).toBe(
     "data:image/png;base64,d29vbGx5",

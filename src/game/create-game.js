@@ -693,7 +693,10 @@ export function createGame({ createRenderer, models } = {}) {
       time = clock.elapsedTime;
     const transitioning = passageTransition.active;
     if (!$("#guide").open) passageTransition.update(dt);
-    const paused = $("#guide").open || transitioning;
+    const paused =
+      $("#guide").open ||
+      transitioning ||
+      (sheepMoment.viewing && !sheepMoment.active);
     state.cooldown = Math.max(0, state.cooldown - dt);
     state.throwAnim = Math.max(0, state.throwAnim - dt);
     state.villageActivityCooldown = Math.max(

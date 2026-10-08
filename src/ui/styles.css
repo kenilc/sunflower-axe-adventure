@@ -487,16 +487,21 @@ body:has(#funfairExit:not([hidden])) #toast {
 }
 :root .photo-memory {
   position: fixed;
-  right: 22px;
-  bottom: 135px;
-  width: min(220px, 36vw);
-  padding: 10px;
+  inset: 0;
+  margin: auto;
+  width: min(900px, calc(100vw - 32px), calc((100dvh - 140px) * 4 / 3));
+  max-height: calc(100dvh - 32px);
+  padding: 16px;
+  border: 0;
   background: #fff7e4;
   color: #405951;
-  box-shadow: 0 8px 28px #183b3440;
-  border-radius: 3px;
-  transform: rotate(3deg);
-  z-index: 12;
+  box-shadow: 0 16px 64px #102b3466;
+  border-radius: 12px;
+  overflow: auto;
+}
+.photo-memory::backdrop {
+  background: #102b34a6;
+  backdrop-filter: blur(3px);
 }
 .photo-memory[hidden] {
   display: none;
@@ -505,23 +510,22 @@ body:has(#funfairExit:not([hidden])) #toast {
   display: block;
   width: 100%;
   aspect-ratio: 4 / 3;
-  object-fit: cover;
+  object-fit: contain;
 }
 .photo-memory p {
   color: #405951;
-  margin: 10px 0;
+  margin: 12px 0;
   text-align: center;
-  font-size: 14px;
+  font-size: 18px;
 }
 .photo-memory button {
   width: 100%;
-  padding: 7px;
-  font-size: 12px;
+  margin-top: 0;
+  padding: 10px;
+  font-size: 14px;
 }
 @media (max-width: 600px) {
   :root .photo-memory {
-    right: 14px;
-    bottom: 145px;
-    padding: 7px;
+    padding: 12px;
   }
 }

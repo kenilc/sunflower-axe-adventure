@@ -54,9 +54,23 @@ export function createSheepMoment({
   flash.castShadow = flash.receiveShadow = false;
   const photo = $("#sheepPhoto"),
     image = $("#sheepPhotoImage");
-  $("#closeSheepPhoto").onclick = () => {
+  photo.hidden = true;
+  function closePhoto() {
+    photo.close?.();
     photo.hidden = true;
-  };
+    clearInput();
+  }
+  function openPhoto() {
+    image.src = lastPhoto;
+    clearInput();
+    photo.hidden = false;
+    if (!photo.open) photo.showModal?.();
+  }
+  $("#closeSheepPhoto").onclick = closePhoto;
+  photo.addEventListener("close", closePhoto);
+  photo.addEventListener("click", (event) => {
+    if (event.target === photo) closePhoto();
+  });
   let active = false,
     elapsed = 0,
     sheep = null,
@@ -67,8 +81,7 @@ export function createSheepMoment({
     manTarget,
     sheepOrigin,
     sheepHeading,
-    lastPhoto = null,
-    cardAge = 0;
+    lastPhoto = null;
   const duration = 7;
   const memories = new Set();
   const actors = [
@@ -164,6 +177,9 @@ export function createSheepMoment({
     get hasPhoto() {
       return Boolean(lastPhoto);
     },
+    get viewing() {
+      return !photo.hidden;
+    },
     start(animal) {
       if (active) return false;
       womanTarget = target(hero.position, animal.group.position, 1.5);
@@ -195,15 +211,11 @@ export function createSheepMoment({
       sheep.petTime = duration;
       elapsed = 0;
       captured = pendingCapture = false;
-      photo.hidden = true;
+      closePhoto();
       toast("She kneels for a woolly hello. He gets the camera ready… ♥");
       return true;
     },
     update(dt) {
-      if (!photo.hidden) {
-        cardAge += dt;
-        if (cardAge > 10) photo.hidden = true;
-      }
       if (!active) return;
       elapsed += dt;
       const approach = THREE.MathUtils.smoothstep(elapsed, 0, 1.5);
@@ -314,27 +326,23 @@ export function createSheepMoment({
       const capturedPhoto = capturePhoto(photoCamera, [companion.character]);
       if (!capturedPhoto) return;
       lastPhoto = capturedPhoto;
-      image.src = lastPhoto;
-      cardAge = 0;
-      photo.hidden = false;
+      openPhoto();
     },
     showPhoto() {
       if (lastPhoto) {
-        image.src = lastPhoto;
-        photo.hidden = false;
-        cardAge = 0;
+        openPhoto();
       }
     },
     cancel() {
       restore();
-      photo.hidden = true;
+      closePhoto();
     },
     reset() {
       restore();
       memories.clear();
       lastPhoto = null;
       image.removeAttribute?.("src");
-      photo.hidden = true;
+      closePhoto();
     },
   };
 }

@@ -1435,6 +1435,7 @@ test("gameplay, collisions, travel, activities and restart", async () => {
   assert(firstSheep.petTime > 0 && G.activities.sheepMoment.active);
   for (let i = 0; i < 180; i++) G.update();
   assert(village.stamps.has("sheep") && !G.activities.sheepMoment.active);
+  element("#closeSheepPhoto").onclick();
   for (let i = 0; i < 100; i++)
     village.update(0.04, i * 0.04, G.characters.hero.position);
   for (const sheep of village.sheep) {

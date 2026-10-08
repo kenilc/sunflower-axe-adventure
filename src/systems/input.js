@@ -14,7 +14,8 @@ export function bindGameInput({
   zoomBy,
   toggleSound,
 }) {
-  const paused = () => $("#guide").open || passageTransition.active;
+  const paused = () =>
+    $("#guide").open || !$("#sheepPhoto").hidden || passageTransition.active;
   addEventListener("keydown", (event) => {
     if (
       ["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(
