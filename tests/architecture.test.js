@@ -18,20 +18,51 @@ test("location state and animation lifecycle", async () => {
   let shop = null,
     summit = null,
     lagoon = null;
-  const locations = createLocationManager({
-    terrains,
-    getShop: () => shop,
-    getSummit: () => summit,
-    getLagoon: () => lagoon,
+  const { createPlaceRegistry } = await import("../src/game/place-registry.js");
+  const places = createPlaceRegistry();
+  for (const [id, terrain] of Object.entries(terrains))
+    places.register({
+      id,
+      terrain,
+      kind: id === "castle" ? "room" : "area",
+      parent: id === "castle" ? "summit" : undefined,
+      legacyFlag: {
+        riverside: "insideRiver",
+        castle: "insideCastle",
+        festival: "insideFestival",
+        funfair: "insideFunfair",
+      }[id],
+    });
+  places.register({
+    id: "lagoon",
+    kind: "context",
+    parent: "riverside",
+    terrain: { name: "lagoon" },
   });
+  places.register({
+    id: "summit",
+    kind: "context",
+    parent: "lagoon",
+    terrain: { name: "summit" },
+  });
+  places.register({
+    id: "shop",
+    kind: "room",
+    parent: "village",
+    terrain: { name: "shop" },
+  });
+  places.get("riverside").resolve = () =>
+    summit ? "summit" : lagoon ? "lagoon" : null;
+  places.get("village").resolve = () => (shop ? "shop" : null);
+  const locations = createLocationManager({ places });
   assert.equal(locations.current, "garden");
   assert.equal(locations.activeTerrain, terrains.garden);
   assert.throws(() => locations.setRoom("castle"));
   locations.setArea("riverside");
-  lagoon = { name: "lagoon" };
+  lagoon = places.get("lagoon").terrain;
   assert.equal(locations.current, "lagoon");
   assert.equal(locations.activeTerrain, lagoon);
-  summit = { name: "summit" };
+  summit = places.get("summit").terrain;
   assert.equal(locations.activeTerrain, summit);
   locations.setRoom("castle");
   assert.equal(locations.current, "castle");
@@ -44,7 +75,7 @@ test("location state and animation lifecycle", async () => {
     "Leaving the room returns to the summit terrain",
   );
   locations.setArea("village");
-  shop = { name: "shop" };
+  shop = places.get("shop").terrain;
   assert.equal(locations.current, "shop");
   assert.equal(locations.activeTerrain, shop);
   assert(!locations.state.insideRiver && !locations.state.insideCastle);

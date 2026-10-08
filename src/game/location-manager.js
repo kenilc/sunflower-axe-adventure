@@ -1,35 +1,50 @@
-// Root areas are exclusive. Castle is a room within the riverside journey;
-// summit and lagoon terrain remain owned by their transport activities.
-export function createLocationManager({
-  terrains,
-  getShop,
-  getSummit,
-  getLagoon,
-}) {
-  let area = "garden";
+export function createLocationManager({ places, initial = "garden" }) {
+  let area = initial;
   let room = null;
-  const state = {
-    get insideCastle() {
-      return room === "castle";
+  function ancestors(id) {
+    const result = [];
+    while (id) {
+      if (result.includes(id)) throw new Error(`Place parent cycle: ${id}`);
+      result.push(id);
+      id = places.get(id).parent;
+    }
+    return result;
+  }
+  function current() {
+    let id = room ?? area;
+    const seen = new Set();
+    while (true) {
+      if (seen.has(id)) throw new Error(`Place resolver cycle: ${id}`);
+      seen.add(id);
+      const next = places.get(id).resolve?.();
+      if (!next) return id;
+      places.get(next);
+      id = next;
+    }
+  }
+  function is(id) {
+    if (id === area) return true;
+    let active = current();
+    while (active !== area) {
+      if (active === id) return true;
+      active = places.get(active).parent;
+      if (!active) break;
+    }
+    return false;
+  }
+  // Compatibility flags are declared by places, rather than built into this manager.
+  const state = new Proxy(
+    {},
+    {
+      get(_, key) {
+        const place = places.all().find((entry) => entry.legacyFlag === key);
+        return place ? is(place.id) : undefined;
+      },
     },
-    get insideRiver() {
-      return area === "riverside";
-    },
-    get insideCave() {
-      return area === "cave";
-    },
-    get insideFestival() {
-      return area === "festival";
-    },
-    get insideFunfair() {
-      return area === "funfair";
-    },
-    get insideVillage() {
-      return area === "village";
-    },
-  };
+  );
   return {
     state,
+    is,
     get area() {
       return area;
     },
@@ -37,30 +52,39 @@ export function createLocationManager({
       return room;
     },
     get current() {
-      if (room) return room;
-      if (area === "village" && getShop()) return "shop";
-      if (area === "riverside") {
-        if (getSummit()) return "summit";
-        if (getLagoon()) return "lagoon";
-      }
-      return area;
+      return current();
+    },
+    get active() {
+      return places.get(current());
     },
     get activeTerrain() {
-      if (room) return terrains[room];
-      if (area === "village") return getShop() ?? terrains.village;
-      if (area === "riverside")
-        return getSummit() ?? getLagoon() ?? terrains.riverside;
-      return terrains[area];
+      return places.get(current()).terrain;
+    },
+    select(id) {
+      const place = places.get(id);
+      if (place.kind === "area") {
+        this.setArea(id);
+        return;
+      }
+      const root = ancestors(id).find(
+        (parent) => places.get(parent).kind === "area",
+      );
+      if (!root) throw new Error(`Place ${id} has no root area`);
+      if (area !== root) this.setArea(root);
+      if (place.kind === "room") this.setRoom(id);
     },
     setArea(next) {
-      if (!Object.hasOwn(terrains, next) || next === "castle")
-        throw new Error(`Unknown root area: ${next}`);
+      if (places.get(next).kind !== "area")
+        throw new Error(`Not a root area: ${next}`);
       area = next;
       room = null;
     },
     setRoom(next) {
-      if (next !== null && (next !== "castle" || area !== "riverside"))
-        throw new Error("Castle requires a riverside journey");
+      if (
+        next !== null &&
+        (places.get(next).kind !== "room" || !ancestors(next).includes(area))
+      )
+        throw new Error(`Room ${next} is outside ${area}`);
       room = next;
     },
   };

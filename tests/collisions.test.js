@@ -1,73 +1,9 @@
 import { test, vi, afterEach } from "vitest";
-import { readModels } from "./helpers/models.js";
+import { createTestGame } from "./helpers/game.js";
 afterEach(() => vi.unstubAllGlobals());
 import assert from "node:assert/strict";
 test("gameplay, collisions, travel, activities and restart", async () => {
-  const elements = new Map();
-  const handlers = new Map();
-  const element = (selector) => {
-    if (!elements.has(selector))
-      elements.set(selector, {
-        style: {},
-        firstChild: { textContent: "" },
-        open: false,
-        setAttribute() {},
-        appendChild() {},
-        addEventListener() {},
-      });
-    return elements.get(selector);
-  };
-  const browser = {
-    console,
-    setTimeout(fn) {
-      fn();
-    },
-    performance: { now: () => 0 },
-    innerWidth: 1280,
-    innerHeight: 720,
-    devicePixelRatio: 1,
-    window: {},
-    requestAnimationFrame() {},
-    cancelAnimationFrame() {},
-    addEventListener(name, callback) {
-      handlers.set(name, callback);
-    },
-    document: {
-      querySelector: element,
-      createElement() {
-        return {
-          width: 0,
-          height: 0,
-          getContext() {
-            return { fillRect() {}, fillText() {} };
-          },
-        };
-      },
-      addEventListener() {},
-      body: { classList: { toggle() {} } },
-    },
-    FakeRenderer: class {
-      constructor() {
-        this.domElement = element("canvas");
-        this.shadowMap = {};
-      }
-      setSize() {}
-      setPixelRatio() {}
-      render(scene, camera) {
-        this.scene = scene;
-        this.camera = camera;
-      }
-    },
-  };
-  for (const [name, value] of Object.entries(browser))
-    vi.stubGlobal(name, value);
-  const { createGame } = await import("../src/game/create-game.js");
-  const models = await readModels();
-  const G = createGame({
-    models,
-    createRenderer: () => new browser.FakeRenderer(),
-  });
-  G.update();
+  const { game: G, models, element, handlers } = await createTestGame();
   const { createBenchMoment } =
     await import("../src/locations/garden/lakeside.js");
   const T = await import("three");

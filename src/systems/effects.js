@@ -43,5 +43,34 @@ export function createEffects({ scene, box, rand }) {
     });
     particles.length = 0;
   }
-  return { axes, burst, update, clearProjectiles, clearParticles };
+  function updateProjectiles(dt, targets = [], onHit) {
+    for (let index = axes.length - 1; index >= 0; index--) {
+      const axe = axes[index];
+      axe.life -= dt;
+      axe.g.position.addScaledVector(axe.dir, dt * 19);
+      axe.g.rotation.x += dt * 18;
+      axe.g.rotation.z += dt * 6;
+      for (const target of targets)
+        if (!target.hit && axe.g.position.distanceTo(target.pos) < 0.93) {
+          target.hit = true;
+          target.blocker.active = false;
+          target.g.visible = false;
+          onHit?.(target);
+          axe.life = 0;
+          break;
+        }
+      if (axe.life <= 0) {
+        scene.remove(axe.g);
+        axes.splice(index, 1);
+      }
+    }
+  }
+  return {
+    axes,
+    burst,
+    update,
+    updateProjectiles,
+    clearProjectiles,
+    clearParticles,
+  };
 }

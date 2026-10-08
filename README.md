@@ -32,7 +32,7 @@ GitHub Pages runs the gameplay tests and production build checks before publishi
 - `src/assets/models/`: checked-in hero, companion, axe, and bench GLB files.
 - `src/assets/`: model URLs, loading, and independent instance creation.
 - `src/game/`: dependency wiring, gameplay coordination, location state, scene fades, and animation scheduling.
-- `src/locations/`: scenery and activities grouped by destination.
+- `src/locations/`: scenery, lifecycle, actions, HUD data, and activities grouped by destination. `register-places.js` registers built-in destinations.
 - `src/characters/`: named rig adapters, hero instantiation, companion behavior, and eyes.
 - `src/rendering/`: renderer setup, mesh factories, camera gestures, and visibility helpers.
 - `src/systems/`: shared input, collision, audio, particle effects, hearts, and seeded randomness.
@@ -82,4 +82,14 @@ Location state has one root area. The castle is a nested room within the riversi
 
 Vitest imports real source modules and runs the existing regression scenarios with stubbed browser APIs. Tests cover collision, scene transitions, transport, shops, rides, fireworks, pause behavior, and restart using the loaded character assets. `npm run test:build` verifies reproducible Vite output, relative deployment URLs, and unchanged binary model contents.
 
-`create-game.js` remains the place for location-specific transitions and cross-system orchestration. New activity behavior belongs beside its destination; extract shared transition behavior when destinations need the same lifecycle.
+## Adding places
+
+See [the place authoring guide](docs/adding-places.md) for the registry contract and a complete example. A new place factory is registered once in `src/locations/register-places.js`; shared movement, keyboard/button actions, HUD presentation, return snapshots, and restart use its descriptor.
+
+`place-registry.js` stores place definitions and validates parent links. `location-manager.js` selects the current root area and nested room/context. `place-transitions.js` owns the fade, input/effect cleanup, default actor placement, camera/lighting settings, and return restoration. Existing destinations retain local activation adapters for their established transport and outfit behavior.
+
+The existing control methods remain available for regression coverage. New code uses `controls.travelTo(id, options)` and `controls.interact()` and defines actions through `getHud()`.
+
+`tests/places.test.js` registers an additional place and room without changes to the coordinator, then verifies entry gates, movement, actions, pause, return position, camera restoration, and reset. Shared browser/model fixtures are in `tests/helpers/game.js`.
+
+Built-in worlds are still constructed at startup. Loading their geometry on demand is a separate performance step; this refactor establishes the registration and lifecycle boundaries first.
