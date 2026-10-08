@@ -38,8 +38,16 @@ export async function createTestGame() {
           width: 0,
           height: 0,
           getContext() {
-            return { fillRect() {}, fillText() {} };
+            return {
+              fillRect() {},
+              fillText() {},
+              createImageData(width, height) {
+                return { data: new Uint8ClampedArray(width * height * 4) };
+              },
+              putImageData() {},
+            };
           },
+          toDataURL: () => "data:image/png;base64,d29vbGx5",
         };
       },
       addEventListener() {},
@@ -52,7 +60,17 @@ export async function createTestGame() {
       }
       setSize() {}
       setPixelRatio() {}
+      getRenderTarget() {
+        return this.target ?? null;
+      }
+      setRenderTarget(target) {
+        this.target = target;
+      }
+      readRenderTargetPixels(target, x, y, width, height, pixels) {
+        pixels.fill(255);
+      }
       render(scene, camera) {
+        if (this.target) return;
         this.scene = scene;
         this.camera = camera;
       }

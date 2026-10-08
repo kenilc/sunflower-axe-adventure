@@ -485,3 +485,43 @@ body:has(#funfairExit:not([hidden])) #toast {
 #loading[hidden] {
   display: none;
 }
+:root .photo-memory {
+  position: fixed;
+  right: 22px;
+  bottom: 135px;
+  width: min(220px, 36vw);
+  padding: 10px;
+  background: #fff7e4;
+  color: #405951;
+  box-shadow: 0 8px 28px #183b3440;
+  border-radius: 3px;
+  transform: rotate(3deg);
+  z-index: 12;
+}
+.photo-memory[hidden] {
+  display: none;
+}
+.photo-memory img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+.photo-memory p {
+  color: #405951;
+  margin: 10px 0;
+  text-align: center;
+  font-size: 14px;
+}
+.photo-memory button {
+  width: 100%;
+  padding: 7px;
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  :root .photo-memory {
+    right: 14px;
+    bottom: 145px;
+    padding: 7px;
+  }
+}

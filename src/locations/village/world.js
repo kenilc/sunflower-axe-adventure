@@ -780,14 +780,20 @@ export function createAlpineVillage({ mesh, box, cyl, ball }) {
       (s) =>
         Math.hypot(p.x - s.group.position.x, p.z - s.group.position.z) < 2.5,
     );
-    if (pet) return { kind: "sheep", sheep: pet, label: "Pet the sheep · X" };
+    if (pet)
+      return {
+        kind: "sheep",
+        sheep: pet,
+        label: "Play with sheep & take a photo · X",
+      };
     if (p.distanceTo(lookout) < 3.2)
       return { kind: "lookout", label: "Ride the mountain cart together · X" };
     return null;
   }
-  function update(dt, time, heroPosition) {
+  function update(dt, time, heroPosition, friendPosition) {
     nature.update(dt);
     for (const s of sheep) {
+      if (s.interacting) continue;
       const old = s.group.position.clone();
       const destination = s.home
         .clone()
@@ -798,7 +804,10 @@ export function createAlpineVillage({ mesh, box, cyl, ball }) {
             Math.cos(time * 0.13 + s.phase) * 0.6,
           ),
         );
-      if (!heroPosition || destination.distanceTo(heroPosition) > 1.45)
+      if (
+        (!heroPosition || destination.distanceTo(heroPosition) > 1.45) &&
+        (!friendPosition || destination.distanceTo(friendPosition) > 1.45)
+      )
         s.group.position.lerp(destination, 1 - Math.exp(-dt * 0.8));
       const moved = s.group.position.clone().sub(old);
       if (moved.lengthSq() > 0.000001)
@@ -928,6 +937,7 @@ export function createAlpineVillage({ mesh, box, cyl, ball }) {
         s.obstacle.x = s.home.x;
         s.obstacle.z = s.home.z;
         s.petTime = 0;
+        s.interacting = false;
       });
     },
   };

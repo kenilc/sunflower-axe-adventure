@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { alpineTint, createAlpineDetails } from "./details.js";
 
 // Batch the woodland and birds so dense scenery stays inexpensive to draw.
 export function createAlpineNature({
@@ -280,12 +281,47 @@ export function createAlpineNature({
               });
           }
         }
-        for (const point of [polygon[0], polygon[j], polygon[j + 1]]) {
+        const triangle = [polygon[0], polygon[j], polygon[j + 1]];
+        const steps = meadowSurfaces.includes(source)
+          ? 1
+          : Math.min(
+              24,
+              Math.ceil(
+                Math.max(
+                  ...triangle.map((point, i) =>
+                    point.distanceTo(triangle[(i + 1) % 3]),
+                  ),
+                ) / 4,
+              ),
+            );
+        const pointAt = (u, v) =>
+          triangle[0]
+            .clone()
+            .multiplyScalar(1 - u - v)
+            .addScaledVector(triangle[1], u)
+            .addScaledVector(triangle[2], v);
+        const triangles = [];
+        for (let u = 0; u < steps; u++)
+          for (let v = 0; v < steps - u; v++) {
+            triangles.push([
+              pointAt(u / steps, v / steps),
+              pointAt((u + 1) / steps, v / steps),
+              pointAt(u / steps, (v + 1) / steps),
+            ]);
+            if (u + v < steps - 1)
+              triangles.push([
+                pointAt((u + 1) / steps, v / steps),
+                pointAt((u + 1) / steps, (v + 1) / steps),
+                pointAt(u / steps, (v + 1) / steps),
+              ]);
+          }
+        for (const point of triangles.flat()) {
           const raised = point.clone().addScaledVector(normal, 0.025);
           vertices.push(...raised.toArray());
-          const tint = new THREE.Color(point.y > 40 ? "#86a564" : "#739b55");
-          tint.multiplyScalar(
-            0.92 + Math.sin(point.x * 0.12 + point.z * 0.08) * 0.06,
+          const tint = alpineTint(
+            point,
+            normal,
+            meadowSurfaces.includes(source),
           );
           colors.push(tint.r, tint.g, tint.b);
         }
@@ -450,6 +486,13 @@ export function createAlpineNature({
     grassBatches.push({ mesh: tufts, source });
   }
   grass.userData.tuftCount = grassSites.length;
+  const details = createAlpineDetails({
+    parent,
+    surfaces: grassSurfaces,
+    trailDistance,
+    grassAllowed,
+    lookout,
+  });
 
   // Flying silhouettes use just three instanced batches for all flocks.
   const birdGroup = new THREE.Group();
@@ -586,6 +629,7 @@ export function createAlpineNature({
   // scale also removes their shadows, without thousands of material clones.
   const hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
   function updateVisibility(camera, characters) {
+    details.updateVisibility();
     const targets = characters.flatMap((character) =>
       [0.7, 1.6, 2.5].map((height) =>
         character.position.clone().add(new THREE.Vector3(0, height, 0)),
@@ -648,6 +692,7 @@ export function createAlpineNature({
     birdGroup,
     birds,
     surfaces,
+    details,
     update,
     updateVisibility,
   };

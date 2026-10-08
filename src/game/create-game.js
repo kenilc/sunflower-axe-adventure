@@ -24,12 +24,15 @@ import { createRiverside } from "../locations/riverside/world.js";
 import { createCave } from "../locations/cave/world.js";
 import { createGameAudio } from "../systems/audio.js";
 import { createCompanion } from "../characters/companion.js";
+import { createCompanionReactions } from "../characters/reactions.js";
+import { createSheepMoment } from "../locations/village/sheep-moment.js";
 import { createHearts } from "../systems/hearts.js";
 import { bindGameInput } from "../systems/input.js";
 import { resolveObstacleCollisions } from "../systems/collision.js";
 import { createSceneTransition } from "./scene-transition.js";
 import { createBenchMoment, inLake } from "../locations/garden/lakeside.js";
 import { createRendering } from "../rendering/renderer.js";
+import { createPhotoCapture } from "../rendering/photo-capture.js";
 import { createMeshFactory } from "../rendering/mesh-factory.js";
 import { createEffects } from "../systems/effects.js";
 import { createRandom } from "../systems/random.js";
@@ -131,6 +134,28 @@ export function createGame({ createRenderer, models } = {}) {
   scene.add(castleRoom.group);
   const companion = createCompanion({ model: models.companion });
   garden.add(companion.character);
+  const companionReactions = createCompanionReactions({ companion, toast });
+  const sheepMoment = createSheepMoment({
+    village,
+    hero,
+    heroRig,
+    companion,
+    camera,
+    capturePhoto: createPhotoCapture({ renderer, scene }),
+    mesh,
+    box,
+    cyl,
+    $,
+    toast,
+    beep,
+    hearts,
+    clearInput: clearRestInput,
+    reactions: companionReactions,
+    onMemory() {
+      $("#villageStamps").textContent = village.stamps.size;
+      $("#objective").textContent = villageObjective();
+    },
+  });
   const bedRest = createBedRest({
     bed: castleRoom.bed,
     terrain: castleRoom,
@@ -369,6 +394,8 @@ export function createGame({ createRenderer, models } = {}) {
     passageTransition,
     hero,
     companion,
+    companionReactions,
+    sheepMoment,
     resetCamera,
     clearRestInput,
     benchMoment,
@@ -430,11 +457,13 @@ export function createGame({ createRenderer, models } = {}) {
     return places.get("village").controls.useVillagePassage(...args);
   }
   function resetCamera() {
+    const distance =
+      locations.active.cameraDistance?.(state.zoom) ?? state.zoom;
     camera.position
       .set(
-        Math.sin(state.yaw) * Math.cos(state.pitch) * state.zoom,
-        1 + Math.sin(state.pitch) * state.zoom,
-        Math.cos(state.yaw) * Math.cos(state.pitch) * state.zoom,
+        Math.sin(state.yaw) * Math.cos(state.pitch) * distance,
+        1 + Math.sin(state.pitch) * distance,
+        Math.cos(state.yaw) * Math.cos(state.pitch) * distance,
       )
       .add(hero.position);
     camera.lookAt(
@@ -609,6 +638,7 @@ export function createGame({ createRenderer, models } = {}) {
     benchMoment.stand();
     transitions.jump("garden");
     places.reset();
+    companionReactions.reset();
     heroRig.appearance.reset();
     companion.rig.appearance.reset();
     heroRig.items.reset("axe");
@@ -645,6 +675,7 @@ export function createGame({ createRenderer, models } = {}) {
         entry.key === code && entry.visible !== false && !entry.disabled,
     );
     if (!action) return false;
+    companionReactions.cancel();
     action.run?.();
     return true;
   }
@@ -770,6 +801,8 @@ export function createGame({ createRenderer, models } = {}) {
         if (activePlace === rootPlace || activePlace.kind === "context")
           rootPlace.afterMovement?.(dt, time);
         if (activePlace !== rootPlace) activePlace.afterMovement?.(dt, time);
+        if (!benchMoment.seated)
+          companionReactions.update(dt, locations.current, hero.position);
         if (state.passageCooldown === 0) {
           const gate =
             locations.active.getGate?.() ??
@@ -786,15 +819,16 @@ export function createGame({ createRenderer, models } = {}) {
     if (activePlace !== rootPlace) activePlace.animate?.(dt, time, paused);
     effects.update(dt);
     if (
-      activePlace.updateCamera?.() ||
-      (activePlace !== rootPlace && rootPlace.updateCamera?.())
+      activePlace.updateCamera?.(dt) ||
+      (activePlace !== rootPlace && rootPlace.updateCamera?.(dt))
     ) {
     } else {
+      const distance = activePlace.cameraDistance?.(state.zoom) ?? state.zoom;
       desired
         .set(
-          Math.sin(state.yaw) * Math.cos(state.pitch) * state.zoom,
-          1 + Math.sin(state.pitch) * state.zoom,
-          Math.cos(state.yaw) * Math.cos(state.pitch) * state.zoom,
+          Math.sin(state.yaw) * Math.cos(state.pitch) * distance,
+          1 + Math.sin(state.pitch) * distance,
+          Math.cos(state.yaw) * Math.cos(state.pitch) * distance,
         )
         .add(hero.position);
       camera.position.lerp(desired, 1 - Math.exp(-dt * 5));
@@ -816,6 +850,7 @@ export function createGame({ createRenderer, models } = {}) {
     const view = activePlace.getRenderView?.() ??
       rootPlace.getRenderView?.() ?? { scene, camera };
     renderer.render(view.scene, view.camera);
+    activePlace.afterRender?.(paused);
   }
   camera.position
     .set(
@@ -847,6 +882,8 @@ export function createGame({ createRenderer, models } = {}) {
       villageMemories: village.stamps.size,
       villageCart: alpineCart.riding,
       villageShop: state.activeVillageShop?.kind ?? null,
+      sheepPhotos: sheepMoment.memories.size,
+      sheepPhotoMoment: sheepMoment.active,
       festivalFireworks: festivalMoment.active,
       summerClothes: locations.state.insideFestival,
       location:
@@ -903,6 +940,8 @@ export function createGame({ createRenderer, models } = {}) {
       alpineOutfits,
       festivalMoment,
       summerOutfits,
+      sheepMoment,
+      companionReactions,
     },
     controls: {
       travelTo: (id, options) => transitions.go(id, options),

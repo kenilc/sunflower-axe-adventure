@@ -2,6 +2,8 @@
 
 A browser adventure built with Three.js, Vite, and JavaScript modules. Explore the garden, riverside, village, funfair, festival, and castle with a companion.
 
+In the alpine village, approach a sheep and press **X** to play together while your companion takes a photo. Walking resumes after the seven-second moment; **P** reopens the latest photo. Photos stay in the current adventure and clear on New adventure. Help pauses the moment. The village camera eases closer near shops and sheep, with manual zoom and rotation still available during exploration.
+
 ## Development
 
 Use Node.js 22.12 or newer (Node 22 LTS is used in CI).

@@ -8,6 +8,8 @@ export function createVillagePlace(context) {
     passageTransition,
     hero,
     companion,
+    companionReactions,
+    sheepMoment,
     resetCamera,
     clearRestInput,
     benchMoment,
@@ -43,6 +45,8 @@ export function createVillagePlace(context) {
 
   function changeVillagePassage(enter) {
     if (enter === locations.state.insideVillage) return;
+    sheepMoment.cancel();
+    companionReactions.cancel();
     benchMoment.stand();
     hearts.clear();
     if (enter) {
@@ -76,8 +80,8 @@ export function createVillagePlace(context) {
     if (enter) {
       state.yaw = 0;
       state.pitch = THREE.MathUtils.degToRad(28);
-      state.zoom = 44;
-      camera.fov = 60;
+      state.zoom = 30;
+      camera.fov = 55;
     } else if (state.outsideView) {
       ({
         yaw: state.yaw,
@@ -121,6 +125,7 @@ export function createVillagePlace(context) {
     if (
       !locations.state.insideVillage ||
       alpineCart.riding ||
+      sheepMoment.active ||
       passageTransition.active ||
       shop === state.activeVillageShop
     )
@@ -129,6 +134,8 @@ export function createVillagePlace(context) {
   }
 
   function changeVillageShop(shop) {
+    sheepMoment.cancel();
+    companionReactions.cancel();
     const leaving = state.activeVillageShop;
     if (leaving) leaving.room.group.visible = false;
     if (shop)
@@ -183,7 +190,8 @@ export function createVillagePlace(context) {
       $("#guide").open ||
       passageTransition.active ||
       state.villageActivityCooldown > 0 ||
-      alpineCart.riding
+      alpineCart.riding ||
+      sheepMoment.active
     )
       return;
     const action = village.nearby(hero.position, state.activeVillageShop);
@@ -193,11 +201,12 @@ export function createVillagePlace(context) {
       return;
     }
     state.villageActivityCooldown = 0.8;
-    if (action.kind !== "lookout") village.stamps.add(action.kind);
+    if (!["lookout", "sheep"].includes(action.kind))
+      village.stamps.add(action.kind);
     if (action.kind === "sheep") {
-      action.sheep.petTime = 3;
-      toast("A soft woolly hello ♥ · The sheep gives a little nuzzle.");
-      beep(280, 0.18);
+      if (!sheepMoment.start(action.sheep))
+        toast("Give the sheep a little space, then try again ♥");
+      return;
     } else if (action.kind === "bakery") {
       toast("A warm pastry for each of you ♥ · Fresh from the village bakery.");
     } else if (action.kind === "outfit") {
@@ -207,6 +216,7 @@ export function createVillagePlace(context) {
       alpineOutfits.bouquet.visible = true;
       toast("An alpine bouquet to carry on your travels ♥");
     } else if (action.kind === "lookout") {
+      companionReactions.cancel();
       alpineOutfits.setHiking(false);
       clearRestInput();
       alpineCart.start();
@@ -221,19 +231,51 @@ export function createVillagePlace(context) {
     update(dt, time) {
       if (locations.current !== "village") return false;
       const wasRiding = alpineCart.riding;
+      const wasPlaying = sheepMoment.active;
       alpineCart.update(dt);
-      village.update(dt, time, hero.position);
+      village.update(dt, time, hero.position, companion.character.position);
+      sheepMoment.update(dt);
       alpineOutfits.setHiking(
         !alpineCart.riding &&
+          !sheepMoment.active &&
           (village.onTrail(hero.position.x, hero.position.z) ||
             hero.position.y > 0.5),
       );
-      return wasRiding;
+      return wasRiding || wasPlaying;
     },
-    updateCamera() {
+    updateCamera(dt) {
+      if (sheepMoment.updateCamera(dt)) return true;
       if (!alpineCart.riding && !alpineCart.vanishing) return false;
       alpineCart.updateCamera();
       return true;
+    },
+    afterRender: (paused) => sheepMoment.afterRender(paused),
+    afterMovement() {
+      if (
+        locations.current !== "village" ||
+        alpineCart.riding ||
+        sheepMoment.active
+      )
+        return;
+      const animal = village.sheep.find(
+        (s) => hero.position.distanceTo(s.group.position) < 7,
+      );
+      if (animal)
+        companionReactions.notice("village:sheep", {
+          target: animal.group.position,
+          text: "He points to the meadow: ‘They look friendly. I could take your picture!’",
+        });
+      else if (hero.position.distanceTo(village.lookout) < 8)
+        companionReactions.notice("village:lookout", {
+          target: village.lookout.clone().add(new THREE.Vector3(0, 3, -8)),
+          text: "‘Look at the valley… we climbed all that way together.’",
+        });
+      else if (hero.position.y > 10)
+        companionReactions.notice("village:climb", {
+          target: village.lookout,
+          text: "‘You’re doing great. I’m right behind you.’",
+          gesture: "wave",
+        });
     },
     afterCamera(dt, time) {
       [hero, companion.character].forEach((character, i) => {
@@ -270,12 +312,14 @@ export function createVillagePlace(context) {
     progressLabel: () => state.activeVillageShop?.name ?? "edelweiss village",
 
     exit() {
+      sheepMoment.cancel();
+      companionReactions.cancel();
       alpineCart.reset();
       alpineOutfits.setHiking(false);
       hikingTethers.forEach((rope) => (rope.visible = false));
     },
     id: "village",
-    cameraLocked: () => alpineCart.riding,
+    cameraLocked: () => alpineCart.riding || sheepMoment.active,
     getHud: createVillageHud(context),
     getGate: () =>
       !state.activeVillageShop && village.isExit(hero.position)
@@ -314,10 +358,33 @@ export function createVillagePlace(context) {
     interact: interactVillage,
     objective: villageObjective,
     cameraTarget: () =>
-      state.activeVillageShop ? 1 : hero.position.y > 0.5 ? 6 : 12,
+      state.activeVillageShop ? 1 : hero.position.y > 0.5 ? 5 : 2.5,
+    cameraDistance(zoom) {
+      const interest = Math.min(
+        ...village.shops.map((s) => hero.position.distanceTo(s.doorway)),
+        ...village.sheep.map((s) => hero.position.distanceTo(s.group.position)),
+      );
+      const close = THREE.MathUtils.lerp(
+        0.72,
+        1,
+        THREE.MathUtils.smoothstep(interest, 3, 10),
+      );
+      const panorama = THREE.MathUtils.smoothstep(
+        hero.position.distanceTo(village.lookout),
+        3,
+        9,
+      );
+      return (
+        zoom *
+        (hero.position.y > 0.5
+          ? THREE.MathUtils.lerp(1.12, 0.92, panorama)
+          : close)
+      );
+    },
     maxZoom: 52,
     canThrow: false,
     reset: () => {
+      sheepMoment.reset();
       village.reset();
       alpineOutfits.reset();
     },

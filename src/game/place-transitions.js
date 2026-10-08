@@ -82,6 +82,7 @@ export function createPlaceTransitions({
     context.resetCamera();
   }
   function cleanup() {
+    context.companionReactions?.cancel();
     context.benchMoment.stand();
     context.hearts.clear();
     context.effects.clearProjectiles();

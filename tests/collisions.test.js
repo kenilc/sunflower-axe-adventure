@@ -1374,7 +1374,7 @@ test("gameplay, collisions, travel, activities and restart", async () => {
   );
   assert(G.characters.companion.character.parent === village.group);
   assert.equal(element("#villageCounts").hidden, false);
-  assert(!G.characters.rig.held.visible && G.rendering.camera.fov === 60);
+  assert(!G.characters.rig.held.visible && G.rendering.camera.fov === 55);
   G.controls.fire();
   assert.equal(G.effects.axes.length, 0);
   const villageCamera = {
@@ -1432,7 +1432,9 @@ test("gameplay, collisions, travel, activities and restart", async () => {
     .add(new T.Vector3(0, 0, 1.7));
   for (let i = 0; i < 22; i++) G.update();
   G.controls.interactVillage();
-  assert(firstSheep.petTime > 0 && village.stamps.has("sheep"));
+  assert(firstSheep.petTime > 0 && G.activities.sheepMoment.active);
+  for (let i = 0; i < 180; i++) G.update();
+  assert(village.stamps.has("sheep") && !G.activities.sheepMoment.active);
   for (let i = 0; i < 100; i++)
     village.update(0.04, i * 0.04, G.characters.hero.position);
   for (const sheep of village.sheep) {
