@@ -1,4 +1,4 @@
-const fs = require("fs");
+const { createModuleLoader } = require("./helpers/modules.cjs");
 const vm = require("vm");
 const assert = require("assert/strict");
 (async () => {
@@ -27,6 +27,7 @@ const assert = require("assert/strict");
     devicePixelRatio: 1,
     window: {},
     requestAnimationFrame() {},
+    cancelAnimationFrame() {},
     addEventListener(name, callback) {
       handlers.set(name, callback);
     },
@@ -57,34 +58,21 @@ const assert = require("assert/strict");
       }
     },
   });
-  const cache = new Map();
-  function getModule(name, source) {
-    if (cache.has(name)) return cache.get(name);
-    const m = new vm.SourceTextModule(
-      source ?? fs.readFileSync("dist/" + name, "utf8"),
-      { context },
-    );
-    cache.set(name, m);
-    return m;
-  }
-  async function module(name, source) {
-    const m = getModule(name, source);
-    // Let the VM link shared dependencies as one graph, including diamonds.
-    if (m.status === "unlinked")
-      await m.link((s) => getModule(s.replace(/^\.\//, "").split("?")[0]));
-    if (m.status === "linked") await m.evaluate();
-    return m;
-  }
-  const game = fs.readFileSync("dist/game.js", "utf8");
-  // Execute the actual game with only browser/rendering APIs stubbed.
-  const setup =
-    game.replace("new THREE.WebGLRenderer(", "new FakeRenderer(") +
-    "\nexport {scene, mesh, box, cyl, ball, blockers, hero, body, legs, arms, held, lakeside, targets, shrine, inLake, createBenchMoment, clock, frame, axes, gems, won, camera, riverside, usePassage, yaw, insideRiver, insideCave, passageTransition, cableCar, boatTrip, companion, boardCableCar, boardBoat, fire, keys, insideCastle, castleRoom, useCastlePassage, changeCastlePassage, interactCastle, bedRest, eyes, funfair, funfairActivities, insideFunfair, useFunfairPassage, interactFunfair, garden, renderer, pitch, zoom, village, alpineOutfits, insideVillage, activeVillageShop, alpineCart, useVillagePassage, useVillageShop, interactVillage, festival, insideFestival, changeFestivalPassage, useFestivalPassage, festivalMoment, summerOutfits, interactFestival};";
-  const G = (await module("review-setup", setup)).namespace;
-  const T = (await module("vendor/three.module.js")).namespace;
-  const C = (await module("companion.js")).namespace.createCompanion(G);
-  const river = (await module("riverside.js")).namespace.createRiverside(G);
-  const allowed = (p, obs = G.blockers) =>
+  const loadModule = createModuleLoader(context);
+  const { createGame } = await loadModule("src/game/create-game.js");
+  const G = createGame({ createRenderer: () => new context.FakeRenderer() });
+  G.update();
+  const { createBenchMoment } = await loadModule(
+    "src/locations/garden/lakeside.js",
+  );
+  const T = await loadModule("vendor/three.module.js");
+  const C = (await loadModule("src/characters/companion.js")).createCompanion(
+    G.rendering.meshes,
+  );
+  const river = (
+    await loadModule("src/locations/riverside/world.js")
+  ).createRiverside(G.rendering.meshes);
+  const allowed = (p, obs = G.worlds.blockers) =>
     obs.every(
       (b) =>
         b.active === false ||
@@ -95,25 +83,31 @@ const assert = require("assert/strict");
   assert(!allowed({ x: 0, z: -25 }));
   assert(allowed({ x: 0, z: -26.5 })); // Quest remains reachable outside the shrine.
   assert(Math.hypot(0, -26.5 + 30) < 3.8);
-  const uncovered = G.targets.filter((t) => allowed(t.g.position));
+  const uncovered = G.worlds.targets.filter((t) => allowed(t.g.position));
   assert.equal(uncovered.length, 0);
-  for (const t of G.targets) assert(G.blockers.includes(t.blocker));
+  for (const t of G.worlds.targets)
+    assert(G.worlds.blockers.includes(t.blocker));
   const seat = { x: 14.5, z: 27.2 };
   assert(river.contains(seat.x, seat.z) && !allowed(seat, river.blockers));
   for (const x of [14.5, 17.5])
     for (let z = 24.7; z <= 27.3; z += 0.05)
       for (const dx of [-0.3, 0, 0.3])
         assert(!allowed({ x: x + dx, z }, river.blockers));
-  const yaw = G.lakeside.bench.rotation.y;
+  const yaw = G.worlds.lakeside.bench.rotation.y;
   function world(x, z) {
     return new T.Vector3(x, 0, z)
       .applyAxisAngle(new T.Vector3(0, 1, 0), yaw)
-      .add(G.lakeside.bench.position);
+      .add(G.worlds.lakeside.bench.position);
   }
-  const bench = G.createBenchMoment({
-    bench: G.lakeside.bench,
-    hero: G.hero,
-    heroRig: { body: G.body, legs: G.legs, arms: G.arms, held: G.held },
+  const bench = createBenchMoment({
+    bench: G.worlds.lakeside.bench,
+    hero: G.characters.hero,
+    heroRig: {
+      body: G.characters.rig.body,
+      legs: G.characters.rig.legs,
+      arms: G.characters.rig.arms,
+      held: G.characters.rig.held,
+    },
     companion: C,
     hearts: { clear() {}, contact() {} },
     toast() {},
@@ -136,15 +130,15 @@ const assert = require("assert/strict");
       [0, -3.5],
     ],
   ]) {
-    G.hero.position.copy(world(...a));
+    G.characters.hero.position.copy(world(...a));
     C.character.position.copy(world(...b));
     assert(bench.sit());
     for (let i = 0; i < 100; i++) {
       bench.update(0.01);
       assert(
         Math.hypot(
-          G.hero.position.x - C.character.position.x,
-          G.hero.position.z - C.character.position.z,
+          G.characters.hero.position.x - C.character.position.x,
+          G.characters.hero.position.z - C.character.position.z,
         ) >=
           1.2 - 1e-7,
       );
@@ -152,17 +146,16 @@ const assert = require("assert/strict");
     assert(
       Math.abs(
         Math.hypot(
-          G.hero.position.x - C.character.position.x,
-          G.hero.position.z - C.character.position.z,
+          G.characters.hero.position.x - C.character.position.x,
+          G.characters.hero.position.z - C.character.position.z,
         ) - 1.28,
       ) < 1e-7,
     );
     bench.stand();
   }
-  const { resolveObstacleCollisions: resolve, overlapsObstacle: overlaps } = (
-    await module("collision.js")
-  ).namespace;
-  const cave = (await module("cave.js")).namespace.createCave();
+  const { resolveObstacleCollisions: resolve, overlapsObstacle: overlaps } =
+    await loadModule("src/systems/collision.js");
+  const cave = (await loadModule("src/locations/cave/world.js")).createCave();
   const rocks = [];
   cave.interior.traverse((object) => {
     if (object.name === "cave-rock") rocks.push(object);
@@ -203,7 +196,7 @@ const assert = require("assert/strict");
     cave.isExit(exit) && allowed(exit, cave.blockers),
     "Rock collisions must leave the exit reachable",
   );
-  const gardenRocks = G.blockers.filter(
+  const gardenRocks = G.worlds.blockers.filter(
     (b) => b.minClearance === 0.8 && b.z !== -43,
   );
   assert(gardenRocks.length > 0);
@@ -219,53 +212,60 @@ const assert = require("assert/strict");
     const pos = old
       .clone()
       .add(new T.Vector3(Math.cos(angle) * 0.312, 0, Math.sin(angle) * 0.312));
-    resolve(pos, old, G.blockers);
+    resolve(pos, old, G.worlds.blockers);
     assert(allowed(pos));
   }
   // Break targets through the frame loop, then restore them through Restart.
-  G.clock.getDelta = () => 0.04;
-  for (const t of G.targets) {
+  G.rendering.clock.getDelta = () => 0.04;
+  for (const t of G.worlds.targets) {
     const projectile = new T.Group();
     projectile.position.copy(t.pos).add(new T.Vector3(0, 0, -0.76));
-    G.axes.push({ g: projectile, dir: new T.Vector3(0, 0, 1), life: 1 });
+    G.effects.axes.push({
+      g: projectile,
+      dir: new T.Vector3(0, 0, 1),
+      life: 1,
+    });
   }
-  G.frame();
-  assert(G.targets.every((t) => t.hit && !t.blocker.active));
+  G.update();
+  assert(G.worlds.targets.every((t) => t.hit && !t.blocker.active));
   // Collect all sunstones and complete the quest from outside the new shrine blocker.
-  for (const gem of G.gems) {
-    G.hero.position.copy(gem.g.position);
-    G.frame();
+  for (const gem of G.worlds.gems) {
+    G.characters.hero.position.copy(gem.g.position);
+    G.update();
   }
-  G.hero.position.set(0, 0, -26.5);
-  G.frame();
-  assert(G.won, "The shrine blocker must not prevent quest completion");
+  G.characters.hero.position.set(0, 0, -26.5);
+  G.update();
+  assert(G.state.won, "The shrine blocker must not prevent quest completion");
   element("#restart").onclick();
-  assert(G.targets.every((t) => !t.hit && t.blocker.active));
-  assert(!G.won);
-  G.usePassage(true, true);
-  for (let i = 0; i < 12; i++) G.frame();
-  assert(G.hero.position.distanceTo(G.riverside.arrival) < 1e-7);
-  assert.equal(G.yaw, Math.PI, "Arrival must face the mountain");
-  G.camera.updateMatrixWorld();
+  assert(G.worlds.targets.every((t) => !t.hit && t.blocker.active));
+  assert(!G.state.won);
+  G.controls.usePassage(true, true);
+  for (let i = 0; i < 12; i++) G.update();
+  assert(
+    G.characters.hero.position.distanceTo(G.worlds.riverside.arrival) < 1e-7,
+  );
+  assert.equal(G.state.yaw, Math.PI, "Arrival must face the mountain");
+  G.rendering.camera.updateMatrixWorld();
   for (const point of [
     new T.Vector3(Math.sin(56 * 0.12) * 3, 58, 104),
     new T.Vector3(Math.sin(56 * 0.12) * 3, 0.04, 71.8),
-    G.hero.position.clone().add(new T.Vector3(0, 1.6, 0)),
+    G.characters.hero.position.clone().add(new T.Vector3(0, 1.6, 0)),
   ]) {
-    const projected = point.project(G.camera);
+    const projected = point.project(G.rendering.camera);
     assert(
       Math.abs(projected.x) < 1 && Math.abs(projected.y) < 1 && projected.z < 1,
       "Mountain peak, waterfall base and characters must be visible on arrival",
     );
   }
-  G.hero.position.copy(G.riverside.returnGate.position);
-  for (let i = 0; i < 45; i++) G.frame();
+  G.characters.hero.position.copy(G.worlds.riverside.returnGate.position);
+  for (let i = 0; i < 45; i++) G.update();
   assert(
-    G.hero.position.distanceTo(new T.Vector3(-28, 0, 0)) < 1e-7,
+    G.characters.hero.position.distanceTo(new T.Vector3(-28, 0, 0)) < 1e-7,
     "Stepping through the relocated gate must return to the garden",
   );
-  const { createSceneTransition } = (await module("scene-transition.js"))
-    .namespace;
+  const { createSceneTransition } = await loadModule(
+    "src/game/scene-transition.js",
+  );
   let opacity = 0,
     switches = 0;
   const transition = createSceneTransition((value) => {
@@ -301,41 +301,51 @@ const assert = require("assert/strict");
   // Exercise entering and leaving both gate destinations through real game frames.
   for (const riverDestination of [false, true]) {
     for (const enter of [true, false]) {
-      const source = G.hero.position.clone();
-      G.usePassage(enter, riverDestination);
+      const source = G.characters.hero.position.clone();
+      G.controls.usePassage(enter, riverDestination);
       assert(G.passageTransition.active);
-      for (let i = 0; i < 4; i++) G.frame();
+      for (let i = 0; i < 4; i++) G.update();
       assert(
-        G.hero.position.distanceTo(source) < 1e-7,
+        G.characters.hero.position.distanceTo(source) < 1e-7,
         "Fade-out must hold the current scene",
       );
-      G.frame();
-      assert.equal(riverDestination ? G.insideRiver : G.insideCave, enter);
-      for (let i = 0; i < 6; i++) G.frame();
+      G.update();
+      assert.equal(
+        riverDestination
+          ? G.state.location.insideRiver
+          : G.state.location.insideCave,
+        enter,
+      );
+      for (let i = 0; i < 6; i++) G.update();
       assert(!G.passageTransition.active);
       assert.equal(element("#sceneTransition").style.opacity, "0");
     }
   }
-  G.usePassage(true, true);
+  G.controls.usePassage(true, true);
   element("#restart").onclick();
-  for (let i = 0; i < 12; i++) G.frame();
-  assert(!G.insideRiver && !G.insideCave && !G.passageTransition.active);
+  for (let i = 0; i < 12; i++) G.update();
   assert(
-    G.hero.position.distanceTo(new T.Vector3(0, 0, 7)) < 1e-7,
+    !G.state.location.insideRiver &&
+      !G.state.location.insideCave &&
+      !G.passageTransition.active,
+  );
+  assert(
+    G.characters.hero.position.distanceTo(new T.Vector3(0, 0, 7)) < 1e-7,
     "Restart during a fade must cancel the queued gate destination",
   );
   // A real round trip through boat arrival, cable-car boarding and summit walking.
-  G.usePassage(true, true);
-  for (let i = 0; i < 12; i++) G.frame();
+  G.controls.usePassage(true, true);
+  for (let i = 0; i < 12; i++) G.update();
   assert(
-    !G.cableCar.start(),
+    !G.activities.cableCar.start(),
     "The cable car must be unavailable outside the lagoon",
   );
-  G.hero.position.copy(G.boatTrip.riverDock);
-  G.boardBoat();
-  for (let i = 0; i < 240; i++) G.frame();
-  assert(G.boatTrip.atLagoon && !G.boatTrip.rowing);
-  const lagoonMountain = G.cableCar.group.getObjectByName("lagoon-mountain");
+  G.characters.hero.position.copy(G.activities.boatTrip.riverDock);
+  G.controls.boardBoat();
+  for (let i = 0; i < 240; i++) G.update();
+  assert(G.activities.boatTrip.atLagoon && !G.activities.boatTrip.rowing);
+  const lagoonMountain =
+    G.activities.cableCar.group.getObjectByName("lagoon-mountain");
   assert(lagoonMountain, "The lagoon has a forested mountain backdrop");
   assert.equal(
     lagoonMountain.getObjectByName("mountain-forest").userData.treeCount,
@@ -359,83 +369,127 @@ const assert = require("assert/strict");
     "mountain-waterfall-foam",
   ])
     assert(
-      !G.cableCar.group.getObjectByName(name),
+      !G.activities.cableCar.group.getObjectByName(name),
       `The lagoon must not duplicate ${name}`,
     );
-  assert(G.riverside.group.getObjectByName("mountain-waterfall").visible);
-  assert(G.riverside.group.getObjectByName("waterfall-rainbow").visible);
+  assert(
+    G.worlds.riverside.group.getObjectByName("mountain-waterfall").visible,
+  );
+  assert(G.worlds.riverside.group.getObjectByName("waterfall-rainbow").visible);
 
   assert(
-    !G.cableCar.start(),
+    !G.activities.cableCar.start(),
     "Boarding must require proximity to the island station",
   );
-  const treasure = G.boatTrip.lagoon.treasures[0];
-  G.boatTrip.lagoon.collect(treasure.position);
-  const preserved = G.boatTrip.lagoon.collected;
-  G.hero.position.copy(G.cableCar.islandDock);
-  G.boardCableCar();
-  assert(G.cableCar.riding && !G.held.visible);
-  assert(!G.cableCar.start(), "Repeated boarding must not restart the ride");
-  const launchY = G.hero.position.y;
-  for (let i = 0; i < 150; i++) G.frame();
-  assert(G.cableCar.riding && G.hero.position.y > launchY + 15);
+  const treasure = G.activities.boatTrip.lagoon.treasures[0];
+  G.activities.boatTrip.lagoon.collect(treasure.position);
+  const preserved = G.activities.boatTrip.lagoon.collected;
+  G.characters.hero.position.copy(G.activities.cableCar.islandDock);
+  G.controls.boardCableCar();
+  assert(G.activities.cableCar.riding && !G.characters.rig.held.visible);
   assert(
-    Math.abs(G.hero.position.x - G.companion.character.position.x) >= 1.5,
+    !G.activities.cableCar.start(),
+    "Repeated boarding must not restart the ride",
+  );
+  const launchY = G.characters.hero.position.y;
+  for (let i = 0; i < 150; i++) G.update();
+  assert(
+    G.activities.cableCar.riding && G.characters.hero.position.y > launchY + 15,
+  );
+  assert(
+    Math.abs(
+      G.characters.hero.position.x -
+        G.characters.companion.character.position.x,
+    ) >= 1.5,
     "Both riders need room inside the cabin",
   );
-  G.fire();
-  assert.equal(G.axes.length, 0, "Axes must be disabled inside the cable car");
-  for (let i = 0; i < 160; i++) G.frame();
-  assert(G.cableCar.atSummit && !G.cableCar.riding && G.held.visible);
-  assert(G.cableCar.summit.contains(G.hero.position.x, G.hero.position.z));
+  G.controls.fire();
   assert.equal(
-    G.hero.position.y,
-    G.cableCar.summit.heightAt(G.hero.position.x, G.hero.position.z),
+    G.effects.axes.length,
+    0,
+    "Axes must be disabled inside the cable car",
   );
-  G.boardBoat();
-  assert(!G.boatTrip.rowing, "The boat must be inaccessible from the summit");
+  for (let i = 0; i < 160; i++) G.update();
   assert(
-    !G.cableCar.summit.contains(G.hero.position.x + 30, G.hero.position.z),
+    G.activities.cableCar.atSummit &&
+      !G.activities.cableCar.riding &&
+      G.characters.rig.held.visible,
+  );
+  assert(
+    G.activities.cableCar.summit.contains(
+      G.characters.hero.position.x,
+      G.characters.hero.position.z,
+    ),
+  );
+  assert.equal(
+    G.characters.hero.position.y,
+    G.activities.cableCar.summit.heightAt(
+      G.characters.hero.position.x,
+      G.characters.hero.position.z,
+    ),
+  );
+  G.controls.boardBoat();
+  assert(
+    !G.activities.boatTrip.rowing,
+    "The boat must be inaccessible from the summit",
+  );
+  assert(
+    !G.activities.cableCar.summit.contains(
+      G.characters.hero.position.x + 30,
+      G.characters.hero.position.z,
+    ),
     "The summit deck must have a finite walking boundary",
   );
-  const castle = G.cableCar.summit.castle;
-  assert(!castle.inside(G.hero.position));
-  G.keys.KeyW = true;
-  for (let i = 0; i < 45; i++) G.frame();
-  G.keys.KeyW = false;
-  assert(G.insideCastle, "Walking into the arch enters a separate room");
+  const castle = G.activities.cableCar.summit.castle;
+  assert(!castle.inside(G.characters.hero.position));
+  G.input.keys.KeyW = true;
+  for (let i = 0; i < 45; i++) G.update();
+  G.input.keys.KeyW = false;
   assert(
-    G.castleRoom.group.visible &&
-      !G.cableCar.group.visible &&
-      !G.boatTrip.boat.visible,
+    G.state.location.insideCastle,
+    "Walking into the arch enters a separate room",
   );
-  assert(G.companion.character.parent === G.castleRoom.group);
-  assert.equal(G.hero.position.y, 0);
-  assert(G.castleRoom.contains(G.hero.position.x, G.hero.position.z));
-  G.boardCableCar();
-  G.boardBoat();
-  G.fire();
-  assert(!G.cableCar.riding && !G.boatTrip.rowing && !G.axes.length);
-  const room = G.castleRoom;
+  assert(
+    G.worlds.castleRoom.group.visible &&
+      !G.activities.cableCar.group.visible &&
+      !G.activities.boatTrip.boat.visible,
+  );
+  assert(G.characters.companion.character.parent === G.worlds.castleRoom.group);
+  assert.equal(G.characters.hero.position.y, 0);
+  assert(
+    G.worlds.castleRoom.contains(
+      G.characters.hero.position.x,
+      G.characters.hero.position.z,
+    ),
+  );
+  G.controls.boardCableCar();
+  G.controls.boardBoat();
+  G.controls.fire();
+  assert(
+    !G.activities.cableCar.riding &&
+      !G.activities.boatTrip.rowing &&
+      !G.effects.axes.length,
+  );
+  const room = G.worlds.castleRoom;
   assert(!room.contains(12, 0));
   assert(
     !allowed(room.bed.group.position, room.blockers),
     "The bed is solid while walking",
   );
-  G.hero.position.copy(room.bed.wakePositions[0]);
-  G.companion.reset(G.hero.position, room.blockers, room);
-  G.interactCastle();
+  G.characters.hero.position.copy(room.bed.wakePositions[0]);
+  G.characters.companion.reset(G.characters.hero.position, room.blockers, room);
+  G.controls.interactCastle();
   assert(
-    G.passageTransition.active && !G.bedRest.resting,
+    G.passageTransition.active && !G.activities.bedRest.resting,
     "Bed poses change under the fade",
   );
-  for (let i = 0; i < 12; i++) G.frame();
-  assert(G.bedRest.resting && !G.held.visible);
-  const daylight = G.scene.children.find((c) => c.isDirectionalLight);
-  const ambient = G.scene.children.find((c) => c.isHemisphereLight);
+  for (let i = 0; i < 12; i++) G.update();
+  assert(G.activities.bedRest.resting && !G.characters.rig.held.visible);
+  const daylight = G.rendering.scene.children.find((c) => c.isDirectionalLight);
+  const ambient = G.rendering.scene.children.find((c) => c.isHemisphereLight);
   assert.equal(daylight.intensity, 0.16);
   assert.equal(ambient.intensity, 0.28);
-  assert.equal(G.scene.background.getHexString(), "363440");
+  assert.equal(G.rendering.scene.background.getHexString(), "363440");
   assert(room.bed.blanket.cover.visible && !room.bed.blanket.spread.visible);
   assert(
     room.bed.bedsideLight.intensity > 0,
@@ -444,8 +498,16 @@ const assert = require("assert/strict");
   for (const v of room.bed.blanket.quilt.geometry.attributes.position.array)
     assert(Number.isFinite(v), "The draped quilt has finite geometry");
   for (const [c, other, rig] of [
-    [G.hero, G.companion.character, { arms: G.arms, eyes: G.eyes }],
-    [G.companion.character, G.hero, G.companion.rig],
+    [
+      G.characters.hero,
+      G.characters.companion.character,
+      { arms: G.characters.rig.arms, eyes: G.characters.rig.eyes },
+    ],
+    [
+      G.characters.companion.character,
+      G.characters.hero,
+      G.characters.companion.rig,
+    ],
   ]) {
     const forward = new T.Vector3(0, 0, 1).applyQuaternion(c.quaternion);
     const towardPartner = other.position.clone().sub(c.position).normalize();
@@ -468,7 +530,7 @@ const assert = require("assert/strict");
       "Arms reach around the partner",
     );
   }
-  const faces = [G.hero, G.companion.character].map((c) =>
+  const faces = [G.characters.hero, G.characters.companion.character].map((c) =>
     c.localToWorld(new T.Vector3(0, 2.12, 0.23)),
   );
   assert(
@@ -483,8 +545,8 @@ const assert = require("assert/strict");
     );
   }
   const handSets = [
-    G.arms.map((a) => a.children[1]),
-    G.companion.rig.arms.map((a) => a.children[3]),
+    G.characters.rig.arms.map((a) => a.children[1]),
+    G.characters.companion.rig.arms.map((a) => a.children[3]),
   ];
   for (const hands of handSets) {
     const upperHand = hands
@@ -496,33 +558,37 @@ const assert = require("assert/strict");
       "Joined hands remain above the blanket",
     );
   }
-  assert(G.hero.position.distanceTo(G.companion.character.position) > 1.2);
-  assert(room.bed.sleepSymbols.every((s) => s.visible));
-  const lyingPosition = G.hero.position.clone();
-  G.keys.KeyW = true;
-  for (let i = 0; i < 40; i++) G.frame();
   assert(
-    G.hero.position.equals(lyingPosition),
+    G.characters.hero.position.distanceTo(
+      G.characters.companion.character.position,
+    ) > 1.2,
+  );
+  assert(room.bed.sleepSymbols.every((s) => s.visible));
+  const lyingPosition = G.characters.hero.position.clone();
+  G.input.keys.KeyW = true;
+  for (let i = 0; i < 40; i++) G.update();
+  assert(
+    G.characters.hero.position.equals(lyingPosition),
     "Movement cannot disturb a resting pose",
   );
-  const breath = G.body.position.z;
+  const breath = G.characters.rig.body.position.z;
   element("#guide").open = true;
-  G.frame();
+  G.update();
   assert.equal(
-    G.body.position.z,
+    G.characters.rig.body.position.z,
     breath,
     "Rest animation pauses with the guide",
   );
   element("#guide").open = false;
-  G.interactCastle();
-  for (let i = 0; i < 12; i++) G.frame();
-  assert(!G.bedRest.resting && !G.keys.KeyW);
+  G.controls.interactCastle();
+  for (let i = 0; i < 12; i++) G.update();
+  assert(!G.activities.bedRest.resting && !G.input.keys.KeyW);
   assert.equal(daylight.intensity, 1.7);
   assert.equal(ambient.intensity, 1.6);
-  assert.equal(G.scene.background.getHexString(), "cab5b0");
+  assert.equal(G.rendering.scene.background.getHexString(), "cab5b0");
   assert(!room.bed.blanket.cover.visible && room.bed.blanket.spread.visible);
   assert.equal(room.bed.bedsideLight.intensity, 0);
-  for (const c of [G.hero, G.companion.character]) {
+  for (const c of [G.characters.hero, G.characters.companion.character]) {
     assert.equal(c.rotation.x, 0);
     assert(
       allowed(c.position, room.blockers) &&
@@ -531,7 +597,10 @@ const assert = require("assert/strict");
     );
   }
   assert(!room.bed.sleepSymbols.some((s) => s.visible));
-  for (const rig of [{ arms: G.arms, eyes: G.eyes }, G.companion.rig]) {
+  for (const rig of [
+    { arms: G.characters.rig.arms, eyes: G.characters.rig.eyes },
+    G.characters.companion.rig,
+  ]) {
     assert(
       rig.eyes.open.visible && !rig.eyes.closed.visible,
       "Eyes reopen when getting up",
@@ -561,19 +630,19 @@ const assert = require("assert/strict");
       allowed(woman, room.blockers) && allowed(man, room.blockers),
       "Sofa aisle has room for both characters",
     );
-    assert(woman.distanceTo(man) > G.companion.contactDistance);
+    assert(woman.distanceTo(man) > G.characters.companion.contactDistance);
   }
-  G.hero.position.set(-1.5, 0, -9);
-  G.companion.reset(new T.Vector3(2, 0, -9), room.blockers, room);
-  G.keys.KeyS = true;
+  G.characters.hero.position.set(-1.5, 0, -9);
+  G.characters.companion.reset(new T.Vector3(2, 0, -9), room.blockers, room);
+  G.input.keys.KeyS = true;
   for (let i = 0; i < 24; i++) {
-    G.frame();
-    assert(allowed(G.hero.position, room.blockers));
-    assert(allowed(G.companion.character.position, room.blockers));
+    G.update();
+    assert(allowed(G.characters.hero.position, room.blockers));
+    assert(allowed(G.characters.companion.character.position, room.blockers));
   }
-  G.keys.KeyS = false;
+  G.input.keys.KeyS = false;
   assert(
-    G.hero.position.z > -4.6,
+    G.characters.hero.position.z > -4.6,
     "The player can walk through the sofa aisle",
   );
   assert.equal(room.treasureBoxes.filter((b) => b.kind === "coins").length, 2);
@@ -618,12 +687,15 @@ const assert = require("assert/strict");
       queue.some(([x, z]) => Math.hypot(x - star.x, z - star.z) < 1.3),
       "Each hidden star is reachable",
     );
-    G.hero.position.set(star.x, 0, star.z);
-    assert(allowed(G.hero.position, room.blockers));
-    G.frame();
+    G.characters.hero.position.set(star.x, 0, star.z);
+    assert(allowed(G.characters.hero.position, room.blockers));
+    G.update();
   }
   assert.equal(room.collected, 6);
-  assert(!room.collect(G.hero.position), "Stars cannot be collected twice");
+  assert(
+    !room.collect(G.characters.hero.position),
+    "Stars cannot be collected twice",
+  );
   for (const activity of room.activities) {
     const reachable = queue.find(
       ([x, z]) => room.nearby(new T.Vector3(x, 0, z)) === activity,
@@ -639,80 +711,103 @@ const assert = require("assert/strict");
   const pianoSpot = queue.find(
     ([x, z]) => room.nearby(new T.Vector3(x, 0, z))?.kind === "piano",
   );
-  G.hero.position.set(pianoSpot[0], 0, pianoSpot[1]);
-  assert(allowed(G.hero.position, room.blockers));
-  G.interactCastle();
+  G.characters.hero.position.set(pianoSpot[0], 0, pianoSpot[1]);
+  assert(allowed(G.characters.hero.position, room.blockers));
+  G.controls.interactCastle();
   assert(
     element("#toast").textContent.includes("melody"),
     "Piano action schedules its melody",
   );
-  for (let i = 0; i < 80; i++) G.frame();
+  for (let i = 0; i < 80; i++) G.update();
 
-  G.hero.position.copy(chestSpot);
-  G.interactCastle();
+  G.characters.hero.position.copy(chestSpot);
+  G.controls.interactCastle();
   assert(element("#toast").textContent.includes("wishing star"));
-  for (let i = 0; i < 30; i++) G.frame();
-  G.hero.position.set(0, 0, 11.5);
-  G.frame();
-  assert(G.passageTransition.active && G.insideCastle);
-  for (let i = 0; i < 12; i++) G.frame();
-  assert(!G.insideCastle && !room.group.visible && G.cableCar.group.visible);
-  assert(G.cableCar.atSummit);
-  assert(allowed(G.hero.position, G.cableCar.summit.blockers));
+  for (let i = 0; i < 30; i++) G.update();
+  G.characters.hero.position.set(0, 0, 11.5);
+  G.update();
+  assert(G.passageTransition.active && G.state.location.insideCastle);
+  for (let i = 0; i < 12; i++) G.update();
+  assert(
+    !G.state.location.insideCastle &&
+      !room.group.visible &&
+      G.activities.cableCar.group.visible,
+  );
+  assert(G.activities.cableCar.atSummit);
+  assert(
+    allowed(G.characters.hero.position, G.activities.cableCar.summit.blockers),
+  );
   assert.equal(room.collected, 6, "Treasure hunt persists after leaving");
-  G.useCastlePassage(true);
-  for (let i = 0; i < 12; i++) G.frame();
-  assert(G.insideCastle && room.opened);
-  G.hero.position.copy(room.bed.wakePositions[0]);
-  G.interactCastle();
-  for (let i = 0; i < 12; i++) G.frame();
-  assert(G.bedRest.resting);
-  G.useCastlePassage(false);
-  for (let i = 0; i < 12; i++) G.frame();
+  G.controls.useCastlePassage(true);
+  for (let i = 0; i < 12; i++) G.update();
+  assert(G.state.location.insideCastle && room.opened);
+  G.characters.hero.position.copy(room.bed.wakePositions[0]);
+  G.controls.interactCastle();
+  for (let i = 0; i < 12; i++) G.update();
+  assert(G.activities.bedRest.resting);
+  G.controls.useCastlePassage(false);
+  for (let i = 0; i < 12; i++) G.update();
   assert(
-    !G.bedRest.resting &&
-      G.hero.rotation.x === 0 &&
-      G.eyes.open.visible &&
-      G.companion.rig.eyes.open.visible,
+    !G.activities.bedRest.resting &&
+      G.characters.hero.rotation.x === 0 &&
+      G.characters.rig.eyes.open.visible &&
+      G.characters.companion.rig.eyes.open.visible,
   );
-  G.hero.position.copy(G.cableCar.summitDock);
-  G.boardCableCar();
-  for (let i = 0; i < 310; i++) G.frame();
-  assert(!G.cableCar.atSummit && !G.cableCar.riding);
-  assert(G.boatTrip.lagoon.contains(G.hero.position.x, G.hero.position.z));
-  assert.equal(G.boatTrip.lagoon.collected, preserved);
-  assert(G.companion.character.parent === G.boatTrip.lagoon.group);
-  G.boardCableCar();
-  for (let i = 0; i < 310; i++) G.frame();
-  G.useCastlePassage(true);
-  for (let i = 0; i < 12; i++) G.frame();
-  assert(G.insideCastle);
-  G.hero.position.copy(room.bed.wakePositions[0]);
-  G.interactCastle();
-  for (let i = 0; i < 12; i++) G.frame();
-  assert(G.bedRest.resting);
+  G.characters.hero.position.copy(G.activities.cableCar.summitDock);
+  G.controls.boardCableCar();
+  for (let i = 0; i < 310; i++) G.update();
+  assert(!G.activities.cableCar.atSummit && !G.activities.cableCar.riding);
+  assert(
+    G.activities.boatTrip.lagoon.contains(
+      G.characters.hero.position.x,
+      G.characters.hero.position.z,
+    ),
+  );
+  assert.equal(G.activities.boatTrip.lagoon.collected, preserved);
+  assert(
+    G.characters.companion.character.parent ===
+      G.activities.boatTrip.lagoon.group,
+  );
+  G.controls.boardCableCar();
+  for (let i = 0; i < 310; i++) G.update();
+  G.controls.useCastlePassage(true);
+  for (let i = 0; i < 12; i++) G.update();
+  assert(G.state.location.insideCastle);
+  G.characters.hero.position.copy(room.bed.wakePositions[0]);
+  G.controls.interactCastle();
+  for (let i = 0; i < 12; i++) G.update();
+  assert(G.activities.bedRest.resting);
   element("#restart").onclick();
-  G.frame();
+  G.update();
   assert(
-    !G.cableCar.riding && !G.cableCar.atSummit && !G.cableCar.group.visible,
+    !G.activities.cableCar.riding &&
+      !G.activities.cableCar.atSummit &&
+      !G.activities.cableCar.group.visible,
   );
   assert(
-    !G.insideCastle &&
+    !G.state.location.insideCastle &&
       !room.group.visible &&
       room.collected === 0 &&
       !room.opened,
   );
   assert(
-    !G.bedRest.resting &&
-      G.hero.rotation.x === 0 &&
-      G.companion.character.rotation.x === 0,
+    !G.activities.bedRest.resting &&
+      G.characters.hero.rotation.x === 0 &&
+      G.characters.companion.character.rotation.x === 0,
   );
-  assert(G.eyes.open.visible && G.companion.rig.eyes.open.visible);
-  assert(!G.boatTrip.atLagoon && !G.boatTrip.rowing && G.held.visible);
-  assert(G.hero.position.distanceTo(new T.Vector3(0, 0, 7)) < 1e-7);
+  assert(
+    G.characters.rig.eyes.open.visible &&
+      G.characters.companion.rig.eyes.open.visible,
+  );
+  assert(
+    !G.activities.boatTrip.atLagoon &&
+      !G.activities.boatTrip.rowing &&
+      G.characters.rig.held.visible,
+  );
+  assert(G.characters.hero.position.distanceTo(new T.Vector3(0, 0, 7)) < 1e-7);
   // Exercise the actual scene transitions, walking, rides, and ring-toss game.
-  const park = G.funfair,
-    fair = G.funfairActivities;
+  const park = G.worlds.funfair,
+    fair = G.activities.funfairActivities;
   assert(
     allowed({ x: 28, z: 0 }) && allowed({ x: 32, z: 0 }),
     "East gate approach must be clear",
@@ -733,104 +828,128 @@ const assert = require("assert/strict");
     !park.contains(NaN, 0) && !park.contains(38, 0),
     "Park edge must contain both characters",
   );
-  G.hero.position.set(32, 0, 0);
-  for (let i = 0; i < 40; i++) G.frame();
+  G.characters.hero.position.set(32, 0, 0);
+  for (let i = 0; i < 40; i++) G.update();
   assert(
-    G.insideFunfair && park.group.visible && !G.garden.visible,
+    G.state.location.insideFunfair &&
+      park.group.visible &&
+      !G.worlds.garden.visible,
     "Walking through the east gate must open the park",
   );
-  assert(G.companion.character.parent === park.group && !G.held.visible);
+  assert(
+    G.characters.companion.character.parent === park.group &&
+      !G.characters.rig.held.visible,
+  );
   assert.equal(element("#funfairCounts").hidden, false);
   assert.equal(element("#gardenCounts").hidden, true);
-  assert(G.hero.position.distanceTo(park.arrival) < 0.01);
-  const axeCount = G.axes.length;
-  G.fire();
+  assert(G.characters.hero.position.distanceTo(park.arrival) < 0.01);
+  const axeCount = G.effects.axes.length;
+  G.controls.fire();
   assert.equal(
-    G.axes.length,
+    G.effects.axes.length,
     axeCount,
     "Park activities must suppress axe throwing",
   );
   // Walking against a park obstacle must be resolved by the park terrain.
-  G.hero.position.set(15, 0, 0.5);
-  G.keys.KeyW = true;
-  for (let i = 0; i < 20; i++) G.frame();
-  G.keys.KeyW = false;
-  assert(allowed(G.hero.position, park.blockers));
-  G.hero.position.copy(park.ferrisBoard);
-  G.interactFunfair();
+  G.characters.hero.position.set(15, 0, 0.5);
+  G.input.keys.KeyW = true;
+  for (let i = 0; i < 20; i++) G.update();
+  G.input.keys.KeyW = false;
+  assert(allowed(G.characters.hero.position, park.blockers));
+  G.characters.hero.position.copy(park.ferrisBoard);
+  G.controls.interactFunfair();
   assert(fair.riding && fair.ride === "ferris");
-  const cabinStart = G.hero.position.clone();
-  G.keys.KeyW = true;
-  for (let i = 0; i < 280; i++) G.frame();
-  G.keys.KeyW = false;
+  const cabinStart = G.characters.hero.position.clone();
+  G.input.keys.KeyW = true;
+  for (let i = 0; i < 280; i++) G.update();
+  G.input.keys.KeyW = false;
   assert(
-    G.hero.position.y > 17,
+    G.characters.hero.position.y > 17,
     "Wheel must lift both characters above the park",
   );
   assert(
-    G.companion.character.position.y > 17 &&
-      G.hero.position.distanceTo(G.companion.character.position) < 1.5,
+    G.characters.companion.character.position.y > 17 &&
+      G.characters.hero.position.distanceTo(
+        G.characters.companion.character.position,
+      ) < 1.5,
   );
-  assert(G.legs[0].rotation.x < -1 && G.companion.rig.legs[0].rotation.x < -1);
-  assert(G.hero.position.distanceTo(cabinStart) > 10);
-  const pausePosition = G.hero.position.clone();
-  element("#guide").open = true;
-  for (let i = 0; i < 30; i++) G.frame();
   assert(
-    G.hero.position.distanceTo(pausePosition) < 1e-7,
+    G.characters.rig.legs[0].rotation.x < -1 &&
+      G.characters.companion.rig.legs[0].rotation.x < -1,
+  );
+  assert(G.characters.hero.position.distanceTo(cabinStart) > 10);
+  const pausePosition = G.characters.hero.position.clone();
+  element("#guide").open = true;
+  for (let i = 0; i < 30; i++) G.update();
+  assert(
+    G.characters.hero.position.distanceTo(pausePosition) < 1e-7,
     "Help must pause the ride",
   );
   element("#guide").open = false;
-  for (let i = 0; i < 325; i++) G.frame();
+  for (let i = 0; i < 325; i++) G.update();
   assert(
-    !fair.riding && G.hero.position.distanceTo(park.ferrisBoard) < 0.01,
+    !fair.riding &&
+      G.characters.hero.position.distanceTo(park.ferrisBoard) < 0.01,
     "Full wheel circuit must return to the boarding platform",
   );
   assert(
-    allowed(G.hero.position, park.blockers) &&
-      allowed(G.companion.character.position, park.blockers),
+    allowed(G.characters.hero.position, park.blockers) &&
+      allowed(G.characters.companion.character.position, park.blockers),
   );
-  G.hero.position.copy(park.carouselBoard);
-  G.interactFunfair();
+  G.characters.hero.position.copy(park.carouselBoard);
+  G.controls.interactFunfair();
   assert(fair.riding && fair.ride === "carousel");
-  const carouselStart = G.hero.position.clone();
-  G.frame();
+  const carouselStart = G.characters.hero.position.clone();
+  G.update();
   assert(
-    G.hero.position.x < carouselStart.x && G.hero.position.z > -7,
+    G.characters.hero.position.x < carouselStart.x &&
+      G.characters.hero.position.z > -7,
     "From above, the south carousel mount must move west for clockwise rotation",
   );
-  for (let i = 0; i < 99; i++) G.frame();
+  for (let i = 0; i < 99; i++) G.update();
   assert(
-    Math.hypot(G.hero.position.x - 15, G.hero.position.z + 7) > 3,
+    Math.hypot(
+      G.characters.hero.position.x - 15,
+      G.characters.hero.position.z + 7,
+    ) > 3,
     "Carousel rider must orbit the center",
   );
-  assert(G.hero.position.distanceTo(G.companion.character.position) < 4);
-  G.interactFunfair();
   assert(
-    !fair.riding && G.hero.position.distanceTo(park.carouselBoard) < 0.01,
+    G.characters.hero.position.distanceTo(
+      G.characters.companion.character.position,
+    ) < 4,
+  );
+  G.controls.interactFunfair();
+  assert(
+    !fair.riding &&
+      G.characters.hero.position.distanceTo(park.carouselBoard) < 0.01,
     "Early finish must return to safe steps",
   );
-  assert(allowed(G.hero.position, park.blockers));
-  G.hero.position.copy(park.tossSpot);
-  const parkView = { yaw: G.yaw, pitch: G.pitch, zoom: G.zoom };
-  G.interactFunfair();
+  assert(allowed(G.characters.hero.position, park.blockers));
+  G.characters.hero.position.copy(park.tossSpot);
+  const parkView = {
+    yaw: G.state.yaw,
+    pitch: G.state.pitch,
+    zoom: G.state.zoom,
+  };
+  G.controls.interactFunfair();
   assert(fair.aiming && fair.playing);
-  const tossPlayer = G.hero.position.clone(),
-    tossFriend = G.companion.character.position.clone();
-  G.keys.KeyW = G.keys.KeyQ = G.keys.KeyR = true;
-  for (let i = 0; i < 4; i++) G.frame();
-  G.keys.KeyW = G.keys.KeyQ = G.keys.KeyR = false;
+  const tossPlayer = G.characters.hero.position.clone(),
+    tossFriend = G.characters.companion.character.position.clone();
+  G.input.keys.KeyW = G.input.keys.KeyQ = G.input.keys.KeyR = true;
+  for (let i = 0; i < 4; i++) G.update();
+  G.input.keys.KeyW = G.input.keys.KeyQ = G.input.keys.KeyR = false;
   assert(
-    G.hero.position.equals(tossPlayer) &&
-      G.companion.character.position.equals(tossFriend),
+    G.characters.hero.position.equals(tossPlayer) &&
+      G.characters.companion.character.position.equals(tossFriend),
     "First-person booth must lock both characters in place",
   );
-  assert.equal(G.yaw, parkView.yaw);
-  assert.equal(G.pitch, parkView.pitch);
-  assert.equal(G.zoom, parkView.zoom);
+  assert.equal(G.state.yaw, parkView.yaw);
+  assert.equal(G.state.pitch, parkView.pitch);
+  assert.equal(G.state.zoom, parkView.zoom);
   assert(
-    G.renderer.scene === park.tossScene &&
-      G.renderer.camera === park.tossCamera,
+    G.rendering.renderer.scene === park.tossScene &&
+      G.rendering.renderer.camera === park.tossCamera,
     "Active booth must render its separate scene and first-person camera",
   );
   assert(
@@ -838,18 +957,18 @@ const assert = require("assert/strict");
     "Camera must be at eye level at the throwing position",
   );
   assert(
-    !park.tossScene.getObjectById(G.hero.id) &&
+    !park.tossScene.getObjectById(G.characters.hero.id) &&
       !park.tossScene.getObjectByName("ferris-wheel"),
   );
   assert(
     park.tossRing.visible && park.tossRing.position.equals(park.ring.position),
   );
   assert.equal(element("#funfairExit").hidden, false);
-  G.frame();
+  G.update();
   assert.equal(element("#ringMeter").hidden, false);
   const frozenAim = fair.aim;
   element("#guide").open = true;
-  for (let i = 0; i < 8; i++) G.frame();
+  for (let i = 0; i < 8; i++) G.update();
   assert.equal(fair.aim, frozenAim, "Help must pause first-person aiming");
   element("#guide").open = false;
   handlers.get("keydown")({
@@ -858,18 +977,18 @@ const assert = require("assert/strict");
     preventDefault() {},
   }); // First target is left; center throw misses.
   assert(fair.throwing && !fair.aiming);
-  G.interactFunfair(); // Repeated input during flight must not launch another ring.
-  for (let i = 0; i < 26; i++) G.frame();
+  G.controls.interactFunfair(); // Repeated input during flight must not launch another ring.
+  for (let i = 0; i < 26; i++) G.update();
   assert.equal(fair.collected, 0, "Mistimed throw must not award a prize");
   assert(
     !park.ring.visible && fair.playing,
     "Miss must allow a retry inside the booth",
   );
-  G.interactFunfair();
-  G.interactFunfair();
+  G.controls.interactFunfair();
+  G.controls.interactFunfair();
   assert(fair.throwing);
   element("#funfairExit").onclick();
-  for (let i = 0; i < 26; i++) G.frame();
+  for (let i = 0; i < 26; i++) G.update();
   assert(
     !fair.playing &&
       !fair.throwing &&
@@ -877,29 +996,32 @@ const assert = require("assert/strict");
       fair.collected === 0,
     "Leaving mid-throw must cancel the ring and reward",
   );
-  assert(G.renderer.scene === G.scene && G.renderer.camera === G.camera);
-  assert.equal(G.yaw, parkView.yaw);
-  assert.equal(G.pitch, parkView.pitch);
-  assert.equal(G.zoom, parkView.zoom);
-  G.interactFunfair();
+  assert(
+    G.rendering.renderer.scene === G.rendering.scene &&
+      G.rendering.renderer.camera === G.rendering.camera,
+  );
+  assert.equal(G.state.yaw, parkView.yaw);
+  assert.equal(G.state.pitch, parkView.pitch);
+  assert.equal(G.state.zoom, parkView.zoom);
+  G.controls.interactFunfair();
   handlers.get("keydown")({
     code: "Escape",
     repeat: false,
     preventDefault() {},
   });
-  G.frame();
+  G.update();
   assert(
     !fair.playing && element("#funfairExit").hidden,
     "Escape must leave the booth",
   );
   for (let prize = 0; prize < 3; prize++) {
-    G.hero.position.copy(park.tossSpot);
-    G.interactFunfair();
+    G.characters.hero.position.copy(park.tossSpot);
+    G.controls.interactFunfair();
     for (let i = 0; i < 100 && Math.abs(fair.aim - fair.target) > 0.1; i++)
-      G.frame();
+      G.update();
     assert(Math.abs(fair.aim - fair.target) <= 0.1);
-    G.interactFunfair();
-    for (let i = 0; i < 26; i++) G.frame();
+    G.controls.interactFunfair();
+    for (let i = 0; i < 26; i++) G.update();
     assert.equal(fair.collected, prize + 1);
     assert.equal(element("#funfairPrizes").textContent, prize + 1);
     assert(!park.prizes[prize].visible);
@@ -908,51 +1030,54 @@ const assert = require("assert/strict");
       "Both scenes must show the same prize progress",
     );
   }
-  G.interactFunfair();
+  G.controls.interactFunfair();
   assert(
     !fair.aiming && !fair.playing && fair.collected === 3,
     "Completed booth must not award duplicate prizes",
   );
-  G.hero.position.copy(park.returnGate.position);
-  for (let i = 0; i < 12; i++) G.frame();
+  G.characters.hero.position.copy(park.returnGate.position);
+  for (let i = 0; i < 12; i++) G.update();
   assert(
-    !G.insideFunfair &&
-      G.garden.visible &&
+    !G.state.location.insideFunfair &&
+      G.worlds.garden.visible &&
       !park.group.visible &&
-      G.held.visible,
+      G.characters.rig.held.visible,
     "Return gate must restore garden and axe",
   );
-  assert(G.hero.position.distanceTo(new T.Vector3(28, 0, 0)) < 0.01);
-  assert(G.companion.character.parent === G.garden);
-  G.useFunfairPassage(true);
-  for (let i = 0; i < 12; i++) G.frame();
+  assert(G.characters.hero.position.distanceTo(new T.Vector3(28, 0, 0)) < 0.01);
+  assert(G.characters.companion.character.parent === G.worlds.garden);
+  G.controls.useFunfairPassage(true);
+  for (let i = 0; i < 12; i++) G.update();
   assert.equal(fair.collected, 3, "Prizes must persist across park visits");
-  G.hero.position.copy(park.ferrisBoard);
-  G.interactFunfair();
-  for (let i = 0; i < 100; i++) G.frame();
+  G.characters.hero.position.copy(park.ferrisBoard);
+  G.controls.interactFunfair();
+  for (let i = 0; i < 100; i++) G.update();
   element("#restart").onclick();
-  G.frame();
+  G.update();
   assert(
-    !G.insideFunfair && !fair.riding && !park.group.visible && G.held.visible,
+    !G.state.location.insideFunfair &&
+      !fair.riding &&
+      !park.group.visible &&
+      G.characters.rig.held.visible,
   );
   assert.equal(fair.collected, 0, "New adventure must reset prizes");
   assert(park.prizes.every((p) => p.visible));
-  assert.equal(G.legs[0].rotation.x, 0);
-  assert.equal(G.companion.rig.legs[0].rotation.x, 0);
-  G.useFunfairPassage(true);
+  assert.equal(G.characters.rig.legs[0].rotation.x, 0);
+  assert.equal(G.characters.companion.rig.legs[0].rotation.x, 0);
+  G.controls.useFunfairPassage(true);
   element("#restart").onclick();
-  for (let i = 0; i < 12; i++) G.frame();
+  for (let i = 0; i < 12; i++) G.update();
   assert(
-    !G.insideFunfair && !G.passageTransition.active,
+    !G.state.location.insideFunfair && !G.passageTransition.active,
     "Restart must cancel pending park transition",
   );
-  G.useFunfairPassage(true);
-  for (let i = 0; i < 12; i++) G.frame();
-  G.hero.position.copy(park.tossSpot);
-  G.interactFunfair();
-  G.interactFunfair();
+  G.controls.useFunfairPassage(true);
+  for (let i = 0; i < 12; i++) G.update();
+  G.characters.hero.position.copy(park.tossSpot);
+  G.controls.interactFunfair();
+  G.controls.interactFunfair();
   element("#restart").onclick();
-  for (let i = 0; i < 30; i++) G.frame();
+  for (let i = 0; i < 30; i++) G.update();
   assert(
     !fair.throwing &&
       !fair.playing &&
@@ -965,7 +1090,7 @@ const assert = require("assert/strict");
     "PASS: east funfair gate, separate scene and companion, clear activity approaches, park collisions, full Ferris circuit with seated riders, paused rides, clockwise carousel orbit and early exit, dedicated first-person booth, movement and camera locks, paused aiming, Space throws, booth exit and Escape cancellation, shared prize visuals, ring-toss misses and three timed prizes, duplicate prevention, return gate, progress persistence, and restart during rides, throws and transitions",
   );
   // The Swiss village is a separate terrain with shops, sheep and a real climb.
-  const village = G.village;
+  const village = G.worlds.village;
   assert.equal(village.sheep.length, 8);
   assert.equal(village.shops.length, 3);
   assert(
@@ -1277,228 +1402,302 @@ const assert = require("assert/strict");
   );
   for (const shop of village.shops)
     assert(allowed(shop.doorway, village.blockers));
-  G.hero.position.set(0, 0, 33);
-  for (let i = 0; i < 40; i++) G.frame();
-  assert(G.insideVillage && village.group.visible && !G.garden.visible);
-  assert(G.companion.character.parent === village.group);
+  G.characters.hero.position.set(0, 0, 33);
+  for (let i = 0; i < 40; i++) G.update();
+  assert(
+    G.state.location.insideVillage &&
+      village.group.visible &&
+      !G.worlds.garden.visible,
+  );
+  assert(G.characters.companion.character.parent === village.group);
   assert.equal(element("#villageCounts").hidden, false);
-  assert(!G.held.visible && G.camera.fov === 60);
-  G.fire();
-  assert.equal(G.axes.length, 0);
+  assert(!G.characters.rig.held.visible && G.rendering.camera.fov === 60);
+  G.controls.fire();
+  assert.equal(G.effects.axes.length, 0);
   const villageCamera = {
-    yaw: G.yaw,
-    pitch: G.pitch,
-    zoom: G.zoom,
-    fov: G.camera.fov,
+    yaw: G.state.yaw,
+    pitch: G.state.pitch,
+    zoom: G.state.zoom,
+    fov: G.rendering.camera.fov,
   };
   for (const shop of village.shops) {
-    G.hero.position.copy(shop.doorway);
-    G.interactVillage();
+    G.characters.hero.position.copy(shop.doorway);
+    G.controls.interactVillage();
     assert(
       G.passageTransition.active,
       "Entering a chalet must use the scene fade",
     );
-    for (let i = 0; i < 12; i++) G.frame();
+    for (let i = 0; i < 12; i++) G.update();
     assert(
-      G.activeVillageShop === shop &&
+      G.state.activeVillageShop === shop &&
         shop.room.group.visible &&
         !village.group.visible,
     );
-    assert(G.companion.character.parent === shop.room.group);
-    assert(shop.room.contains(G.hero.position.x, G.hero.position.z));
-    G.hero.position.set(0, 0, -1.1);
-    G.interactVillage();
+    assert(G.characters.companion.character.parent === shop.room.group);
+    assert(
+      shop.room.contains(
+        G.characters.hero.position.x,
+        G.characters.hero.position.z,
+      ),
+    );
+    G.characters.hero.position.set(0, 0, -1.1);
+    G.controls.interactVillage();
     assert(village.stamps.has(shop.kind));
-    for (let i = 0; i < 30; i++) G.frame();
-    G.interactVillage();
+    for (let i = 0; i < 30; i++) G.update();
+    G.controls.interactVillage();
     assert.equal(
       village.stamps.size,
       village.shops.indexOf(shop) + 1,
       "Shop souvenirs must not count twice",
     );
-    G.hero.position.set(0, 0, 6);
-    for (let i = 0; i < 12; i++) G.frame();
+    G.characters.hero.position.set(0, 0, 6);
+    for (let i = 0; i < 12; i++) G.update();
     assert(
-      !G.activeVillageShop && village.group.visible && !shop.room.group.visible,
+      !G.state.activeVillageShop &&
+        village.group.visible &&
+        !shop.room.group.visible,
     );
-    assert(G.companion.character.parent === village.group);
-    assert(allowed(G.hero.position, village.blockers));
-    assert.equal(G.camera.fov, villageCamera.fov);
+    assert(G.characters.companion.character.parent === village.group);
+    assert(allowed(G.characters.hero.position, village.blockers));
+    assert.equal(G.rendering.camera.fov, villageCamera.fov);
   }
-  assert(G.alpineOutfits.scarves.every((scarf) => scarf.visible));
-  assert(G.alpineOutfits.bouquet.visible);
+  assert(G.activities.alpineOutfits.scarves.every((scarf) => scarf.visible));
+  assert(G.activities.alpineOutfits.bouquet.visible);
   const firstSheep = village.sheep[0];
-  G.hero.position.copy(firstSheep.group.position).add(new T.Vector3(0, 0, 1.7));
-  for (let i = 0; i < 22; i++) G.frame();
-  G.interactVillage();
+  G.characters.hero.position
+    .copy(firstSheep.group.position)
+    .add(new T.Vector3(0, 0, 1.7));
+  for (let i = 0; i < 22; i++) G.update();
+  G.controls.interactVillage();
   assert(firstSheep.petTime > 0 && village.stamps.has("sheep"));
-  for (let i = 0; i < 100; i++) village.update(0.04, i * 0.04, G.hero.position);
+  for (let i = 0; i < 100; i++)
+    village.update(0.04, i * 0.04, G.characters.hero.position);
   for (const sheep of village.sheep) {
     assert(sheep.group.position.x > 20 && sheep.group.position.x < 35);
     assert(sheep.group.position.z > 15 && sheep.group.position.z < 27);
     assert(Number.isFinite(sheep.head.rotation.x));
   }
-  G.hero.position.copy(village.returnGate.position);
-  for (let i = 0; i < 12; i++) G.frame();
+  G.characters.hero.position.copy(village.returnGate.position);
+  for (let i = 0; i < 12; i++) G.update();
   assert(
-    !G.insideVillage &&
+    !G.state.location.insideVillage &&
       !village.group.visible &&
-      G.garden.visible &&
-      G.held.visible,
+      G.worlds.garden.visible &&
+      G.characters.rig.held.visible,
     "Village return gate must restore the garden",
   );
-  assert.equal(G.camera.fov, 43);
+  assert.equal(G.rendering.camera.fov, 43);
   assert.equal(
     village.stamps.size,
     4,
     "Village memories must persist between visits",
   );
-  G.useVillagePassage(true);
-  for (let i = 0; i < 12; i++) G.frame();
-  G.hero.position.set(-30, 0, -6);
-  G.companion.reset(G.hero.position, village.blockers, village);
+  G.controls.useVillagePassage(true);
+  for (let i = 0; i < 12; i++) G.update();
+  G.characters.hero.position.set(-30, 0, -6);
+  G.characters.companion.reset(
+    G.characters.hero.position,
+    village.blockers,
+    village,
+  );
   // Walk each segment through the real movement loop, including the bridge.
   for (const waypoint of village.route.slice(1)) {
     let frames = 0;
     while (
       Math.hypot(
-        G.hero.position.x - waypoint.x,
-        G.hero.position.z - waypoint.z,
+        G.characters.hero.position.x - waypoint.x,
+        G.characters.hero.position.z - waypoint.z,
       ) > 0.3 &&
       frames++ < 180
     ) {
-      G.keys.KeyD = waypoint.x - G.hero.position.x > 0.15;
-      G.keys.KeyA = waypoint.x - G.hero.position.x < -0.15;
-      G.keys.KeyS = waypoint.z - G.hero.position.z > 0.15;
-      G.keys.KeyW = waypoint.z - G.hero.position.z < -0.15;
-      G.frame();
-      assert(
-        village.contains(G.hero.position.x, G.hero.position.z),
-        "Hikers must stay on the trail",
-      );
-      assert(Number.isFinite(G.companion.character.position.y));
+      G.input.keys.KeyD = waypoint.x - G.characters.hero.position.x > 0.15;
+      G.input.keys.KeyA = waypoint.x - G.characters.hero.position.x < -0.15;
+      G.input.keys.KeyS = waypoint.z - G.characters.hero.position.z > 0.15;
+      G.input.keys.KeyW = waypoint.z - G.characters.hero.position.z < -0.15;
+      G.update();
       assert(
         village.contains(
-          G.companion.character.position.x,
-          G.companion.character.position.z,
+          G.characters.hero.position.x,
+          G.characters.hero.position.z,
+        ),
+        "Hikers must stay on the trail",
+      );
+      assert(Number.isFinite(G.characters.companion.character.position.y));
+      assert(
+        village.contains(
+          G.characters.companion.character.position.x,
+          G.characters.companion.character.position.z,
         ),
         "The companion must stay on the mountain ledges",
       );
     }
-    G.keys.KeyD = G.keys.KeyA = G.keys.KeyS = G.keys.KeyW = false;
+    G.input.keys.KeyD =
+      G.input.keys.KeyA =
+      G.input.keys.KeyS =
+      G.input.keys.KeyW =
+        false;
     assert(
       frames < 180,
-      `Walk to ${waypoint.toArray()} stalled at ${G.hero.position.toArray()} with companion ${G.companion.character.position.toArray()}`,
+      `Walk to ${waypoint.toArray()} stalled at ${G.characters.hero.position.toArray()} with companion ${G.characters.companion.character.position.toArray()}`,
     );
     assert(
-      Math.abs(G.hero.position.y - waypoint.y) < 0.4,
-      `Height at ${waypoint.toArray()}: ${G.hero.position.toArray()}`,
+      Math.abs(G.characters.hero.position.y - waypoint.y) < 0.4,
+      `Height at ${waypoint.toArray()}: ${G.characters.hero.position.toArray()}`,
     );
   }
   assert(
-    G.hero.position.y > 42.9 &&
-      G.alpineOutfits.harnesses.every((h) => h.visible),
+    G.characters.hero.position.y > 42.9 &&
+      G.activities.alpineOutfits.harnesses.every((h) => h.visible),
   );
-  G.frame();
-  const savedHikeCamera = { yaw: G.yaw, pitch: G.pitch, zoom: G.zoom };
-  G.interactVillage();
-  assert(G.alpineCart.riding && village.stamps.size === 4);
-  assert.equal(G.camera.fov, 48);
-  assert(G.arms.every((arm) => arm.rotation.x < -2));
-  assert(G.legs.every((leg) => Math.abs(leg.rotation.x + Math.PI / 2) < 1e-6));
-  assert(G.body.getObjectByName("cart-excited-face").visible);
-  assert(G.companion.rig.body.getObjectByName("cart-excited-face").visible);
-  assert(G.eyes.open.visible && !G.eyes.closed.visible);
-  G.keys.KeyW = G.keys.KeyQ = true;
-  for (let i = 0; i < 30; i++) G.frame();
-  assert(G.alpineCart.progress > 0 && G.hero.position.y > 40);
+  G.update();
+  const savedHikeCamera = {
+    yaw: G.state.yaw,
+    pitch: G.state.pitch,
+    zoom: G.state.zoom,
+  };
+  G.controls.interactVillage();
+  assert(G.activities.alpineCart.riding && village.stamps.size === 4);
+  assert.equal(G.rendering.camera.fov, 48);
+  assert(G.characters.rig.arms.every((arm) => arm.rotation.x < -2));
+  assert(
+    G.characters.rig.legs.every(
+      (leg) => Math.abs(leg.rotation.x + Math.PI / 2) < 1e-6,
+    ),
+  );
+  assert(G.characters.rig.body.getObjectByName("cart-excited-face").visible);
+  assert(
+    G.characters.companion.rig.body.getObjectByName("cart-excited-face")
+      .visible,
+  );
+  assert(
+    G.characters.rig.eyes.open.visible && !G.characters.rig.eyes.closed.visible,
+  );
+  G.input.keys.KeyW = G.input.keys.KeyQ = true;
+  for (let i = 0; i < 30; i++) G.update();
+  assert(
+    G.activities.alpineCart.progress > 0 && G.characters.hero.position.y > 40,
+  );
   assert.equal(
-    G.yaw,
+    G.state.yaw,
     savedHikeCamera.yaw,
     "Camera keys must not rotate the ride shot",
   );
-  assert(G.camera.position.distanceTo(G.alpineCart.cart.position) < 9);
-  const pausedProgress = G.alpineCart.progress;
+  assert(
+    G.rendering.camera.position.distanceTo(
+      G.activities.alpineCart.cart.position,
+    ) < 9,
+  );
+  const pausedProgress = G.activities.alpineCart.progress;
   element("#guide").open = true;
-  for (let i = 0; i < 20; i++) G.frame();
-  assert.equal(G.alpineCart.progress, pausedProgress);
+  for (let i = 0; i < 20; i++) G.update();
+  assert.equal(G.activities.alpineCart.progress, pausedProgress);
   element("#guide").open = false;
   let rideFrames = 0;
-  while (G.alpineCart.riding && rideFrames++ < 650) {
-    G.frame();
+  while (G.activities.alpineCart.riding && rideFrames++ < 650) {
+    G.update();
     assert(
       village.contains(
-        G.alpineCart.cart.position.x,
-        G.alpineCart.cart.position.z,
+        G.activities.alpineCart.cart.position.x,
+        G.activities.alpineCart.cart.position.z,
       ),
       "The cart must stay on the mountain route",
     );
-    assert(G.hero.position.distanceTo(G.companion.character.position) < 3);
+    assert(
+      G.characters.hero.position.distanceTo(
+        G.characters.companion.character.position,
+      ) < 3,
+    );
   }
   assert(
-    rideFrames < 650 && !G.alpineCart.riding && !G.keys.KeyW && !G.keys.KeyQ,
+    rideFrames < 650 &&
+      !G.activities.alpineCart.riding &&
+      !G.input.keys.KeyW &&
+      !G.input.keys.KeyQ,
   );
   assert.equal(village.stamps.size, 5);
-  assert.equal(G.hero.position.y, 0);
-  assert(G.hero.position.z > -7);
-  assert(!G.body.getObjectByName("cart-excited-face").visible);
-  assert(!G.companion.rig.body.getObjectByName("cart-excited-face").visible);
+  assert.equal(G.characters.hero.position.y, 0);
+  assert(G.characters.hero.position.z > -7);
+  assert(!G.characters.rig.body.getObjectByName("cart-excited-face").visible);
   assert(
-    G.alpineOutfits.bouquet.visible &&
-      G.alpineOutfits.scarves.every((scarf) => scarf.visible),
+    !G.characters.companion.rig.body.getObjectByName("cart-excited-face")
+      .visible,
   );
-  assert.equal(G.camera.fov, villageCamera.fov);
-  assert.equal(G.yaw, savedHikeCamera.yaw);
-  assert.equal(G.pitch, savedHikeCamera.pitch);
-  assert.equal(G.zoom, savedHikeCamera.zoom);
-  assert(G.alpineCart.vanishing, "Magic begins after both riders disembark");
-  const landingPosition = G.hero.position.clone();
-  for (let i = 0; i < 12; i++) G.frame();
-  assert(G.alpineCart.cart.scale.x < 0.5);
-  assert(G.alpineCart.magic.children.some((sparkle) => sparkle.scale.x > 0));
-  const pausedShrink = G.alpineCart.cart.scale.x;
-  element("#guide").open = true;
-  for (let i = 0; i < 20; i++) G.frame();
-  assert.equal(G.alpineCart.cart.scale.x, pausedShrink);
-  element("#guide").open = false;
-  for (let i = 0; i < 60; i++) G.frame();
   assert(
-    !G.alpineCart.cart.visible && !G.alpineCart.vanishing,
+    G.activities.alpineOutfits.bouquet.visible &&
+      G.activities.alpineOutfits.scarves.every((scarf) => scarf.visible),
+  );
+  assert.equal(G.rendering.camera.fov, villageCamera.fov);
+  assert.equal(G.state.yaw, savedHikeCamera.yaw);
+  assert.equal(G.state.pitch, savedHikeCamera.pitch);
+  assert.equal(G.state.zoom, savedHikeCamera.zoom);
+  assert(
+    G.activities.alpineCart.vanishing,
+    "Magic begins after both riders disembark",
+  );
+  const landingPosition = G.characters.hero.position.clone();
+  for (let i = 0; i < 12; i++) G.update();
+  assert(G.activities.alpineCart.cart.scale.x < 0.5);
+  assert(
+    G.activities.alpineCart.magic.children.some(
+      (sparkle) => sparkle.scale.x > 0,
+    ),
+  );
+  const pausedShrink = G.activities.alpineCart.cart.scale.x;
+  element("#guide").open = true;
+  for (let i = 0; i < 20; i++) G.update();
+  assert.equal(G.activities.alpineCart.cart.scale.x, pausedShrink);
+  element("#guide").open = false;
+  for (let i = 0; i < 60; i++) G.update();
+  assert(
+    !G.activities.alpineCart.cart.visible && !G.activities.alpineCart.vanishing,
     "The cart and magic clear the path",
   );
-  assert(G.hero.position.equals(landingPosition));
+  assert(G.characters.hero.position.equals(landingPosition));
   assert.equal(village.stamps.size, 5);
   assert(
-    G.camera.position.distanceTo(G.hero.position) > 30,
+    G.rendering.camera.position.distanceTo(G.characters.hero.position) > 30,
     "Normal walking camera resumes after the magic",
   );
-  G.hero.position.copy(village.lookout);
-  G.companion.reset(G.hero.position, village.blockers, village);
+  G.characters.hero.position.copy(village.lookout);
+  G.characters.companion.reset(
+    G.characters.hero.position,
+    village.blockers,
+    village,
+  );
   // Descend the entire mountain route using the same real keyboard movement.
   for (const waypoint of village.route.slice(0, -1).reverse()) {
     let frames = 0;
     while (
       Math.hypot(
-        G.hero.position.x - waypoint.x,
-        G.hero.position.z - waypoint.z,
+        G.characters.hero.position.x - waypoint.x,
+        G.characters.hero.position.z - waypoint.z,
       ) > 0.3 &&
       frames++ < 200
     ) {
-      G.keys.KeyD = waypoint.x - G.hero.position.x > 0.15;
-      G.keys.KeyA = waypoint.x - G.hero.position.x < -0.15;
-      G.keys.KeyS = waypoint.z - G.hero.position.z > 0.15;
-      G.keys.KeyW = waypoint.z - G.hero.position.z < -0.15;
-      G.frame();
-      assert(village.contains(G.hero.position.x, G.hero.position.z));
+      G.input.keys.KeyD = waypoint.x - G.characters.hero.position.x > 0.15;
+      G.input.keys.KeyA = waypoint.x - G.characters.hero.position.x < -0.15;
+      G.input.keys.KeyS = waypoint.z - G.characters.hero.position.z > 0.15;
+      G.input.keys.KeyW = waypoint.z - G.characters.hero.position.z < -0.15;
+      G.update();
+      assert(
+        village.contains(
+          G.characters.hero.position.x,
+          G.characters.hero.position.z,
+        ),
+      );
     }
-    G.keys.KeyD = G.keys.KeyA = G.keys.KeyS = G.keys.KeyW = false;
+    G.input.keys.KeyD =
+      G.input.keys.KeyA =
+      G.input.keys.KeyS =
+      G.input.keys.KeyW =
+        false;
     assert(
       frames < 200,
-      `Descent to ${waypoint.toArray()} stalled at ${G.hero.position.toArray()}, companion ${G.companion.character.position.toArray()}`,
+      `Descent to ${waypoint.toArray()} stalled at ${G.characters.hero.position.toArray()}, companion ${G.characters.companion.character.position.toArray()}`,
     );
   }
   assert.equal(
-    G.body.rotation.x,
+    G.characters.rig.body.rotation.x,
     0,
     "The hiking pose must clear on the approach path",
   );
@@ -1506,80 +1705,100 @@ const assert = require("assert/strict");
   const bridgeCenter = village.route[village.bridgeSegment]
     .clone()
     .lerp(village.route[village.bridgeSegment + 1], 0.5);
-  G.hero.position.copy(bridgeCenter);
-  G.companion.reset(G.hero.position, village.blockers, village);
-  G.keys.KeyW = true;
-  for (let i = 0; i < 30; i++) G.frame();
-  G.keys.KeyW = false;
-  assert(
-    G.hero.position.z > bridgeCenter.z - 1.3 &&
-      G.hero.position.y === bridgeCenter.y,
+  G.characters.hero.position.copy(bridgeCenter);
+  G.characters.companion.reset(
+    G.characters.hero.position,
+    village.blockers,
+    village,
   );
-  G.useVillageShop(village.shops[0]);
-  for (let i = 0; i < 12; i++) G.frame();
+  G.input.keys.KeyW = true;
+  for (let i = 0; i < 30; i++) G.update();
+  G.input.keys.KeyW = false;
+  assert(
+    G.characters.hero.position.z > bridgeCenter.z - 1.3 &&
+      G.characters.hero.position.y === bridgeCenter.y,
+  );
+  G.controls.useVillageShop(village.shops[0]);
+  for (let i = 0; i < 12; i++) G.update();
   element("#restart").onclick();
-  G.frame();
-  assert(!G.insideVillage && !G.activeVillageShop && !G.alpineCart.riding);
+  G.update();
+  assert(
+    !G.state.location.insideVillage &&
+      !G.state.activeVillageShop &&
+      !G.activities.alpineCart.riding,
+  );
   assert(village.shops.every((shop) => !shop.room.group.visible));
   assert.equal(village.stamps.size, 0);
-  assert(G.alpineOutfits.harnesses.every((h) => !h.visible));
+  assert(G.activities.alpineOutfits.harnesses.every((h) => !h.visible));
   assert(
-    G.alpineOutfits.scarves.every((scarf) => !scarf.visible) &&
-      !G.alpineOutfits.bouquet.visible,
+    G.activities.alpineOutfits.scarves.every((scarf) => !scarf.visible) &&
+      !G.activities.alpineOutfits.bouquet.visible,
   );
-  assert(G.garden.visible && G.held.visible && G.camera.fov === 43);
-  G.useVillagePassage(true, "lookout");
-  for (let i = 0; i < 30; i++) G.frame();
-  G.interactVillage();
-  for (let i = 0; i < 100; i++) G.frame();
-  assert(G.alpineCart.riding);
+  assert(
+    G.worlds.garden.visible &&
+      G.characters.rig.held.visible &&
+      G.rendering.camera.fov === 43,
+  );
+  G.controls.useVillagePassage(true, "lookout");
+  for (let i = 0; i < 30; i++) G.update();
+  G.controls.interactVillage();
+  for (let i = 0; i < 100; i++) G.update();
+  assert(G.activities.alpineCart.riding);
   element("#restart").onclick();
-  G.frame();
-  assert(!G.alpineCart.riding && !G.insideVillage && G.camera.fov === 43);
-  assert(!G.body.getObjectByName("cart-excited-face").visible);
-  assert.equal(G.body.rotation.x, 0);
-  assert.equal(G.hero.rotation.x, 0);
+  G.update();
+  assert(
+    !G.activities.alpineCart.riding &&
+      !G.state.location.insideVillage &&
+      G.rendering.camera.fov === 43,
+  );
+  assert(!G.characters.rig.body.getObjectByName("cart-excited-face").visible);
+  assert.equal(G.characters.rig.body.rotation.x, 0);
+  assert.equal(G.characters.hero.rotation.x, 0);
   assert.equal(village.stamps.size, 0);
-  G.useVillagePassage(true);
+  G.controls.useVillagePassage(true);
   element("#restart").onclick();
-  for (let i = 0; i < 12; i++) G.frame();
-  assert(!G.insideVillage && !G.passageTransition.active);
+  for (let i = 0; i < 12; i++) G.update();
+  assert(!G.state.location.insideVillage && !G.passageTransition.active);
   console.log(
     "PASS: Swiss village gate and return, three accessible chalet interiors and shop activities, persistent souvenirs, eight pettable sheep contained in their meadow, walking every elevated trail segment, solid closed mountains and grounded foothills, 3600 varied grounded trees with a clear hiking route, 12 pale birds gliding above the rock, grounded meadow grass on cliff ends, village lawns and valley floor, tapered stream ravine below the bridge, planted trunk bases, forest camera clearance and synchronized rock/forest visibility, rock fading for both hikers and cameras inside the mountain, companion harnesses, cable bridge boundary, two seated excited cart riders, full rail descent, flower-and-star disappearance and paused magic, paused ride, close camera and input lock, camera restoration, and restart inside shops and transitions",
   );
   // Festival entry follows the fair, and preserves the garden's saved view.
-  G.useFunfairPassage(true);
-  for (let i = 0; i < 12; i++) G.frame();
-  G.hero.position.set(0, 0, -27);
-  for (let i = 0; i < 40; i++) G.frame();
-  assert(G.insideFestival && !G.insideFunfair);
+  G.controls.useFunfairPassage(true);
+  for (let i = 0; i < 12; i++) G.update();
+  G.characters.hero.position.set(0, 0, -27);
+  for (let i = 0; i < 40; i++) G.update();
+  assert(G.state.location.insideFestival && !G.state.location.insideFunfair);
   assert(
-    G.festival.group.visible && !G.funfair.group.visible && !G.garden.visible,
+    G.worlds.festival.group.visible &&
+      !G.worlds.funfair.group.visible &&
+      !G.worlds.garden.visible,
   );
-  assert(!G.held.visible);
-  assert(G.body.getObjectByName("summer-t-shirt").visible);
-  assert(G.companion.rig.body.getObjectByName("summer-t-shirt").visible);
+  assert(!G.characters.rig.held.visible);
+  assert(G.characters.rig.body.getObjectByName("summer-t-shirt").visible);
+  assert(
+    G.characters.companion.rig.body.getObjectByName("summer-t-shirt").visible,
+  );
   for (let z = 23; z > -29; z -= 0.2) {
     assert(
-      G.festival.contains(0, z),
+      G.worlds.festival.contains(0, z),
       "Street and bridge form a continuous walkable route",
     );
     assert(
-      allowed({ x: 0, z }, G.festival.blockers),
+      allowed({ x: 0, z }, G.worlds.festival.blockers),
       "Central route must remain clear",
     );
   }
   assert(
-    !G.festival.contains(8, -6),
+    !G.worlds.festival.contains(8, -6),
     "River banks cannot be crossed away from the bridge",
   );
-  assert(!G.festival.contains(NaN, 0));
-  assert.equal(G.festival.crowd.group.userData.visitorCount, 22);
+  assert(!G.worlds.festival.contains(NaN, 0));
+  assert.equal(G.worlds.festival.crowd.group.userData.visitorCount, 22);
   for (let time = 0; time < 80; time += 0.5) {
-    G.festival.crowd.update(time);
-    for (const { character } of G.festival.crowd.people) {
+    G.worlds.festival.crowd.update(time);
+    for (const { character } of G.worlds.festival.crowd.people) {
       assert(
-        G.festival.contains(character.position.x, character.position.z),
+        G.worlds.festival.contains(character.position.x, character.position.z),
         "Visitors stay on dry land",
       );
       assert(
@@ -1588,11 +1807,13 @@ const assert = require("assert/strict");
       );
     }
   }
-  G.festival.crowd.update(0);
-  const riverWater = G.festival.group.getObjectByName("festival-river-water");
+  G.worlds.festival.crowd.update(0);
+  const riverWater = G.worlds.festival.group.getObjectByName(
+    "festival-river-water",
+  );
   // A downward ray must reach visible water, rather than a ground or path slab.
-  G.festival.group.updateWorldMatrix(true, true);
-  const festivalBuildings = G.festival.group.children.filter(
+  G.worlds.festival.group.updateWorldMatrix(true, true);
+  const festivalBuildings = G.worlds.festival.group.children.filter(
     (child) =>
       child.name === "festival-street-house" ||
       child.name === "riverside-tea-house",
@@ -1609,33 +1830,37 @@ const assert = require("assert/strict");
     new T.Vector3(5, 10, -6),
     new T.Vector3(0, -1, 0),
   );
-  const waterHits = waterRay.intersectObjects(G.festival.group.children, true);
+  const waterHits = waterRay.intersectObjects(
+    G.worlds.festival.group.children,
+    true,
+  );
   assert.equal(
     waterHits[0].object,
     riverWater,
     "Ground and paths must leave the river channel exposed",
   );
   assert.equal(
-    G.festival.group.getObjectByName("sakura-riverbanks").userData.treeCount,
+    G.worlds.festival.group.getObjectByName("sakura-riverbanks").userData
+      .treeCount,
     20,
   );
   assert.equal(
-    G.festival.group.getObjectByName("dense-sakura-blossoms").count,
+    G.worlds.festival.group.getObjectByName("dense-sakura-blossoms").count,
     460,
   );
   assert.equal(
-    G.festival.group.getObjectByName("drifting-sakura-petals").count,
+    G.worlds.festival.group.getObjectByName("drifting-sakura-petals").count,
     160,
   );
   const festivalFireworks =
-    G.festival.group.getObjectByName("festival-fireworks");
-  const waterReflection = G.festival.group.getObjectByName(
+    G.worlds.festival.group.getObjectByName("festival-fireworks");
+  const waterReflection = G.worlds.festival.group.getObjectByName(
     "fireworks-water-reflection",
   );
-  G.festival.restartFireworks();
-  G.festival.update(0);
+  G.worlds.festival.restartFireworks();
+  G.worlds.festival.update(0);
   assert(!festivalFireworks.visible, "Quiet sky between displays");
-  G.festival.update(5.2);
+  G.worlds.festival.update(5.2);
   assert(festivalFireworks.visible && waterReflection.visible);
   assert(
     Array.from(festivalFireworks.geometry.attributes.position.array).every(
@@ -1647,84 +1872,111 @@ const assert = require("assert/strict");
       Number.isFinite,
     ),
   );
-  G.festival.update(5);
+  G.worlds.festival.update(5);
   assert(
     !festivalFireworks.visible && !waterReflection.visible,
     "Each bloom fades before the next launch",
   );
-  assert(G.festival.heightAt(0, -6) > 0.5);
-  G.hero.position.set(0, G.festival.heightAt(0, -6), -6);
-  G.frame();
+  assert(G.worlds.festival.heightAt(0, -6) > 0.5);
+  G.characters.hero.position.set(0, G.worlds.festival.heightAt(0, -6), -6);
+  G.update();
   assert(
-    G.festivalMoment.active,
+    G.activities.festivalMoment.active,
     "Arriving on the bridge starts the moment automatically",
   );
   const pairPositions = [
-    G.hero.position.clone(),
-    G.companion.character.position.clone(),
+    G.characters.hero.position.clone(),
+    G.characters.companion.character.position.clone(),
   ];
   assert(
-    Math.cos(G.hero.rotation.y) < -0.9 &&
-      Math.cos(G.companion.character.rotation.y) < -0.9,
+    Math.cos(G.characters.hero.rotation.y) < -0.9 &&
+      Math.cos(G.characters.companion.character.rotation.y) < -0.9,
     "Both characters face the fireworks to the north",
   );
-  assert(G.body.getObjectByName("festival-upturned-head").rotation.x < -0.25);
-  assert(G.body.getObjectByName("festival-amazed-mouth").visible);
-  const giant = G.festival.group.getObjectByName("gigantic-firework-trails");
-  G.festival.restartFireworks();
-  G.festival.update(6);
+  assert(
+    G.characters.rig.body.getObjectByName("festival-upturned-head").rotation.x <
+      -0.25,
+  );
+  assert(
+    G.characters.rig.body.getObjectByName("festival-amazed-mouth").visible,
+  );
+  const giant = G.worlds.festival.group.getObjectByName(
+    "gigantic-firework-trails",
+  );
+  G.worlds.festival.restartFireworks();
+  G.worlds.festival.update(6);
   giant.geometry.computeBoundingBox();
   assert(
     giant.geometry.boundingBox.max.x - giant.geometry.boundingBox.min.x > 50,
     "Bouquet spans the skyline",
   );
-  const closeCamera = G.camera.position.clone();
-  G.keys.KeyW = true;
-  for (let i = 0; i < 20; i++) G.frame();
+  const closeCamera = G.rendering.camera.position.clone();
+  G.input.keys.KeyW = true;
+  for (let i = 0; i < 20; i++) G.update();
   assert(
-    G.hero.position.equals(pairPositions[0]) &&
-      G.companion.character.position.equals(pairPositions[1]),
+    G.characters.hero.position.equals(pairPositions[0]) &&
+      G.characters.companion.character.position.equals(pairPositions[1]),
   );
-  const pausedCamera = G.camera.position.clone();
+  const pausedCamera = G.rendering.camera.position.clone();
   element("#guide").open = true;
-  for (let i = 0; i < 100; i++) G.frame();
-  assert(G.camera.position.equals(pausedCamera), "Help pauses the cinematic");
-  element("#guide").open = false;
-  G.keys.KeyW = false;
-  for (let i = 0; i < 200; i++) G.frame();
+  for (let i = 0; i < 100; i++) G.update();
   assert(
-    G.camera.position.y > closeCamera.y && G.camera.position.z < 3,
+    G.rendering.camera.position.equals(pausedCamera),
+    "Help pauses the cinematic",
+  );
+  element("#guide").open = false;
+  G.input.keys.KeyW = false;
+  for (let i = 0; i < 200; i++) G.update();
+  assert(
+    G.rendering.camera.position.y > closeCamera.y &&
+      G.rendering.camera.position.z < 3,
     "Tilt clears the overhead lantern string",
   );
-  G.interactFestival();
-  assert(!G.festivalMoment.active);
+  G.controls.interactFestival();
+  assert(!G.activities.festivalMoment.active);
   assert.equal(
-    G.camera.fov,
+    G.rendering.camera.fov,
     43,
     "Normal field of view restored after the reveal",
   );
-  assert.equal(G.body.getObjectByName("festival-upturned-head").rotation.x, 0);
-  assert(!G.body.getObjectByName("festival-amazed-mouth").visible);
-  assert(G.eyes.open.parent === G.body, "Ordinary face rig restored on exit");
-  G.interactFestival();
-  assert(G.festivalMoment.active, "The moment can be replayed");
-  G.interactFestival();
-  G.hero.position.set(0, 0, 27);
-  for (let i = 0; i < 40; i++) G.frame();
-  assert(!G.insideFestival && G.insideFunfair && G.funfair.group.visible);
-  assert(!G.body.getObjectByName("summer-t-shirt").visible);
-  G.hero.position.set(0, 0, -27);
-  for (let i = 0; i < 40; i++) G.frame();
-  G.hero.position.set(0, G.festival.heightAt(0, -6), -6);
-  G.frame();
-  assert(G.festivalMoment.active);
-  element("#restart").onclick();
-  G.frame();
-  assert(!G.insideFestival && !G.insideFunfair && !G.festivalMoment.active);
-  assert(G.garden.visible && G.held.visible);
-  assert(!G.body.getObjectByName("summer-t-shirt").visible);
   assert.equal(
-    G.scene.children.find((c) => c.isHemisphereLight).intensity,
+    G.characters.rig.body.getObjectByName("festival-upturned-head").rotation.x,
+    0,
+  );
+  assert(
+    !G.characters.rig.body.getObjectByName("festival-amazed-mouth").visible,
+  );
+  assert(
+    G.characters.rig.eyes.open.parent === G.characters.rig.body,
+    "Ordinary face rig restored on exit",
+  );
+  G.controls.interactFestival();
+  assert(G.activities.festivalMoment.active, "The moment can be replayed");
+  G.controls.interactFestival();
+  G.characters.hero.position.set(0, 0, 27);
+  for (let i = 0; i < 40; i++) G.update();
+  assert(
+    !G.state.location.insideFestival &&
+      G.state.location.insideFunfair &&
+      G.worlds.funfair.group.visible,
+  );
+  assert(!G.characters.rig.body.getObjectByName("summer-t-shirt").visible);
+  G.characters.hero.position.set(0, 0, -27);
+  for (let i = 0; i < 40; i++) G.update();
+  G.characters.hero.position.set(0, G.worlds.festival.heightAt(0, -6), -6);
+  G.update();
+  assert(G.activities.festivalMoment.active);
+  element("#restart").onclick();
+  G.update();
+  assert(
+    !G.state.location.insideFestival &&
+      !G.state.location.insideFunfair &&
+      !G.activities.festivalMoment.active,
+  );
+  assert(G.worlds.garden.visible && G.characters.rig.held.visible);
+  assert(!G.characters.rig.body.getObjectByName("summer-t-shirt").visible);
+  assert.equal(
+    G.rendering.scene.children.find((c) => c.isHemisphereLight).intensity,
     2.4,
   );
   console.log(

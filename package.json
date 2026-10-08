@@ -1,11 +1,16 @@
 {
   "name": "sunflower-axe-adventure",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "A Three.js garden adventure with journeys and activities for two.",
   "scripts": {
-    "test": "node --experimental-vm-modules tests/riverside.cjs && node --experimental-vm-modules tests/collisions.cjs",
-    "prepare": "husky"
+    "test": "node --experimental-vm-modules tests/architecture.cjs && node --experimental-vm-modules tests/riverside.cjs && node --experimental-vm-modules tests/collisions.cjs",
+    "prepare": "husky",
+    "dev": "node scripts/serve.cjs",
+    "build": "node scripts/build.cjs",
+    "preview": "node scripts/serve.cjs --dist",
+    "format": "prettier --write src scripts tests index.html README.md",
+    "format:check": "prettier --check src scripts tests index.html README.md",
+    "test:build": "npm run build && node --experimental-vm-modules tests/build.cjs"
   },
   "repository": {
     "type": "git",
@@ -23,5 +28,6 @@
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
     "prettier": "^3.9.9"
-  }
+  },
+  "private": true
 }

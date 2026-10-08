@@ -1,3 +1,4 @@
 {
-  "dist/*.{js,html,css}": "prettier --write"
+  "{src,scripts,tests}/**/*.{js,cjs,html,css}": "prettier --write",
+  "*.{html,json,md}": "prettier --write"
 }

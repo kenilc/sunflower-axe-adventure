@@ -4,7 +4,7 @@ const assert = require("assert/strict");
 (async () => {
   const context = vm.createContext({ console });
   const three = new vm.SourceTextModule(
-    fs.readFileSync("dist/vendor/three.module.js", "utf8"),
+    fs.readFileSync("vendor/three.module.js", "utf8"),
     { context },
   );
   await three.link(() => {
@@ -12,11 +12,11 @@ const assert = require("assert/strict");
   });
   await three.evaluate();
   const riverModule = new vm.SourceTextModule(
-    fs.readFileSync("dist/riverside.js", "utf8"),
+    fs.readFileSync("src/locations/riverside/world.js", "utf8"),
     { context },
   );
   const visibilityModule = new vm.SourceTextModule(
-    fs.readFileSync("dist/tree-visibility.js", "utf8"),
+    fs.readFileSync("src/rendering/tree-visibility.js", "utf8"),
     { context },
   );
   await visibilityModule.link(() => three);
@@ -333,7 +333,7 @@ const assert = require("assert/strict");
     river.treasures.every((t) => !t.got && t.crystal.visible && t.glow.visible),
   );
   const boatModule = new vm.SourceTextModule(
-    fs.readFileSync("dist/boat-trip.js", "utf8"),
+    fs.readFileSync("src/locations/riverside/boat-trip.js", "utf8"),
     { context },
   );
   await boatModule.link(() => three);
