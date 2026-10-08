@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { createTreeVisibility } from "../../rendering/tree-visibility.js";
 import { createAlpineNature } from "./nature.js";
+import { createVillageMeadow, creekCenter, meadowHeight } from "./terrain.js";
 
 export function createAlpineVillage({ mesh, box, cyl, ball }) {
   const group = new THREE.Group();
@@ -38,8 +39,13 @@ export function createAlpineVillage({ mesh, box, cyl, ball }) {
   gate(entrance);
   gate(returnGate);
   blockers.push({ x: -2.5, z: 29, r: 0.3 }, { x: 2.5, z: 29, r: 0.3 });
-  const villageGround = box(78, 2, 43, "#8bad75", 0, -1.03, 12.5, group);
-  villageGround.name = "alpine-village-ground";
+  const villageGround = createVillageMeadow({
+    mesh,
+    parent: group,
+    north: -9,
+    south: 100,
+    name: "alpine-village-ground",
+  });
   box(70, 0.05, 9, "#b5b9aa", 0, 0, 9, group);
   box(5, 0.05, 19, "#c7bca3", 0, 0.015, 22, group);
   box(5, 0.05, 18, "#c7bca3", -30, 0.015, -1, group);
@@ -598,14 +604,17 @@ export function createAlpineVillage({ mesh, box, cyl, ball }) {
   box(0.8, 0.22, 0.035, cream, 0.7, 3.3, 0.02, flag);
   box(0.22, 0.8, 0.035, cream, 0.7, 3.3, 0.02, flag);
   blockers.push({ x: flag.position.x, z: flag.position.z, r: 0.15 });
-  const valleyGround = box(200, 2, 190, "#83a87a", 0, -6, -65, group);
-  valleyGround.name = "alpine-valley-ground";
+  const valleyGround = createVillageMeadow({
+    mesh,
+    parent: group,
+    north: -160,
+    south: -9,
+    name: "alpine-valley-ground",
+  });
   const ravine = new THREE.Group();
   ravine.name = "alpine-stream-ravine";
   group.add(ravine);
   const ravineBanks = [];
-  const creekCenter = (z) =>
-    -7 + (z + 36) * 0.15 + Math.sin((z + 36) * 0.065) * 0.35;
   for (let i = 0; i < 14; i++) {
     const z0 = -76 + i * 4.5,
       z1 = z0 + 4.5;
@@ -633,7 +642,11 @@ export function createAlpineVillage({ mesh, box, cyl, ball }) {
         points.push(
           new THREE.Vector3(center + side * 1.5, -4.94, z),
           new THREE.Vector3(center + side * 4.2, -3.2, z),
-          new THREE.Vector3(center + side * 6, -5, z),
+          new THREE.Vector3(
+            center + side * 6,
+            meadowHeight(center + side * 6, z),
+            z,
+          ),
         );
       }
       const bank = surface(

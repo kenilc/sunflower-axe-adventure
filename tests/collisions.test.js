@@ -1139,6 +1139,20 @@ test("gameplay, collisions, travel, activities and restart", async () => {
       "Grass must remain attached to its supporting slope or meadow",
     );
     natureRay.far = Infinity;
+    if (plant.source.userData.sampleGround || plant.source.userData.side) {
+      natureRay.set(
+        new T.Vector3(plant.site.x, 150, plant.site.z),
+        new T.Vector3(0, -1, 0),
+      );
+      const visibleGround = natureRay.intersectObjects(
+        nature.grassSurfaces,
+        false,
+      )[0];
+      assert(
+        visibleGround && Math.abs(visibleGround.point.y - plant.site.y) < 1e-4,
+        "Meadow and stream-bank grass must grow on the visible surface, not buried ground",
+      );
+    }
   }
   for (const tree of nature.trees)
     assert(

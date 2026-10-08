@@ -237,7 +237,13 @@ export function createAlpineNature({
         .sub(polygon[0])
         .cross(polygon[2].clone().sub(polygon[0]))
         .normalize();
-      if (normal.y < -0.01) continue;
+      // Lawns belong on upward-facing terrain, never vertical slab edges.
+      // Cliff faces retain their sparse attached vegetation below.
+      if (
+        normal.y < -0.01 ||
+        (meadowSurfaces.includes(source) && normal.y < 0.22)
+      )
+        continue;
       const clipped = [],
         limit = treeLine(source);
       for (let j = 0; j < polygon.length; j++) {
@@ -364,6 +370,12 @@ export function createAlpineNature({
   // Continue the meadow over the village lawns and valley floor, leaving
   // the cobbles, gates, shop approaches and stream free of grass blades.
   const meadowRay = new THREE.Raycaster();
+  const plantingObstacles = grassSurfaces.filter(
+    (source) => !source.userData.sampleGround,
+  );
+  const sampledMeadows = grassSurfaces.filter(
+    (source) => source.userData.sampleGround,
+  );
   for (const source of meadowSurfaces) {
     const bounds = new THREE.Box3().setFromObject(source);
     const isVillage = source.name === "alpine-village-ground";
@@ -377,8 +389,20 @@ export function createAlpineNature({
         const x = THREE.MathUtils.lerp(bounds.min.x, bounds.max.x, random());
         const z = THREE.MathUtils.lerp(bounds.min.z, bounds.max.z, random());
         if (!grassAllowed(x, z) || trailDistance(x, z) < 2.7) continue;
+        if (isVillage) {
+          const edgeDistance = Math.hypot(
+            Math.max(0, Math.abs(x) - 39),
+            Math.max(0, z - 34),
+          );
+          if (random() < THREE.MathUtils.smoothstep(edgeDistance, 0, 25))
+            continue;
+        }
         meadowRay.set(new THREE.Vector3(x, 150, z), down);
-        const hit = meadowRay.intersectObjects(grassSurfaces, false)[0];
+        let hit = meadowRay.intersectObjects(plantingObstacles, false)[0];
+        for (const meadow of sampledMeadows) {
+          const sampled = meadow.userData.sampleGround(x, z);
+          if (sampled && (!hit || sampled.point.y > hit.point.y)) hit = sampled;
+        }
         if (!hit || hit.object !== source) continue;
         const normal = hit.face.normal
           .clone()
