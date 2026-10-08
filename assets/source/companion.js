@@ -56,6 +56,16 @@ export function createCompanionModel({ ball, box, cyl, mesh }) {
   cyl(0.35, 0.4, 0.22, "#464953", 0, 1.72, 0.03, body);
   ball(0.57, "#352f2c", 0, 2.1, 0, body);
   ball(0.49, "#f0bd8a", 0, 2.12, 0.23, body);
+  // A swept fringe stays visible when the summer outfit removes his beanie.
+  const crown = ball(0.53, "#352f2c", 0, 2.46, 0.16, body);
+  crown.name = "companion-hair-crown";
+  crown.scale.set(1, 0.65, 1);
+  for (const [index, x] of [-0.3, -0.06, 0.19].entries()) {
+    const fringe = ball(0.27, "#352f2c", x, 2.5 - index * 0.035, 0.48, body);
+    fringe.name = `companion-hair-fringe-${index}`;
+    fringe.scale.set(1.15, 0.65, 0.55);
+    fringe.rotation.z = -0.22;
+  }
   const eyes = createCharacterEyes({ body, ball, mesh });
   for (const side of [-1, 1]) {
     ball(0.12, "#f0bd8a", side * 0.49, 2.09, 0.13, body);

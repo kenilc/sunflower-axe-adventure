@@ -662,7 +662,10 @@ export function createSummerOutfits({ rigs, box, cyl }) {
     for (const child of rig.body.children)
       if (
         child.isMesh &&
-        (child.position.y < 1.9 || (index === 1 && child.position.y > 2.4))
+        (child.position.y < 1.9 ||
+          (index === 1 &&
+            child.position.y > 2.4 &&
+            !child.name.startsWith("companion-hair-")))
       )
         saved.push(child);
     [...rig.legs, ...rig.arms].forEach((limb) =>
