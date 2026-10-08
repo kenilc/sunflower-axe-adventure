@@ -1,4 +1,4 @@
-import * as THREE from "../../../vendor/three.module.js";
+import * as THREE from "three";
 
 // A few quiet festival visitors; their routes leave the bridge and main aisle open.
 export function createFestivalCrowd({

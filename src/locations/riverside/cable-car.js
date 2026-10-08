@@ -1,5 +1,5 @@
 import { createSummitCastle } from "./summit-castle.js";
-import * as THREE from "../../../vendor/three.module.js";
+import * as THREE from "three";
 
 export function createCableCar({
   scene,
@@ -204,8 +204,8 @@ export function createCableCar({
       rig.body.position.y = 0;
       rig.body.rotation.set(0, 0, 0);
       [...rig.legs, ...rig.arms].forEach((limb) => limb.rotation.set(0, 0, 0));
-      rig.legs.forEach((leg) => {
-        leg.children[1].rotation.x = 0;
+      rig.feet.forEach((foot) => {
+        foot.rotation.x = 0;
       });
       if (rig.held) rig.held.visible = true;
     });

@@ -1,9 +1,9 @@
-import * as THREE from "../../../vendor/three.module.js";
+import * as THREE from "three";
 import { createMeshFactory } from "../../rendering/mesh-factory.js";
 import { createTreeVisibility } from "../../rendering/tree-visibility.js";
 import { createLakeside, inLake, reservedLakeside } from "./lakeside.js";
 
-export function createGarden({ scene, rand }) {
+export function createGarden({ scene, rand, benchModel }) {
   const group = new THREE.Group();
   scene.add(group);
   const { mesh, box, cyl, ball, mat } = createMeshFactory(group);
@@ -18,7 +18,7 @@ export function createGarden({ scene, rand }) {
   path(-12, -12, 4, 28, -0.7);
   path(13, 10, 4, 28, -0.8);
   const blockers = [];
-  const lakeside = createLakeside({ mesh, box, cyl, ball });
+  const lakeside = createLakeside({ mesh, box, cyl, ball, benchModel });
   group.add(lakeside.group);
   blockers.push({ x: 6.4, z: 9.6, r: 1.5 });
   const terrain = {

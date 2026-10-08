@@ -3,14 +3,17 @@
   "version": "1.0.0",
   "description": "A Three.js garden adventure with journeys and activities for two.",
   "scripts": {
-    "test": "node --experimental-vm-modules tests/architecture.cjs && node --experimental-vm-modules tests/riverside.cjs && node --experimental-vm-modules tests/collisions.cjs",
+    "test": "vitest run --exclude tests/build.test.js",
     "prepare": "husky",
-    "dev": "node scripts/serve.cjs",
-    "build": "node scripts/build.cjs",
-    "preview": "node scripts/serve.cjs --dist",
-    "format": "prettier --write src scripts tests index.html README.md",
-    "format:check": "prettier --check src scripts tests index.html README.md",
-    "test:build": "npm run build && node --experimental-vm-modules tests/build.cjs"
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "format": "prettier --write src assets/source scripts tests index.html README.md vite.config.js vitest.config.js",
+    "format:check": "prettier --check src assets/source scripts tests index.html README.md vite.config.js vitest.config.js",
+    "test:build": "npm run build && vitest run tests/build.test.js",
+    "test:watch": "vitest --exclude tests/build.test.js",
+    "assets:build": "node scripts/export-assets.js",
+    "assets:check": "node scripts/export-assets.js --check"
   },
   "repository": {
     "type": "git",
@@ -19,7 +22,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/kenilc/sunflower-axe-adventure/issues"
   },
@@ -27,7 +30,15 @@
   "devDependencies": {
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
-    "prettier": "^3.9.9"
+    "prettier": "^3.9.9",
+    "vite": "8.3.4",
+    "vitest": "5.0.3"
   },
-  "private": true
+  "private": true,
+  "dependencies": {
+    "three": "0.170.0"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
 }

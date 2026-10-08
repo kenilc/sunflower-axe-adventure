@@ -1,4 +1,4 @@
-import * as THREE from "../../../vendor/three.module.js";
+import * as THREE from "three";
 
 export function createCave() {
   const interior = new THREE.Group();

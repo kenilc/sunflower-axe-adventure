@@ -1,4 +1,4 @@
-import * as THREE from "../../../vendor/three.module.js";
+import * as THREE from "three";
 
 export function createAlpineCart({
   village,
@@ -189,12 +189,7 @@ export function createAlpineCart({
     teethShape.quadraticCurveTo(0, -0.04, -0.082, -0.014);
     teethShape.quadraticCurveTo(-0.099, -0.005, -0.105, 0.02);
     mesh(new THREE.ShapeGeometry(teethShape), "#fff7dc", 0, 2, 0.729, face);
-    rider.restingSmile = rider.rig.body.children.find(
-      (part) =>
-        part.geometry?.type === "TorusGeometry" &&
-        part.geometry.parameters.radius === 0.09 &&
-        part.geometry.parameters.tube === 0.016,
-    );
+    rider.restingSmile = rider.rig.smile;
     face.visible = false;
     rider.face = face;
   }

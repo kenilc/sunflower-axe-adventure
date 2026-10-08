@@ -1,4 +1,4 @@
-import * as THREE from "../../../vendor/three.module.js";
+import * as THREE from "three";
 
 export function createBoatTrip({
   mesh,
@@ -385,8 +385,8 @@ export function createBoatTrip({
       r.body.position.y = 0;
       r.body.rotation.set(0, 0, 0);
       [...r.arms, ...r.legs].forEach((l) => l.rotation.set(0, 0, 0));
-      r.legs.forEach((l) => {
-        l.children[1].rotation.x = 0;
+      r.feet.forEach((foot) => {
+        foot.rotation.x = 0;
       });
       if (r.held) r.held.visible = true;
     });
@@ -401,9 +401,11 @@ export function createBoatTrip({
       c.rotation.y = boat.rotation.y;
       const r = rigs[i];
       r.body.position.y = 0;
-      r.legs.forEach((l) => {
-        l.rotation.x = -1.25;
-        l.children[1].rotation.x = 1.25;
+      r.legs.forEach((leg) => {
+        leg.rotation.x = -1.25;
+      });
+      r.feet.forEach((foot) => {
+        foot.rotation.x = 1.25;
       });
       r.arms.forEach((a, j) => {
         a.rotation.x = -0.65 + Math.sin(time * 4) * 0.35;

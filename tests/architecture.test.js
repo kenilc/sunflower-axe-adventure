@@ -1,12 +1,9 @@
-const assert = require("node:assert/strict");
-const vm = require("node:vm");
-const { createModuleLoader } = require("./helpers/modules.cjs");
+import { test } from "vitest";
+import assert from "node:assert/strict";
 
-(async () => {
-  const loadModule = createModuleLoader(vm.createContext({}));
-  const { createLocationManager } = await loadModule(
-    "src/game/location-manager.js",
-  );
+test("location state and animation lifecycle", async () => {
+  const { createLocationManager } =
+    await import("../src/game/location-manager.js");
   const terrains = Object.fromEntries(
     [
       "garden",
@@ -63,7 +60,7 @@ const { createModuleLoader } = require("./helpers/modules.cjs");
     "Invalid changes preserve the active area",
   );
 
-  const { createGameLoop } = await loadModule("src/game/game-loop.js");
+  const { createGameLoop } = await import("../src/game/game-loop.js");
   const pending = new Map();
   let nextId = 0,
     updates = 0;
@@ -99,7 +96,4 @@ const { createModuleLoader } = require("./helpers/modules.cjs");
   console.log(
     "PASS: exclusive location state, nested castle return, shop/lagoon/summit terrain, invalid transitions, and animation start/stop/restart",
   );
-})().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
 });

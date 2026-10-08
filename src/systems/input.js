@@ -1,4 +1,4 @@
-import * as THREE from "../../vendor/three.module.js";
+import * as THREE from "three";
 import { bindCameraDrag } from "../rendering/camera-drag.js";
 
 export function bindGameInput({

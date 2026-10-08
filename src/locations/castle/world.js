@@ -1,4 +1,4 @@
-import * as THREE from "../../../vendor/three.module.js";
+import * as THREE from "three";
 
 export function createCastleRoom({ mesh, box, cyl, ball }) {
   const group = new THREE.Group();

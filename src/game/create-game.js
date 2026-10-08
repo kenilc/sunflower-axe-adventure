@@ -16,7 +16,7 @@ import { createBedRest } from "../locations/castle/bed-rest.js";
 import { createCastleRoom } from "../locations/castle/world.js";
 import { createCableCar } from "../locations/riverside/cable-car.js";
 import { createBoatTrip } from "../locations/riverside/boat-trip.js";
-import * as THREE from "../../vendor/three.module.js";
+import * as THREE from "three";
 import { createRiverside } from "../locations/riverside/world.js";
 import { createCave } from "../locations/cave/world.js";
 import { createGameAudio } from "../systems/audio.js";
@@ -37,7 +37,7 @@ import { createLocationManager } from "./location-manager.js";
 import { createGameLoop } from "./game-loop.js";
 import { registerAdventureProgress } from "../integrations/adventure-progress.js";
 
-export function createGame({ createRenderer } = {}) {
+export function createGame({ createRenderer, models } = {}) {
   const $ = (s) => document.querySelector(s);
   const { renderer, scene, camera, sun } = createRendering({
     $,
@@ -61,14 +61,17 @@ export function createGame({ createRenderer } = {}) {
     targets,
     gemPositions,
     pathMat,
-  } = createGarden({ scene, rand });
-  const { hero, body, legs, arms, held, eyes, axe } = createHero({
-    scene,
-    mesh,
-    box,
-    ball,
-    cyl,
-  });
+  } = createGarden({ scene, rand, benchModel: models?.bench });
+  const {
+    hero,
+    rig: heroRig,
+    body,
+    legs,
+    arms,
+    held,
+    eyes,
+    axe,
+  } = createHero({ scene, model: models.hero, axeModel: models.axe });
   const cave = createCave();
   garden.add(cave.entrance);
   scene.add(cave.interior);
@@ -98,13 +101,13 @@ export function createGame({ createRenderer } = {}) {
   scene.add(festival.group);
   const castleRoom = createCastleRoom({ mesh, box, cyl, ball });
   scene.add(castleRoom.group);
-  const companion = createCompanion({ ball, box, cyl, mesh });
+  const companion = createCompanion({ model: models.companion });
   garden.add(companion.character);
   const bedRest = createBedRest({
     bed: castleRoom.bed,
     terrain: castleRoom,
     hero,
-    heroRig: { body, legs, arms, held, eyes },
+    heroRig,
     companion,
     toast,
     onRestChange(sleeping) {
@@ -120,7 +123,7 @@ export function createGame({ createRenderer } = {}) {
   const funfairActivities = createFunfairActivities({
     park: funfair,
     hero,
-    heroRig: { body, legs, arms, held },
+    heroRig,
     companion,
     toast,
     onPrize(total, position) {
@@ -131,7 +134,7 @@ export function createGame({ createRenderer } = {}) {
     },
   });
   const alpineOutfits = createAlpineOutfits({
-    heroRig: { body, legs, arms },
+    heroRig,
     companion,
     mesh,
     box,
@@ -139,7 +142,7 @@ export function createGame({ createRenderer } = {}) {
     ball,
   });
   const summerOutfits = createSummerOutfits({
-    rigs: [{ body, legs, arms }, companion.rig],
+    rigs: [heroRig, companion.rig],
     box,
     cyl,
   });
@@ -147,13 +150,13 @@ export function createGame({ createRenderer } = {}) {
     festival,
     hero,
     companion,
-    rigs: [{ body, legs, arms, eyes }, companion.rig],
+    rigs: [heroRig, companion.rig],
     camera,
   });
   const alpineCart = createAlpineCart({
     village,
     hero,
-    heroRig: { body, legs, arms, held, eyes },
+    heroRig,
     companion,
     camera,
     mesh,
@@ -195,7 +198,7 @@ export function createGame({ createRenderer } = {}) {
   const benchMoment = createBenchMoment({
     bench: lakeside.bench,
     hero,
-    heroRig: { body, legs, arms, held },
+    heroRig,
     companion,
     hearts,
     toast,
@@ -208,7 +211,7 @@ export function createGame({ createRenderer } = {}) {
     scene,
     riverside,
     hero,
-    heroRig: { body, legs, arms, held },
+    heroRig,
     companion,
     toast,
     onSceneChange(atLagoon) {
@@ -254,7 +257,7 @@ export function createGame({ createRenderer } = {}) {
     riverside,
     lagoon: boatTrip.lagoon,
     hero,
-    heroRig: { body, legs, arms, held },
+    heroRig,
     companion,
     mesh,
     box,
@@ -1801,7 +1804,7 @@ export function createGame({ createRenderer } = {}) {
       meshes: { mesh, box, cyl, ball },
       clock,
     },
-    characters: { hero, rig: { body, legs, arms, held, eyes }, companion },
+    characters: { hero, rig: heroRig, companion },
     worlds: {
       garden,
       lakeside,

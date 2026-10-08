@@ -1,31 +1,8 @@
-const fs = require("fs");
-const vm = require("vm");
-const assert = require("assert/strict");
-(async () => {
-  const context = vm.createContext({ console });
-  const three = new vm.SourceTextModule(
-    fs.readFileSync("vendor/three.module.js", "utf8"),
-    { context },
-  );
-  await three.link(() => {
-    throw Error("Unexpected import");
-  });
-  await three.evaluate();
-  const riverModule = new vm.SourceTextModule(
-    fs.readFileSync("src/locations/riverside/world.js", "utf8"),
-    { context },
-  );
-  const visibilityModule = new vm.SourceTextModule(
-    fs.readFileSync("src/rendering/tree-visibility.js", "utf8"),
-    { context },
-  );
-  await visibilityModule.link(() => three);
-  await visibilityModule.evaluate();
-  await riverModule.link((specifier) =>
-    specifier.includes("tree-visibility") ? visibilityModule : three,
-  );
-  await riverModule.evaluate();
-  const T = three.namespace;
+import { test } from "vitest";
+import assert from "node:assert/strict";
+test("riverside scenery and transport", async () => {
+  const T = await import("three");
+  const riverModule = await import("../src/locations/riverside/world.js");
   const mesh = (geo, c, x = 0, y = 0, z = 0, parent) => {
     const m = new T.Mesh(
       geo,
@@ -41,7 +18,7 @@ const assert = require("assert/strict");
     mesh(new T.CylinderGeometry(a, b, h, n), c, x, y, z, p);
   const ball = (r, c, x, y, z, p) =>
     mesh(new T.IcosahedronGeometry(r, 1), c, x, y, z, p);
-  const river = riverModule.namespace.createRiverside({ mesh, box, cyl, ball });
+  const river = riverModule.createRiverside({ mesh, box, cyl, ball });
   const mountain = river.group.getObjectByName("waterfall-mountain");
   assert(mountain, "A mountain must supply the rainbow waterfall");
   const mountainBounds = new T.Box3().setFromObject(mountain);
@@ -332,22 +309,21 @@ const assert = require("assert/strict");
   assert(
     river.treasures.every((t) => !t.got && t.crystal.visible && t.glow.visible),
   );
-  const boatModule = new vm.SourceTextModule(
-    fs.readFileSync("src/locations/riverside/boat-trip.js", "utf8"),
-    { context },
-  );
-  await boatModule.link(() => three);
-  await boatModule.evaluate();
-  const rig = () => ({
-    body: new T.Group(),
-    legs: [0, 1].map(() => {
-      const l = new T.Group();
-      l.add(new T.Group(), new T.Group());
-      return l;
-    }),
-    arms: [new T.Group(), new T.Group()],
-    held: { visible: true },
-  });
+  const boatModule = await import("../src/locations/riverside/boat-trip.js");
+  const rig = () => {
+    const feet = [new T.Group(), new T.Group()];
+    return {
+      feet,
+      body: new T.Group(),
+      legs: [0, 1].map((index) => {
+        const l = new T.Group();
+        l.add(new T.Group(), feet[index]);
+        return l;
+      }),
+      arms: [new T.Group(), new T.Group()],
+      held: { visible: true },
+    };
+  };
   const rider = new T.Group(),
     friend = new T.Group(),
     heroRig = rig();
@@ -361,7 +337,7 @@ const assert = require("assert/strict");
   const scene = new T.Scene();
   scene.add(river.group, rider);
   const transitions = [];
-  const trip = boatModule.namespace.createBoatTrip({
+  const trip = boatModule.createBoatTrip({
     mesh,
     box,
     cyl,
@@ -483,7 +459,4 @@ const assert = require("assert/strict");
   console.log(
     "PASS: 900 instanced sunflowers, 240 collectible lagoon treasures, collection persistence and reset, boarding, seated travel, lagoon exploration, return landing, trip reset, four accessible landmarks, six collectible clusters, rainbow, 1800 trees in four varieties across three peaks, 9000 grass tufts, forested source mountain, waterfall feeding the river, gazebo fading, visible island boundary, accessible edge banks, river-to-waterfall connections, stable finite scenery, tree fading, 18 accessible treasures, bridge, gates, and reset",
   );
-})().catch((e) => {
-  console.error(e);
-  process.exit(1);
 });

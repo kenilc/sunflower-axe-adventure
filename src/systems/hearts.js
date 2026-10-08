@@ -1,4 +1,4 @@
-import * as THREE from "../../vendor/three.module.js";
+import * as THREE from "three";
 
 export function createHearts(scene) {
   const shape = new THREE.Shape();

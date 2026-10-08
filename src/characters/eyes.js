@@ -1,4 +1,4 @@
-import * as THREE from "../../vendor/three.module.js";
+import * as THREE from "three";
 
 export function createCharacterEyes({ body, ball, mesh }) {
   const open = new THREE.Group(),
@@ -20,6 +20,10 @@ export function createCharacterEyes({ body, ball, mesh }) {
     );
     lid.rotation.z = Math.PI;
   }
+  return bindCharacterEyes({ open, closed });
+}
+
+export function bindCharacterEyes({ open, closed }) {
   return {
     open,
     closed,

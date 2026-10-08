@@ -472,3 +472,16 @@ body:has(#funfairExit:not([hidden])) #toast {
   white-space: normal;
   text-align: center;
 }
+
+#loading {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: #152e2c;
+  color: #fff0bd;
+}
+#loading[hidden] {
+  display: none;
+}

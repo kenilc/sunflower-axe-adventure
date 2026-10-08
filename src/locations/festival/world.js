@@ -1,5 +1,5 @@
 import { createFestivalCrowd } from "./crowd.js";
-import * as THREE from "../../../vendor/three.module.js";
+import * as THREE from "three";
 
 // A summer matsuri, reached through the funfair's north lantern gate.
 export function createNightFestival({ mesh, box, cyl, ball }) {
@@ -793,11 +793,7 @@ export function createFestivalMoment({
             child.name === "open-eyes" ||
             child.name === "closed-eyes",
         );
-        pose.smile = pose.children.find(
-          (child) =>
-            child.geometry?.type === "TorusGeometry" &&
-            child.geometry.parameters.radius === 0.09,
-        );
+        pose.smile = rig.smile;
         pose.children.forEach((child) => {
           pose.head.add(child);
           child.position.y -= 1.8;

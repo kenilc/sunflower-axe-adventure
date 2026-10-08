@@ -1,4 +1,4 @@
-import * as THREE from "../../../vendor/three.module.js";
+import * as THREE from "three";
 
 const TAU = Math.PI * 2;
 const colors = ["#ed8ca7", "#71c9c6", "#f6cf65", "#a799d7"];

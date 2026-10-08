@@ -1,4 +1,4 @@
-import * as THREE from "../../../vendor/three.module.js";
+import * as THREE from "three";
 import { createTreeVisibility } from "../../rendering/tree-visibility.js";
 import { createAlpineNature } from "./nature.js";
 

@@ -1,4 +1,4 @@
-import * as THREE from "../../../vendor/three.module.js";
+import * as THREE from "three";
 
 export function createBedRest({
   bed,
@@ -22,7 +22,7 @@ export function createBedRest({
       rig.body.position.set(0, 0, 0);
       rig.body.rotation.set(0, 0, 0);
       [...rig.legs, ...rig.arms].forEach((limb) => limb.rotation.set(0, 0, 0));
-      rig.legs.forEach((leg) => (leg.children[1].rotation.x = 0));
+      rig.feet.forEach((foot) => (foot.rotation.x = 0));
       rig.arms.forEach((arm, j) => arm.position.copy(armPositions[i][j]));
       rig.eyes.setClosed(false);
       if (rig.held) rig.held.visible = false;
@@ -68,9 +68,9 @@ export function createBedRest({
           arm.position.z += 0.4;
           arm.rotation.set(-1.25, 0, (j ? -1 : 1) * 0.1);
         });
-        rig.legs.forEach((leg) => {
+        rig.legs.forEach((leg, index) => {
           leg.rotation.x = 0.18;
-          leg.children[1].rotation.x = -0.18;
+          rig.feet[index].rotation.x = -0.18;
         });
       });
       terrain.setSleeping(true);

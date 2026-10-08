@@ -1,7 +1,8 @@
-const { createModuleLoader } = require("./helpers/modules.cjs");
-const vm = require("vm");
-const assert = require("assert/strict");
-(async () => {
+import { test, vi, afterEach } from "vitest";
+import { readModels } from "./helpers/models.js";
+afterEach(() => vi.unstubAllGlobals());
+import assert from "node:assert/strict";
+test("gameplay, collisions, travel, activities and restart", async () => {
   const elements = new Map();
   const handlers = new Map();
   const element = (selector) => {
@@ -16,7 +17,7 @@ const assert = require("assert/strict");
       });
     return elements.get(selector);
   };
-  const context = vm.createContext({
+  const browser = {
     console,
     setTimeout(fn) {
       fn();
@@ -57,20 +58,24 @@ const assert = require("assert/strict");
         this.camera = camera;
       }
     },
+  };
+  for (const [name, value] of Object.entries(browser))
+    vi.stubGlobal(name, value);
+  const { createGame } = await import("../src/game/create-game.js");
+  const models = await readModels();
+  const G = createGame({
+    models,
+    createRenderer: () => new browser.FakeRenderer(),
   });
-  const loadModule = createModuleLoader(context);
-  const { createGame } = await loadModule("src/game/create-game.js");
-  const G = createGame({ createRenderer: () => new context.FakeRenderer() });
   G.update();
-  const { createBenchMoment } = await loadModule(
-    "src/locations/garden/lakeside.js",
-  );
-  const T = await loadModule("vendor/three.module.js");
-  const C = (await loadModule("src/characters/companion.js")).createCompanion(
-    G.rendering.meshes,
-  );
+  const { createBenchMoment } =
+    await import("../src/locations/garden/lakeside.js");
+  const T = await import("three");
+  const C = (await import("../src/characters/companion.js")).createCompanion({
+    model: models.companion,
+  });
   const river = (
-    await loadModule("src/locations/riverside/world.js")
+    await import("../src/locations/riverside/world.js")
   ).createRiverside(G.rendering.meshes);
   const allowed = (p, obs = G.worlds.blockers) =>
     obs.every(
@@ -102,12 +107,7 @@ const assert = require("assert/strict");
   const bench = createBenchMoment({
     bench: G.worlds.lakeside.bench,
     hero: G.characters.hero,
-    heroRig: {
-      body: G.characters.rig.body,
-      legs: G.characters.rig.legs,
-      arms: G.characters.rig.arms,
-      held: G.characters.rig.held,
-    },
+    heroRig: G.characters.rig,
     companion: C,
     hearts: { clear() {}, contact() {} },
     toast() {},
@@ -154,8 +154,8 @@ const assert = require("assert/strict");
     bench.stand();
   }
   const { resolveObstacleCollisions: resolve, overlapsObstacle: overlaps } =
-    await loadModule("src/systems/collision.js");
-  const cave = (await loadModule("src/locations/cave/world.js")).createCave();
+    await import("../src/systems/collision.js");
+  const cave = (await import("../src/locations/cave/world.js")).createCave();
   const rocks = [];
   cave.interior.traverse((object) => {
     if (object.name === "cave-rock") rocks.push(object);
@@ -263,9 +263,8 @@ const assert = require("assert/strict");
     G.characters.hero.position.distanceTo(new T.Vector3(-28, 0, 0)) < 1e-7,
     "Stepping through the relocated gate must return to the garden",
   );
-  const { createSceneTransition } = await loadModule(
-    "src/game/scene-transition.js",
-  );
+  const { createSceneTransition } =
+    await import("../src/game/scene-transition.js");
   let opacity = 0,
     switches = 0;
   const transition = createSceneTransition((value) => {
@@ -544,10 +543,7 @@ const assert = require("assert/strict");
       "Faces stay above the blanket",
     );
   }
-  const handSets = [
-    G.characters.rig.arms.map((a) => a.children[1]),
-    G.characters.companion.rig.arms.map((a) => a.children[3]),
-  ];
+  const handSets = [G.characters.rig.hands, G.characters.companion.rig.hands];
   for (const hands of handSets) {
     const upperHand = hands
       .map((h) => h.getWorldPosition(new T.Vector3()))
@@ -2001,7 +1997,4 @@ const assert = require("assert/strict");
   console.log(
     "PASS: dimmed sleeping room, warm lamp, draped blanket with visible faces and joined hands, restored daytime lighting and bedspread, face-to-face sleeping hug, closed eyes and restored awake poses, bed rest for both characters, paused movement and animation, safe get-up and rest cleanup on exit and restart, distinct forested lagoon slope without duplicated waterfall or rainbow, clear sofa aisle for both characters, solid gold and gemstone boxes, separate castle-room entry and return transitions, reachable furniture activities and six-star treasure hunt, persistent chest reward, cable-car ascent and descent, both riders, summit landing and boundary, safe restart and preserved lagoon treasures, smooth bidirectional gate transitions, midpoint-only scene changes, duplicate prevention and restart cancellation, cave wall and exit rock coverage, sprint contacts around the chamber, reachable cave exit, garden rock clearance, garden solid blockers, reachable shrine quest, target blocker lifecycle, full gazebo seats, non-crossing bench approaches, repeated collision resolution, exact-center contacts and crowded-contact fallback",
   );
-})().catch((e) => {
-  console.error(e);
-  process.exit(1);
 });

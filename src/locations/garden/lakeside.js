@@ -1,4 +1,5 @@
-import * as THREE from "../../../vendor/three.module.js";
+import * as THREE from "three";
+import { instantiateModel } from "../../assets/models.js";
 
 const lakeX = 11,
   lakeZ = 14;
@@ -7,7 +8,7 @@ export const inLake = (x, z, margin = 0) =>
 export const reservedLakeside = (x, z) =>
   inLake(x, z, 1) || Math.hypot(x - 6.4, z - 9.6) < 2.4;
 
-export function createLakeside({ mesh, box, cyl, ball }) {
+export function createLakeside({ mesh, box, cyl, ball, benchModel }) {
   const group = new THREE.Group();
   const bank = cyl(1, 1, 0.09, "#c8bd89", lakeX, 0.04, lakeZ, group, 64);
   bank.scale.set(6.35, 1, 4.65);
@@ -88,28 +89,10 @@ export function createLakeside({ mesh, box, cyl, ball }) {
       cyl(0.055, 0.055, 0.22, "#86603d", x + j * 0.1, 0.85 + j * 0.2, z, group);
     }
   }
-  const bench = new THREE.Group();
+  const bench = instantiateModel(benchModel);
   bench.position.set(6.4, 0, 9.6);
   bench.rotation.y = 0.85;
   group.add(bench);
-  for (const side of [-1, 1]) {
-    box(0.15, 0.83, 0.72, "#344b43", side * 1.25, 0.42, 0, bench);
-    box(0.12, 1.25, 0.12, "#344b43", side * 1.25, 1.05, -0.38, bench);
-    box(0.16, 0.12, 0.8, "#a87746", side * 1.42, 1.22, 0, bench);
-  }
-  for (let i = 0; i < 3; i++) {
-    box(3.2, 0.13, 0.23, "#bd8b54", 0, 0.83, -0.26 + i * 0.26, bench);
-    box(
-      3.2,
-      0.2,
-      0.12,
-      i % 2 ? "#b07e48" : "#bd8b54",
-      0,
-      1.13 + i * 0.24,
-      -0.4,
-      bench,
-    );
-  }
   // A short sandy approach connects the clearing to the seat.
   const approach = box(2.8, 0.035, 4.6, "#b8ac73", 4.5, 0.03, 7.6, group);
   approach.rotation.y = 0.85;
@@ -153,9 +136,11 @@ export function createBenchMoment({
   function pose(rig, side, hug) {
     rig.body.position.y = 0;
     rig.body.rotation.z = -side * hug * 0.1;
-    rig.legs.forEach((leg) => {
+    rig.legs.forEach((leg, index) => {
       leg.rotation.x = -1.3;
-      leg.children[1].rotation.x = 1.3;
+    });
+    rig.feet.forEach((foot) => {
+      foot.rotation.x = 1.3;
     });
     rig.arms.forEach((arm, i) => {
       const inner = (side < 0 && i === 1) || (side > 0 && i === 0);
@@ -189,8 +174,8 @@ export function createBenchMoment({
     rigs.forEach((rig) => {
       rig.body.rotation.z = rig.body.position.y = 0;
       [...rig.legs, ...rig.arms].forEach((limb) => limb.rotation.set(0, 0, 0));
-      rig.legs.forEach((leg) => {
-        leg.children[1].rotation.x = 0;
+      rig.feet.forEach((foot) => {
+        foot.rotation.x = 0;
       });
       if (rig.held) rig.held.visible = true;
     });
