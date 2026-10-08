@@ -6,6 +6,7 @@ import { createMeshFactory } from "../src/rendering/mesh-factory.js";
 import { createHeroModel } from "../assets/source/hero.js";
 import { createCompanionModel } from "../assets/source/companion.js";
 import { createBenchModel } from "../assets/source/bench.js";
+import { stabilizeMaterialColors } from "./asset-colors.js";
 
 // The Three.js exporter uses this browser API to assemble GLB buffers.
 class BinaryFileReader {
@@ -93,6 +94,7 @@ if (!check) await mkdir(directory, { recursive: true });
 for (const [name, model] of Object.entries(models)) {
   sharePrimitiveGeometry(model);
   preservePresentation(model);
+  stabilizeMaterialColors(model);
   const data = await new GLTFExporter().parseAsync(model, {
     binary: true,
     onlyVisible: false,
