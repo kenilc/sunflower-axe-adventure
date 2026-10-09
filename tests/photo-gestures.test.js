@@ -1,10 +1,15 @@
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import * as THREE from "three";
 import { createPhotoMode } from "../src/rendering/photo-mode.js";
 import { bindPhotoGestures } from "../src/rendering/photo-gestures.js";
 import { createPhotoView } from "../src/rendering/photo-view.js";
 
-afterEach(() => vi.unstubAllGlobals());
+beforeEach(() => vi.useFakeTimers());
+afterEach(() => {
+  vi.clearAllTimers();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 function fixture() {
   const actors = [-2, 2].map((x) => {
     const group = new THREE.Group();
@@ -53,18 +58,25 @@ function fixture() {
     releasePointerCapture: (id) => captures.delete(id),
   };
   vi.stubGlobal("addEventListener", vi.fn());
+  const changed = vi.fn(),
+    vibrate = vi.fn();
+  vi.stubGlobal("navigator", { vibrate });
   let paused = false;
   const gestures = bindPhotoGestures(canvas, {
     mode,
     paused: () => paused,
-    changed: vi.fn(),
+    changed,
   });
-  const event = (type, { id = 1, x = 120, y = 70, deltaY = 0 } = {}) =>
+  const event = (
+    type,
+    { id = 1, x = 120, y = 70, deltaY = 0, shiftKey = false } = {},
+  ) =>
     listeners.get(type)({
       pointerId: id,
       clientX: x,
       clientY: y,
       button: 0,
+      shiftKey,
       pointerType: "touch",
       deltaY,
       preventDefault: vi.fn(),
@@ -77,6 +89,8 @@ function fixture() {
     event,
     gestures,
     captures,
+    changed,
+    vibrate,
     pause: () => {
       paused = true;
     },
@@ -104,13 +118,18 @@ test("tapping and dragging either character turns only that character; dragging 
   expect(actors[0].rotation.y).toBeCloseTo(0.6);
 });
 
-test("Move drags a character along terrain without changing their heading", () => {
-  const { actors, mode, screen, event } = fixture();
-  mode.selectActor(0);
-  mode.setManipulation("move");
+test("holding a character enables movement and gives feedback without turning them", () => {
+  const { actors, mode, screen, event, changed, vibrate } = fixture();
   const point = screen(0),
     origin = actors[0].position.clone();
   event("pointerdown", point);
+  vi.advanceTimersByTime(449);
+  expect(vibrate).not.toHaveBeenCalled();
+  // A little finger jitter should not prevent a deliberate hold.
+  event("pointermove", { x: point.x + 2, y: point.y });
+  vi.advanceTimersByTime(1);
+  expect(changed).toHaveBeenLastCalledWith({ moving: true });
+  expect(vibrate).toHaveBeenCalledWith(12);
   event("pointermove", { x: point.x + 40, y: point.y });
   event("pointerup", point);
   expect(actors[0].position.x).toBeGreaterThan(origin.x);
@@ -119,7 +138,7 @@ test("Move drags a character along terrain without changing their heading", () =
   expect(actors[1].position.x).toBe(2);
   event("pointerdown");
   expect(mode.selectedActor).toBe(null);
-  expect(mode.manipulation).toBe("turn");
+  expect(changed).toHaveBeenLastCalledWith({ moving: false });
 });
 
 test("pinch zooms and frames without turning a character or jumping when one finger lifts", () => {
@@ -177,7 +196,7 @@ test("viewfinder and canvas share portrait bounds on phones and restore the full
   view.resize(true);
   expect(
     parseFloat(frame.style.top) + parseFloat(frame.style.height),
-  ).toBeLessThanOrEqual(600 - 204);
+  ).toBeLessThanOrEqual(600 - 156);
   vi.stubGlobal("innerWidth", 844);
   vi.stubGlobal("innerHeight", 390);
   view.resize(true);
@@ -189,4 +208,70 @@ test("viewfinder and canvas share portrait bounds on phones and restore the full
   expect(camera.aspect).toBe(844 / 390);
   expect(renderer.domElement.style.position).toBe("");
   expect(renderer.setSize).toHaveBeenLastCalledWith(844, 390);
+});
+
+test("a drag starts turning immediately and never changes into a move mid-gesture", () => {
+  const { actors, screen, event, vibrate } = fixture();
+  const point = screen(0),
+    origin = actors[0].position.clone();
+  event("pointerdown", point);
+  event("pointermove", { x: point.x + 30, y: point.y });
+  vi.advanceTimersByTime(1000);
+  event("pointermove", { x: point.x + 60, y: point.y });
+  expect(actors[0].rotation.y).toBeCloseTo(0.72);
+  expect(actors[0].position.equals(origin)).toBe(true);
+  expect(vibrate).not.toHaveBeenCalled();
+});
+
+test("releasing, cancelling, resetting, pinching, pausing or exiting cancels a pending hold", () => {
+  for (const reason of [
+    "pointerup",
+    "pointercancel",
+    "lostpointercapture",
+    "reset",
+    "pinch",
+    "pause",
+    "exit",
+  ]) {
+    const { mode, screen, event, gestures, pause, vibrate } = fixture();
+    event("pointerdown", screen(0));
+    if (reason === "reset") gestures.reset();
+    else if (reason === "pinch")
+      event("pointerdown", { id: 2, x: 600, y: 150 });
+    else if (reason === "pause") pause();
+    else if (reason === "exit") mode.exit();
+    else event(reason);
+    vi.advanceTimersByTime(1000);
+    expect(vibrate, reason).not.toHaveBeenCalled();
+    gestures.reset();
+  }
+});
+
+test("Shift drag provides mouse movement and framing without visible mode switches", () => {
+  const { actors, mode, screen, event } = fixture();
+  const point = screen(0),
+    origin = actors[0].position.clone();
+  event("pointerdown", { ...point, shiftKey: true });
+  event("pointermove", { x: point.x + 40, y: point.y });
+  event("pointerup");
+  expect(actors[0].position.x).toBeGreaterThan(origin.x);
+  expect(actors[0].rotation.y).toBe(0);
+  event("pointerdown", { shiftKey: true });
+  const yaw = mode.settings.yaw;
+  event("pointermove", { x: 180, y: 100 });
+  expect(mode.settings.horizontal).not.toBe(0);
+  expect(mode.settings.yaw).toBe(yaw);
+});
+
+test("holding still moves a character when a low camera angle misses the ground plane", () => {
+  const { mode, actors, screen, event } = fixture();
+  mode.settings.pitch = -5;
+  mode.updateCamera();
+  const point = screen(0),
+    origin = actors[0].position.clone();
+  event("pointerdown", point);
+  vi.advanceTimersByTime(450);
+  event("pointermove", { x: point.x + 40, y: point.y });
+  expect(actors[0].position.x).toBeGreaterThan(origin.x);
+  expect(actors[0].rotation.y).toBe(0);
 });

@@ -4,7 +4,7 @@ export function createPhotoView({ renderer, camera, frame, format }) {
   function resize(active) {
     if (active) {
       const top = innerHeight < 500 ? 52 : 76;
-      const bottom = innerHeight < 500 ? 88 : 204;
+      const bottom = innerHeight < 500 ? 104 : 156;
       const aspect = innerWidth < innerHeight ? 3 / 4 : 4 / 3;
       const width = Math.max(
         1,

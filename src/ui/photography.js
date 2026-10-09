@@ -15,7 +15,7 @@ export function bindPhotography({
 }) {
   let selected = null;
   const albumDialog = $("#photoAlbum");
-  function updateControls() {
+  function updateControls({ moving = false } = {}) {
     const actor = mode.selectedActor;
     $("#photoSubject").textContent =
       actor === null
@@ -23,22 +23,12 @@ export function bindPhotography({
         : actor === 0
           ? "Flower adventurer"
           : "Companion";
-    $("#photoTurn").textContent = actor === null ? "Orbit" : "Turn";
-    $("#photoMove").textContent = actor === null ? "Frame" : "Move";
-    $("#photoTurn").setAttribute(
-      "aria-pressed",
-      String(mode.manipulation === "turn"),
-    );
-    $("#photoMove").setAttribute(
-      "aria-pressed",
-      String(mode.manipulation === "move"),
-    );
-    $("#photoHint").textContent =
-      actor === null
-        ? "Tap a friend to select · Drag the scene · Pinch to zoom"
-        : mode.manipulation === "move"
-          ? "Drag this friend to move · Tap the scene to frame"
-          : "Drag this friend to turn · Tap Move to reposition";
+    $("#photoSelection").setAttribute("data-moving", String(moving));
+    const hint = moving
+      ? "Ready to move · Drag your friend into place"
+      : "Drag to turn · Hold to move · Pinch to zoom";
+    if ($("#photoHint").textContent !== hint)
+      $("#photoHint").textContent = hint;
     $("#photoZoom").textContent =
       `${(12 / mode.settings.distance).toFixed(1)}×`;
   }
@@ -88,6 +78,7 @@ export function bindPhotography({
   }
   function takePhoto() {
     if (!mode.active || albumDialog.open || $("#guide").open) return false;
+    resetGestures();
     try {
       mode.updateCamera();
       const width = Math.round(
@@ -186,7 +177,6 @@ export function bindPhotography({
   $("#photoAlbumAction").onclick = openAlbum;
   $("#exitPhotoMode").onclick = exit;
   $("#takePhoto").onclick = takePhoto;
-  $("#resetPhoto").onclick = reset;
   $("#closeAlbum").onclick = closeAlbum;
   albumDialog.addEventListener("close", clearInput);
   $("#deletePhoto").onclick = () => {
@@ -198,24 +188,6 @@ export function bindPhotography({
       $("#albumSummary").textContent =
         "Photo could not be deleted. Browser storage is unavailable.";
     }
-  };
-  $("#photoTurn").onclick = () => {
-    resetGestures();
-    mode.setManipulation("turn");
-    updateControls();
-  };
-  $("#photoMove").onclick = () => {
-    resetGestures();
-    mode.setManipulation("move");
-    updateControls();
-  };
-  $("#photoZoomIn").onclick = () => {
-    mode.zoomByScale(0.85);
-    updateControls();
-  };
-  $("#photoZoomOut").onclick = () => {
-    mode.zoomByScale(1 / 0.85);
-    updateControls();
   };
   const latest = album.photos[0];
   $("#photoAlbumThumb").hidden = !latest;
@@ -243,6 +215,7 @@ export function bindPhotography({
         return true;
       }
       if (mode.active && ["Digit1", "Digit2", "Digit0"].includes(event.code)) {
+        resetGestures();
         mode.selectActor(
           event.code === "Digit0" ? null : Number(event.code.at(-1)) - 1,
         );
@@ -260,15 +233,31 @@ export function bindPhotography({
         const dy =
           event.code === "ArrowDown" ? 10 : event.code === "ArrowUp" ? -10 : 0;
         if (mode.selectedActor !== null) {
-          if (mode.manipulation === "move") {
+          if (event.shiftKey) {
             const position = mode.selectedPosition;
             position.x += dx * 0.03;
             position.z += dy * 0.03;
             mode.moveSelected(position);
           } else mode.turnSelected(dx);
-        } else if (mode.manipulation === "move") mode.pan(dx, dy, 600);
+        } else if (event.shiftKey) mode.pan(dx, dy, 600);
         else mode.rotate(dx, dy);
         updateControls();
+        return true;
+      }
+      if (
+        mode.active &&
+        !editing &&
+        ["Equal", "NumpadAdd", "Minus", "NumpadSubtract"].includes(event.code)
+      ) {
+        event.preventDefault();
+        mode.zoomByScale(
+          ["Equal", "NumpadAdd"].includes(event.code) ? 0.85 : 1 / 0.85,
+        );
+        updateControls();
+        return true;
+      }
+      if (mode.active && !editing && event.code === "KeyR") {
+        if (!event.repeat) reset();
         return true;
       }
       if (editing || $("#guide").open) return mode.active;

@@ -670,29 +670,18 @@ body.photo-mode #toast {
   align-items: center;
   gap: 7px;
 }
-.camera-subject {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  font-size: 12px;
+#photoSelection[data-moving="true"] {
+  border-color: #a5efd8;
+  box-shadow: 0 0 0 5px #a5efd840;
 }
-.camera-modes {
-  display: flex;
-  padding: 3px;
-  border: 1px solid #ffffff25;
-  border-radius: 24px;
-}
-.camera-modes button {
-  border: 0;
-  border-radius: 22px;
-  min-width: 64px;
-  padding: 6px 12px;
-  background: transparent;
-  font-size: 12px;
-}
-.camera-modes button[aria-pressed="true"] {
-  color: #273d32;
-  background: #f0d997;
+.frame-subject {
+  position: absolute;
+  bottom: 12px;
+  left: 42px;
+  padding: 4px 7px;
+  border-radius: 4px;
+  background: #0d1918aa;
+  font-size: 11px;
 }
 #photoHint {
   font-size: 11px;
@@ -744,19 +733,6 @@ body.photo-mode #toast {
   object-fit: cover;
   border: 1px solid #fff5d5;
 }
-.camera-zoom-buttons {
-  display: flex;
-  justify-self: end;
-  gap: 5px;
-}
-.camera-zoom-buttons button {
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  font-size: 23px;
-  border-radius: 50%;
-  background: #1c2e2a;
-}
 #photoStatus {
   min-height: 16px;
   max-width: 580px;
@@ -781,15 +757,6 @@ body.photo-mode #toast {
   .camera-bottom {
     gap: 3px;
     bottom: 4px;
-  }
-  .camera-subject {
-    position: fixed;
-    top: 6px;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-  #photoHint {
-    display: none;
   }
   #takePhoto {
     width: 54px;

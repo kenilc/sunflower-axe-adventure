@@ -167,13 +167,11 @@
       </p>
       <p>
         <b>Camera / M</b> — pause and arrange both characters. Tap a friend and
-        drag to turn; choose Move to reposition. Tap the scene and drag to
-        orbit. Pinch to zoom; drag with two fingers to frame. Use the shutter or
-        Enter to take a photo. Exit restores your exploration positions.<br /><b
-          >Album / L</b
-        >
-        — view, download or delete photos. Up to 30 photos stay in this browser
-        across reloads and new adventures.<br />
+        drag to turn; hold a friend before dragging to move. Drag the scenery to
+        orbit. Pinch to zoom; slide two fingers together to frame. Use the
+        shutter or Enter to take a photo. Exit restores your exploration
+        positions.<br /><b>Album / L</b> — view, download or delete photos. Up
+        to 30 photos stay in this browser across reloads and new adventures.<br />
         <b>WASD / arrows</b> — move<br /><b>Shift</b> — run · <b>Space</b> —
         throw<br /><b>Click / Space</b> — throw straight ahead<br /><b
           >Drag the screen / Q / E</b
@@ -218,8 +216,7 @@
           >SUNFLOWER <span class="camera-label">/ CAMERA</span></span
         >
         <div>
-          <button id="resetPhoto" type="button">Reset</button
-          ><button id="exitPhotoMode" type="button" aria-label="Exit camera">
+          <button id="exitPhotoMode" type="button" aria-label="Exit camera">
             ✕
           </button>
         </div>
@@ -232,22 +229,13 @@
         ><i class="frame-corner corner-br"></i>
         <span id="photoFrameFormat" class="frame-format">4:3</span
         ><span id="photoZoom">1.0×</span>
+        <span id="photoSubject" class="frame-subject">Scene</span>
         <div id="photoSelection" hidden></div>
         <div id="photoFlash"></div>
       </div>
       <div class="camera-bottom">
-        <div class="camera-subject">
-          <span id="photoSubject">Scene</span>
-          <div class="camera-modes">
-            <button id="photoTurn" type="button" aria-pressed="true">
-              Orbit</button
-            ><button id="photoMove" type="button" aria-pressed="false">
-              Frame
-            </button>
-          </div>
-        </div>
-        <p id="photoHint">
-          Tap a friend to select · Drag the scene · Pinch to zoom
+        <p id="photoHint" role="status">
+          Drag to turn · Hold to move · Pinch to zoom
         </p>
         <div class="camera-shutter-row">
           <button
@@ -260,20 +248,14 @@
           <button id="takePhoto" type="button" aria-label="Take photo">
             <span></span>
           </button>
-          <div class="camera-zoom-buttons">
-            <button id="photoZoomOut" type="button" aria-label="Zoom out">
-              −</button
-            ><button id="photoZoomIn" type="button" aria-label="Zoom in">
-              +
-            </button>
-          </div>
+          <span aria-hidden="true"></span>
         </div>
         <p id="photoStatus" role="status"></p>
       </div>
       <span class="sr-only"
         >Keyboard: 1 selects the adventurer, 2 selects the companion, 0 selects
-        the scene. Arrow keys turn or move the selection. Enter takes a photo.
-        Escape exits.</span
+        the scene. Arrow keys turn; Shift and arrow keys move or frame. Plus and
+        minus zoom; R resets. Enter takes a photo. Escape exits.</span
       >
     </section>
     <dialog id="photoAlbum" aria-labelledby="albumTitle">

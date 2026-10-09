@@ -3,8 +3,7 @@ import { resolveObstacleCollisions } from "../systems/collision.js";
 
 export function createPhotoMode({ camera, actors, getPlace }) {
   let snapshot = null,
-    selectedActor = null,
-    manipulation = "turn";
+    selectedActor = null;
   const raycaster = new THREE.Raycaster();
   function pointerRay(x, y, bounds) {
     camera.updateMatrixWorld(true);
@@ -46,7 +45,6 @@ export function createPhotoMode({ camera, actors, getPlace }) {
   function reset() {
     if (!snapshot) return;
     selectedActor = null;
-    manipulation = "turn";
     actors.forEach((actor, i) => {
       actor.position.copy(snapshot.actors[i].position);
       actor.rotation.copy(snapshot.actors[i].rotation);
@@ -99,19 +97,10 @@ export function createPhotoMode({ camera, actors, getPlace }) {
     get selectedActor() {
       return selectedActor;
     },
-    get manipulation() {
-      return manipulation;
-    },
     selectActor(index) {
-      const next = actors[index] ? index : null;
-      if (next !== selectedActor) manipulation = "turn";
-      selectedActor = next;
-    },
-    setManipulation(value) {
-      manipulation = value === "move" ? "move" : "turn";
+      selectedActor = actors[index] ? index : null;
     },
     selectAt(x, y, bounds) {
-      const previousSelection = selectedActor;
       actors.forEach((actor) => actor.updateWorldMatrix(true, true));
       const hits = pointerRay(x, y, bounds)
         .intersectObjects(actors, true)
@@ -127,7 +116,6 @@ export function createPhotoMode({ camera, actors, getPlace }) {
             return false;
           })
         : null;
-      if (selectedActor !== previousSelection) manipulation = "turn";
       return selectedActor;
     },
     groundPoint(x, y, bounds) {
@@ -149,6 +137,25 @@ export function createPhotoMode({ camera, actors, getPlace }) {
     moveSelected(position) {
       if (snapshot && selectedActor !== null)
         placeActor(selectedActor, position.clone());
+    },
+    moveSelectedByScreen(dx, dy, height) {
+      if (!snapshot || selectedActor === null) return;
+      const actor = actors[selectedActor];
+      const unit =
+        (2 *
+          Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) *
+          camera.position.distanceTo(actor.position)) /
+        height;
+      const position = actor.position.clone();
+      position.addScaledVector(
+        new THREE.Vector3(Math.cos(settings.yaw), 0, -Math.sin(settings.yaw)),
+        dx * unit,
+      );
+      position.addScaledVector(
+        new THREE.Vector3(Math.sin(settings.yaw), 0, Math.cos(settings.yaw)),
+        dy * unit,
+      );
+      placeActor(selectedActor, position);
     },
     turnSelected(dx) {
       if (snapshot && selectedActor !== null)
@@ -226,7 +233,6 @@ export function createPhotoMode({ camera, actors, getPlace }) {
       camera.quaternion.copy(snapshot.camera.quaternion);
       snapshot = null;
       selectedActor = null;
-      manipulation = "turn";
     },
     reset,
     updateCamera,

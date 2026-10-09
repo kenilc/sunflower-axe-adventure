@@ -194,3 +194,40 @@ test("sound=off keeps the debugging preview silent at startup", async () => {
   const { element } = await createTestGame();
   expect(element("#sound").textContent).toBe("Sound off");
 });
+
+test("keyboard shortcuts move, frame, zoom and reset without camera mode switches", async () => {
+  const { game, handlers } = await createTestGame();
+  const { photography, photoMode } = game.activities;
+  photography.enter();
+  const hero = game.characters.hero,
+    origin = hero.position.clone();
+  const key = (code, shiftKey = false) =>
+    handlers.get("keydown")({
+      code,
+      shiftKey,
+      repeat: false,
+      target: {},
+      preventDefault: vi.fn(),
+    });
+  key("Digit1");
+  key("ArrowRight");
+  expect(hero.rotation.y).not.toBe(0);
+  key("ArrowRight", true);
+  expect(hero.position.x).toBeGreaterThan(origin.x);
+  key("Digit0");
+  const yaw = photoMode.settings.yaw;
+  key("ArrowRight");
+  expect(photoMode.settings.yaw).not.toBe(yaw);
+  key("ArrowUp", true);
+  expect(photoMode.settings.vertical).not.toBe(0);
+  const distance = photoMode.settings.distance;
+  key("Equal");
+  expect(photoMode.settings.distance).toBeLessThan(distance);
+  key("Minus");
+  expect(photoMode.settings.distance).toBeCloseTo(distance);
+  key("KeyR");
+  expect(photoMode.active).toBe(true);
+  expect(hero.position.equals(origin)).toBe(true);
+  expect(hero.rotation.y).toBe(0);
+  expect(photoMode.settings.vertical).toBe(0);
+});
