@@ -13,10 +13,16 @@ export function bindGameInput({
   rotate,
   zoomBy,
   toggleSound,
+  handleKeydown = () => false,
+  extraPaused = () => false,
 }) {
   const paused = () =>
-    $("#guide").open || !$("#sheepPhoto").hidden || passageTransition.active;
+    extraPaused() ||
+    $("#guide").open ||
+    !$("#sheepPhoto").hidden ||
+    passageTransition.active;
   addEventListener("keydown", (event) => {
+    if (handleKeydown(event)) return;
     if (
       ["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(
         event.code,

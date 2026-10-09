@@ -1,13 +1,17 @@
 import * as THREE from "three";
 
-// Photograph the scene separately from the exploration view and HUD. Keeping
-// a fixed aspect ratio also prevents portrait screens cropping the keepsake.
+// Render the scene without the HUD. Sheep keepsakes default to 4:3; camera
+// mode supplies dimensions matching its live view, including portrait screens.
 export function createPhotoCapture({ renderer, scene }) {
-  const width = 1024,
-    height = 768;
   let target;
-  return (camera, excluded = []) => {
+  return (camera, excluded = [], options = {}) => {
     if (!renderer.readRenderTargetPixels) return null;
+    const width = options.width ?? 1024,
+      height = options.height ?? 768;
+    if (target && (target.width !== width || target.height !== height)) {
+      target.dispose();
+      target = null;
+    }
     target ??= new THREE.WebGLRenderTarget(width, height, { samples: 4 });
     target.texture.colorSpace =
       renderer.outputColorSpace ?? THREE.SRGBColorSpace;
@@ -40,6 +44,6 @@ export function createPhotoCapture({ renderer, scene }) {
         row * stride,
       );
     context.putImageData(picture, 0, 0);
-    return canvas.toDataURL("image/png");
+    return canvas.toDataURL(options.type ?? "image/png", options.quality);
   };
 }

@@ -15,7 +15,7 @@ test("photos flip WebGL rows and restore the live view and actor visibility, inc
         picture = data;
       },
     }),
-    toDataURL: () => "photo",
+    toDataURL: vi.fn(() => "photo"),
   };
   vi.stubGlobal("document", { createElement: () => canvas });
   const liveTarget = {},
@@ -50,6 +50,18 @@ test("photos flip WebGL rows and restore the live view and actor visibility, inc
   expect(man.visible).toBe(true);
   expect(hidden.visible).toBe(false);
   expect(renderer.target).toBe(liveTarget);
+  expect(
+    capture(camera, [man, hidden], {
+      width: 600,
+      height: 1000,
+      type: "image/jpeg",
+      quality: 0.82,
+    }),
+  ).toBe("photo");
+  expect(canvas.width).toBe(600);
+  expect(canvas.height).toBe(1000);
+  expect(renderer.target).toBe(liveTarget);
+  expect(canvas.toDataURL).toHaveBeenLastCalledWith("image/jpeg", 0.82);
   renderer.render.mockImplementation(() => {
     throw new Error("render failed");
   });

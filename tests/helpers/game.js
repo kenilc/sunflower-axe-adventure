@@ -1,13 +1,24 @@
 import { vi } from "vitest";
 import { readModels } from "./models.js";
 
-export async function createTestGame() {
+export async function createTestGame({ storage } = {}) {
   const elements = new Map();
   const handlers = new Map();
   const element = (selector) => {
     if (!elements.has(selector))
       elements.set(selector, {
         style: {},
+        value: "0",
+        children: [],
+        replaceChildren() {
+          this.children = [];
+        },
+        showModal() {
+          this.open = true;
+        },
+        close() {
+          this.open = false;
+        },
         firstChild: { textContent: "" },
         open: false,
         setAttribute() {},
@@ -26,6 +37,10 @@ export async function createTestGame() {
     innerHeight: 720,
     devicePixelRatio: 1,
     window: {},
+    localStorage: storage ?? {
+      getItem: () => null,
+      setItem() {},
+    },
     requestAnimationFrame() {},
     cancelAnimationFrame() {},
     addEventListener(name, callback) {
@@ -35,6 +50,11 @@ export async function createTestGame() {
       querySelector: element,
       createElement() {
         return {
+          children: [],
+          setAttribute() {},
+          appendChild(child) {
+            this.children.push(child);
+          },
           width: 0,
           height: 0,
           getContext() {

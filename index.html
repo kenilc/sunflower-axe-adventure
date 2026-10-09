@@ -29,6 +29,10 @@
         <div>SUNFLOWER<small>AXE & ADVENTURE</small></div>
       </div>
       <div class="actions">
+        <button id="cameraAction" type="button" aria-pressed="false">
+          Camera
+        </button>
+        <button id="albumAction" type="button">Album</button>
         <button
           id="sound"
           aria-label="Toggle background music and sound effects"
@@ -162,6 +166,11 @@
         reach the garden.
       </p>
       <p>
+        <b>Camera / M</b> — pause and arrange both characters, drag to orbit,
+        adjust tilt, zoom and framing, then take a photo with Enter. Exit
+        restores your exploration positions.<br /><b>Album / L</b> — view,
+        download or delete photos. Up to 30 photos stay in this browser across
+        reloads and new adventures.<br />
         <b>WASD / arrows</b> — move<br /><b>Shift</b> — run · <b>Space</b> —
         throw<br /><b>Click / Space</b> — throw straight ahead<br /><b
           >Drag the screen / Q / E</b
@@ -199,6 +208,78 @@
       />
       <p id="sheepPhotoCaption">A woolly afternoon ♥</p>
       <button id="closeSheepPhoto" type="button">Keep exploring</button>
+    </dialog>
+    <section id="photoControls" aria-label="Camera controls" hidden>
+      <div class="photo-toolbar">
+        <span class="eyebrow">CAMERA MODE</span
+        ><button id="exitPhotoMode" type="button">Exit · Esc</button>
+      </div>
+      <p>Arrange a moment for two.</p>
+      <label
+        >Character
+        <select id="photoActor">
+          <option value="0">Flower adventurer</option>
+          <option value="1">Companion</option>
+        </select></label
+      >
+      <label
+        >Position left / right
+        <input id="actor-x" type="range" min="-5" max="5" step="0.1" value="0"
+      /></label>
+      <label
+        >Position forward / back
+        <input id="actor-z" type="range" min="-5" max="5" step="0.1" value="0"
+      /></label>
+      <label
+        >Turn character
+        <input
+          id="actor-heading"
+          type="range"
+          min="-180"
+          max="180"
+          step="1"
+          value="0"
+      /></label>
+      <details open>
+        <summary>Camera &amp; framing</summary>
+        <label
+          >Tilt <input id="photo-pitch" type="range" min="-5" max="80" step="1"
+        /></label>
+        <label
+          >Zoom distance
+          <input id="photo-distance" type="range" min="3" max="40" step="0.1"
+        /></label>
+        <label
+          >Frame left / right
+          <input id="photo-horizontal" type="range" min="-8" max="8" step="0.1"
+        /></label>
+        <label
+          >Frame up / down
+          <input id="photo-vertical" type="range" min="-4" max="6" step="0.1"
+        /></label>
+      </details>
+      <div class="photo-toolbar">
+        <button id="resetPhoto" type="button">Reset</button
+        ><button id="photoAlbumAction" type="button">Album</button
+        ><button id="takePhoto" type="button">Take photo</button>
+      </div>
+      <p id="photoStatus" role="status"></p>
+    </section>
+    <dialog id="photoAlbum" aria-labelledby="albumTitle">
+      <div class="photo-toolbar">
+        <h2 id="albumTitle">Our photo album</h2>
+        <button id="closeAlbum" type="button">Close</button>
+      </div>
+      <p id="albumSummary" role="status"></p>
+      <div id="albumDetail" hidden>
+        <img id="albumImage" alt="" />
+        <p id="albumCaption"></p>
+        <div class="photo-toolbar">
+          <a id="downloadPhoto" class="photo-download">Download photo</a
+          ><button id="deletePhoto" type="button">Delete photo</button>
+        </div>
+      </div>
+      <div id="albumGrid"></div>
     </dialog>
     <script type="module" src="src/main.js"></script>
   </body>

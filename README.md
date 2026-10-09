@@ -4,6 +4,10 @@ A browser adventure built with Three.js, Vite, and JavaScript modules. Explore t
 
 In the alpine village, approach a sheep and press **X** to play together while your companion takes a photo. Walking resumes after the seven-second moment; **P** reopens the latest photo. Photos stay in the current adventure and clear on New adventure. Help pauses the moment. The village camera eases closer near shops and sheep, with manual zoom and rotation still available during exploration.
 
+Use **Camera / M** anywhere during exploration to pause gameplay and arrange both characters independently. Adjust their positions and facing, drag to orbit, scroll or use the sliders for zoom and tilt, and shift the framing. **Take photo / Enter** saves the scene without the interface. **Exit / Esc** restores both characters and the exploration camera. Finish seated moments and rides before opening the camera.
+
+Open **Album / L** to browse, download, or delete your photos. JPEG photos match the live camera framing and are saved in local storage (up to 30 photos, subject to browser storage space). They survive reloads and New adventure on the same browser and origin; clearing browser data removes them. A storage failure reports an error and preserves existing photos.
+
 ## Development
 
 Use Node.js 22.12 or newer (Node 22 LTS is used in CI).

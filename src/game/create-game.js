@@ -32,6 +32,9 @@ import { resolveObstacleCollisions } from "../systems/collision.js";
 import { createSceneTransition } from "./scene-transition.js";
 import { createBenchMoment, inLake } from "../locations/garden/lakeside.js";
 import { createRendering } from "../rendering/renderer.js";
+import { createPhotoMode } from "../rendering/photo-mode.js";
+import { createPhotoAlbum } from "../systems/photo-album.js";
+import { bindPhotography } from "../ui/photography.js";
 import { createPhotoCapture } from "../rendering/photo-capture.js";
 import { createMeshFactory } from "../rendering/mesh-factory.js";
 import { createEffects } from "../systems/effects.js";
@@ -574,6 +577,8 @@ export function createGame({ createRenderer, models } = {}) {
   void setSound(true);
   function fire() {
     if (
+      photoMode.active ||
+      photography.viewing ||
       state.cooldown > 0 ||
       $("#guide").open ||
       !locations.active.canThrow ||
@@ -608,22 +613,68 @@ export function createGame({ createRenderer, models } = {}) {
       places.get(locations.area).cameraLocked?.(),
     );
   }
+  const photoMode = createPhotoMode({
+    camera,
+    actors: [hero, companion.character],
+    getPlace: () => locations.active,
+  });
+  const photoAlbum = createPhotoAlbum();
+  const photography = bindPhotography({
+    $,
+    mode: photoMode,
+    album: photoAlbum,
+    camera,
+    capture: createPhotoCapture({ renderer, scene }),
+    canEnter: () =>
+      !$("#guide").open &&
+      !passageTransition.active &&
+      !sheepMoment.viewing &&
+      !sheepMoment.active &&
+      !benchMoment.seated &&
+      !bedRest.resting &&
+      !boatTrip.rowing &&
+      !cableCar.riding &&
+      !funfairActivities.riding &&
+      !funfairActivities.playing &&
+      !alpineCart.riding &&
+      !alpineCart.vanishing &&
+      !festivalMoment.active,
+    clearInput: clearRestInput,
+    toast,
+    getLocation: () => locations.active.name ?? locations.active.id,
+  });
   const { joy, cameraDrag } = bindGameInput({
     $,
     canvas: renderer.domElement,
     keys,
     passageTransition,
     invokeShortcut,
+    handleKeydown: photography.keydown,
+    extraPaused: () => photography.viewing,
     pointerAction: () =>
-      locations.active.pointerAction
-        ? locations.active.pointerAction()
-        : fire(),
+      photoMode.active || photography.viewing
+        ? undefined
+        : locations.active.pointerAction
+          ? locations.active.pointerAction()
+          : fire(),
     repeatAllowed: () => !locations.active.blockPointerRepeat?.(),
-    cameraLocked,
-    rotate(dx) {
-      if (!cameraLocked()) state.yaw -= dx * 0.006;
+    cameraLocked: () =>
+      photography.viewing ||
+      $("#guide").open ||
+      sheepMoment.viewing ||
+      (!photoMode.active && cameraLocked()),
+    rotate(dx, dy) {
+      if (photoMode.active) {
+        photoMode.rotate(dx, dy);
+        photography.syncCamera();
+      } else if (!cameraLocked()) state.yaw -= dx * 0.006;
     },
     zoomBy(delta) {
+      if (photoMode.active) {
+        photoMode.zoomBy(delta);
+        photography.syncCamera();
+        return;
+      }
       state.zoom = THREE.MathUtils.clamp(
         state.zoom + delta * 0.012,
         10,
@@ -633,6 +684,8 @@ export function createGame({ createRenderer, models } = {}) {
     toggleSound: () => setSound(!state.sound),
   });
   $("#restart").onclick = () => {
+    photography.exit();
+    if (photography.viewing) photography.closeAlbum();
     passageTransition.cancel();
     cameraDrag.reset();
     benchMoment.stand();
@@ -669,7 +722,13 @@ export function createGame({ createRenderer, models } = {}) {
     return locations.active.getHud?.() ?? {};
   }
   function invokeShortcut(code) {
-    if ($("#guide").open || passageTransition.active) return false;
+    if (
+      photoMode.active ||
+      photography.viewing ||
+      $("#guide").open ||
+      passageTransition.active
+    )
+      return false;
     const action = (getHud().actions ?? []).find(
       (entry) =>
         entry.key === code && entry.visible !== false && !entry.disabled,
@@ -683,7 +742,11 @@ export function createGame({ createRenderer, models } = {}) {
     $,
     getPlace: () => locations.active,
     getHud,
-    canInteract: () => !$("#guide").open && !passageTransition.active,
+    canInteract: () =>
+      !photoMode.active &&
+      !photography.viewing &&
+      !$("#guide").open &&
+      !passageTransition.active,
     canThrow: () => locations.active.canThrow && heroRig.items.canThrow,
   });
   const clock = new THREE.Clock();
@@ -694,6 +757,8 @@ export function createGame({ createRenderer, models } = {}) {
     const transitioning = passageTransition.active;
     if (!$("#guide").open) passageTransition.update(dt);
     const paused =
+      photoMode.active ||
+      photography.viewing ||
       $("#guide").open ||
       transitioning ||
       (sheepMoment.viewing && !sheepMoment.active);
@@ -815,17 +880,22 @@ export function createGame({ createRenderer, models } = {}) {
       }
     }
     updateHud({ isMoving: state.isMoving, paused, dt });
-    for (const place of places.all()) place.animateBackground?.(time);
+    if (!photoMode.active && !photography.viewing)
+      for (const place of places.all()) place.animateBackground?.(time);
     const rootPlace = places.get(locations.area),
       activePlace = locations.active;
-    rootPlace.animate?.(dt, time, paused);
-    if (activePlace !== rootPlace) activePlace.animate?.(dt, time, paused);
-    effects.update(dt);
+    if (!photoMode.active && !photography.viewing) {
+      rootPlace.animate?.(dt, time, paused);
+      if (activePlace !== rootPlace) activePlace.animate?.(dt, time, paused);
+    }
+    effects.update(paused ? 0 : dt);
     if (
-      activePlace.updateCamera?.(dt) ||
-      (activePlace !== rootPlace && rootPlace.updateCamera?.(dt))
+      photoMode.updateCamera() ||
+      (!photography.viewing &&
+        (activePlace.updateCamera?.(dt) ||
+          (activePlace !== rootPlace && rootPlace.updateCamera?.(dt))))
     ) {
-    } else {
+    } else if (!photography.viewing) {
       const distance = activePlace.cameraDistance?.(state.zoom) ?? state.zoom;
       desired
         .set(
@@ -842,14 +912,22 @@ export function createGame({ createRenderer, models } = {}) {
       );
     }
     hearts.update(paused ? 0 : dt, camera);
-    for (const place of places.all()) place.afterCamera?.(dt, time);
+    if (photoMode.active) {
+      if (locations.area === "garden")
+        treeVisibility.update(camera, [hero, companion.character], dt);
+      if (locations.area === "village")
+        village.updateVisibility(camera, [hero, companion.character], dt);
+    } else if (!photography.viewing) {
+      for (const place of places.all()) place.afterCamera?.(dt, time);
+    }
     sun.position.set(
       hero.position.x - 18,
       hero.position.y + 30,
       hero.position.z + 12,
     );
     sun.target.position.copy(hero.position);
-    for (const place of places.all()) place.lateAnimate?.(time);
+    if (!photoMode.active && !photography.viewing)
+      for (const place of places.all()) place.lateAnimate?.(time);
     const view = activePlace.getRenderView?.() ??
       rootPlace.getRenderView?.() ?? { scene, camera };
     renderer.render(view.scene, view.camera);
@@ -935,6 +1013,9 @@ export function createGame({ createRenderer, models } = {}) {
       festival,
     },
     activities: {
+      photoMode,
+      photoAlbum,
+      photography,
       boatTrip,
       cableCar,
       bedRest,
