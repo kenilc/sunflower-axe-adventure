@@ -154,13 +154,15 @@ export function createFunfair({ mesh, box, cyl, ball }) {
   function gate(parent) {
     parent.name = "funfair-gate";
     for (const s of [-1, 1]) {
-      cyl(0.24, 0.32, 4.5, "#68b5b0", s * 2.6, 2.25, 0, parent);
-      flower(parent, s * 2.6, 4.5, 0, 0.75);
+      cyl(0.28, 0.36, 6, "#68b5b0", s * 2.6, 3, 0, parent);
+      flower(parent, s * 2.6, 6, 0, 1.1);
     }
-    box(5.7, 0.65, 0.45, "#e990a7", 0, 4.05, 0, parent);
-    flower(parent, 0, 4.7, 0, 0.9);
-    for (let i = 0; i < 9; i++)
-      ball(0.09, "#fff0b3", -2.2 + i * 0.55, 4.04, 0.28, parent);
+    box(7.2, 1.05, 0.65, "#e990a7", 0, 5.65, 0, parent);
+    flower(parent, 0, 7.05, 0, 1.65);
+    const bulbs = new THREE.MeshBasicMaterial({ color: "#fff0b3" });
+    for (let i = 0; i < 13; i++)
+      for (const face of [-1, 1])
+        ball(0.14, bulbs, -3 + i * 0.5, 5.65, face * 0.4, parent);
   }
   gate(entrance);
   gate(returnGate);
@@ -187,7 +189,7 @@ export function createFunfair({ mesh, box, cyl, ball }) {
     [-9, -18],
     [9, -18],
   ].forEach(([x, z], i) => flagPole(x, z, colors[i % colors.length], i));
-  for (const s of [-1, 1]) blockers.push({ x: s * 2.6, z: 29, r: 0.32 });
+  for (const s of [-1, 1]) blockers.push({ x: s * 2.6, z: 29, r: 0.36 });
   cyl(40, 41, 2, "#80a976", 0, -1.03, 0, group, 96);
   cyl(8, 8, 0.08, "#efdfb9", 0, 0, 4, group, 64);
   function path(x, z, w, d) {

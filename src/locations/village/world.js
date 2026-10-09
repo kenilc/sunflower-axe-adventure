@@ -20,21 +20,33 @@ export function createAlpineVillage({ mesh, box, cyl, ball }) {
   returnGate.position.set(0, 0, 29);
   group.add(returnGate);
   function gate(parent) {
+    parent.name = "village-chalet-gate";
     for (const side of [-1, 1]) {
-      box(0.35, 3.6, 0.4, wood, side * 2.5, 1.8, 0, parent);
+      box(0.55, 5.4, 0.6, wood, side * 2.5, 2.7, 0, parent);
       mesh(
-        new THREE.ConeGeometry(0.5, 0.7, 4),
+        new THREE.ConeGeometry(0.8, 1.1, 4),
         red,
         side * 2.5,
-        3.8,
+        5.75,
         0,
         parent,
       ).rotation.y = Math.PI / 4;
-      box(0.9, 0.9, 0.08, red, side * 2.5, 2.8, 0.28, parent);
-      box(0.6, 0.18, 0.09, cream, side * 2.5, 2.8, 0.33, parent);
-      box(0.18, 0.6, 0.09, cream, side * 2.5, 2.8, 0.33, parent);
+      for (const face of [-1, 1]) {
+        box(1.2, 1.2, 0.12, red, side * 2.5, 3.65, face * 0.36, parent);
+        box(0.85, 0.25, 0.09, cream, side * 2.5, 3.65, face * 0.46, parent);
+        box(0.25, 0.85, 0.09, cream, side * 2.5, 3.65, face * 0.46, parent);
+      }
     }
-    box(5.4, 0.35, 0.5, wood, 0, 3.5, 0, parent);
+    box(6.4, 0.65, 0.8, wood, 0, 5.15, 0, parent);
+    const roofGeometry = new THREE.ConeGeometry(4.5, 1.7, 4);
+    roofGeometry.rotateY(Math.PI / 4);
+    const roof = mesh(roofGeometry, red, 0, 6.0, 0, parent);
+    roof.scale.z = 0.45;
+    for (const face of [-1, 1]) {
+      box(1.35, 1.35, 0.12, red, 0, 5.15, face * 0.48, parent);
+      box(0.95, 0.28, 0.09, cream, 0, 5.15, face * 0.58, parent);
+      box(0.28, 0.95, 0.09, cream, 0, 5.15, face * 0.58, parent);
+    }
   }
   gate(entrance);
   gate(returnGate);

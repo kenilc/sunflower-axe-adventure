@@ -13,39 +13,53 @@ export function createRiverside({ mesh, box, cyl, ball }) {
   entrance.position.set(-32, 0, 0);
   entrance.rotation.y = Math.PI / 2;
   function gate(parent) {
+    if (!parent.name) parent.name = "riverside-flower-gate";
     for (const side of [-1, 1]) {
-      box(0.4, 3.6, 0.45, "#ded6ad", side * 2, 1.8, 0, parent);
-      cyl(0.3, 0.3, 0.2, "#ecdfbf", side * 2, 3.65, 0, parent);
-      for (let i = 0; i < 7; i++) {
+      box(0.55, 6, 0.65, "#ded6ad", side * 2, 3, 0, parent);
+      cyl(0.42, 0.42, 0.3, "#ecdfbf", side * 2, 6.05, 0, parent);
+      for (let i = 0; i < 10; i++) {
         const leaf = ball(
-          0.26,
+          0.34,
           "#598657",
-          side * (2 + Math.sin(i) * 0.13),
-          0.6 + i * 0.43,
-          0.27,
+          side * (2 + Math.sin(i) * 0.16),
+          0.7 + i * 0.5,
+          0.4,
           parent,
         );
         leaf.scale.y = 1.3;
         if (i % 2 === 0)
-          ball(0.13, "#e9adce", side * 1.8, 0.7 + i * 0.43, 0.4, parent);
+          ball(0.2, "#f3b9d5", side * 1.8, 0.85 + i * 0.5, 0.52, parent);
       }
     }
-    box(4.5, 0.38, 0.6, "#ded6ad", 0, 3.6, 0, parent);
+    box(5.4, 0.55, 0.8, "#ded6ad", 0, 6, 0, parent);
+    mesh(
+      new THREE.TorusGeometry(2.4, 0.22, 8, 32, Math.PI),
+      "#ecdfbf",
+      0,
+      6,
+      0,
+      parent,
+    );
     for (let i = 0; i < 9; i++)
       ball(
-        0.25,
+        0.38,
         i % 3 ? "#598657" : "#f3b9d5",
-        -2 + i * 0.5,
-        3.85,
+        Math.cos((i * Math.PI) / 8) * 2.4,
+        6 + Math.sin((i * Math.PI) / 8) * 2.4,
         0.1,
         parent,
       );
     const emblem = mesh(
-      new THREE.OctahedronGeometry(0.3),
-      "#63ded8",
+      new THREE.OctahedronGeometry(0.65),
+      new THREE.MeshStandardMaterial({
+        color: "#63ded8",
+        emissive: "#299d9b",
+        emissiveIntensity: 0.65,
+        roughness: 0.25,
+      }),
       0,
-      3.6,
-      0.42,
+      6,
+      0.6,
       parent,
     );
     emblem.rotation.z = Math.PI / 4;

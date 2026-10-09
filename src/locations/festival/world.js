@@ -19,15 +19,18 @@ export function createNightFestival({ mesh, box, cyl, ball }) {
   function gate(parent) {
     parent.name = "festival-lantern-gate";
     for (const s of [-1, 1]) {
-      box(0.35, 4.8, 0.35, "#a94e40", s * 3, 2.4, 0, parent);
-      lantern(s * 2.1, 3.8, 0, parent);
+      box(0.55, 6.7, 0.55, "#c25443", s * 3, 3.35, 0, parent);
+      lantern(s * 2.1, 5.15, 0, parent, false, 1.65);
+      lantern(s * 3, 2.9, 0.5, parent, false, 1.1);
+      const tip = box(1.6, 0.35, 1, "#c25443", s * 4.05, 7.04, 0, parent);
+      tip.rotation.z = s * 0.16;
     }
-    box(7.2, 0.3, 0.7, "#af5143", 0, 4.8, 0, parent);
-    box(6.5, 0.22, 0.5, "#d79664", 0, 4.2, 0, parent);
+    box(8.6, 0.55, 1, "#c25443", 0, 6.95, 0, parent);
+    box(8, 0.35, 0.65, "#e4b174", 0, 5.85, 0, parent);
   }
-  function lantern(x, y, z, parent = group, light = false) {
+  function lantern(x, y, z, parent = group, light = false, size = 1) {
     const paper = mesh(
-      new THREE.SphereGeometry(0.38, 12, 10),
+      new THREE.SphereGeometry(0.38 * size, 12, 10),
       warm,
       x,
       y,
@@ -36,7 +39,16 @@ export function createNightFestival({ mesh, box, cyl, ball }) {
     );
     paper.scale.set(1, 1.3, 1);
     for (const dy of [-0.48, 0.48])
-      cyl(0.22, 0.22, 0.09, "#6e4038", x, y + dy, z, parent);
+      cyl(
+        0.22 * size,
+        0.22 * size,
+        0.09 * size,
+        "#6e4038",
+        x,
+        y + dy * size,
+        z,
+        parent,
+      );
     if (light) {
       const glow = new THREE.PointLight("#ffbd6c", 7, 10, 2);
       glow.position.set(x, y - 0.2, z);

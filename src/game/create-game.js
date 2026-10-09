@@ -49,6 +49,7 @@ import { createGameLoop } from "./game-loop.js";
 import { createLocationSave } from "./location-save.js";
 import { createJourney } from "./journey.js";
 import { bindTravelMap } from "../ui/travel-map.js";
+import { createTreeVisibility } from "../rendering/tree-visibility.js";
 import { registerAdventureProgress } from "../integrations/adventure-progress.js";
 
 export function createGame({ createRenderer, models } = {}) {
@@ -131,7 +132,7 @@ export function createGame({ createRenderer, models } = {}) {
   scene.add(funfair.group);
   funfair.tossCamera.aspect = camera.aspect;
   funfair.tossCamera.updateProjectionMatrix();
-  blockers.push({ x: 32, z: -2.6, r: 0.32 }, { x: 32, z: 2.6, r: 0.32 });
+  blockers.push({ x: 32, z: -2.6, r: 0.36 }, { x: 32, z: 2.6, r: 0.36 });
   const village = createAlpineVillage({ mesh, box, cyl, ball });
   garden.add(village.entrance);
   scene.add(village.group);
@@ -144,6 +145,25 @@ export function createGame({ createRenderer, models } = {}) {
   scene.add(castleRoom.group);
   const companion = createCompanion({ model: models.companion });
   garden.add(companion.character);
+  // Tall gate tops stay prominent on approach, but fade if they hide a friend.
+  const gateVisibility = createTreeVisibility({ obstructedOpacity: 0.12 });
+  for (const gate of [
+    village.entrance,
+    village.returnGate,
+    funfair.entrance,
+    funfair.returnGate,
+    riverside.entrance,
+    riverside.returnGate,
+    festival.entrance,
+    festival.group.getObjectByName("festival-lantern-gate"),
+  ]) {
+    const canopy = new THREE.Group();
+    canopy.name = "gate-canopy";
+    gate.add(canopy);
+    for (const child of [...gate.children])
+      if (child.isMesh && child.position.y >= 4.5) canopy.add(child);
+    gateVisibility.add(canopy);
+  }
   const companionReactions = createCompanionReactions({ companion, toast });
   const sheepMoment = createSheepMoment({
     village,
@@ -944,6 +964,7 @@ export function createGame({ createRenderer, models } = {}) {
       );
     }
     hearts.update(paused ? 0 : dt, camera);
+    gateVisibility.update(camera, [hero, companion.character], dt);
     if (photoMode.active) {
       if (locations.area === "garden")
         treeVisibility.update(camera, [hero, companion.character], dt);
