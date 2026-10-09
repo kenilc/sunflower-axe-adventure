@@ -593,17 +593,22 @@ export function createGame({ createRenderer, models } = {}) {
     $("#toast").style.opacity = 1;
     state.toastUntil = performance.now() + 3200;
   }
+  function updateSoundButton() {
+    $("#soundLabel").textContent = state.sound ? "Sound on" : "Sound off";
+    $("#sound").setAttribute("aria-pressed", String(state.sound));
+    $("#sound").title = state.sound
+      ? "Sound on · Click to mute"
+      : "Sound off · Click to unmute";
+  }
   async function setSound(value) {
     state.sound = value;
-    $("#sound").textContent = state.sound ? "Sound on" : "Sound off";
-    $("#sound").setAttribute("aria-pressed", String(state.sound));
+    updateSoundButton();
     try {
       await audio.setEnabled(state.sound);
     } catch {
       state.sound = false;
       await audio.setEnabled(false);
-      $("#sound").textContent = "Sound off";
-      $("#sound").setAttribute("aria-pressed", "false");
+      updateSoundButton();
       toast("Audio could not start. Tap Sound to try again.");
     }
   }

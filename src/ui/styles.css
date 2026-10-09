@@ -1146,3 +1146,62 @@ body.photo-mode #toast {
     width: 100%;
   }
 }
+
+.actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  padding: 10px;
+  border-radius: 14px;
+  color: #fff1d5;
+  box-shadow: 0 3px 10px #1b333316;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+.actions button:hover {
+  border-color: #ffdda980;
+  background: #315c49;
+}
+.toolbar-icon {
+  display: block;
+  width: 25px;
+  height: 25px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.toolbar-icon .icon-accent {
+  stroke: #ffd989;
+}
+.toolbar-icon .icon-dot {
+  fill: #ffd989;
+  stroke: none;
+}
+#sound .sound-muted,
+#sound[aria-pressed="false"] .sound-waves {
+  display: none;
+}
+#sound[aria-pressed="false"] .sound-muted {
+  display: inline;
+}
+@media (max-width: 600px) {
+  .actions button {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+    padding: 9px;
+    border-radius: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .actions button {
+    transition: none;
+  }
+}

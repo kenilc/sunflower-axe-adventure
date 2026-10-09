@@ -192,7 +192,8 @@ test("camera mode is available in other destinations and cannot interrupt an act
 test("sound=off keeps the debugging preview silent at startup", async () => {
   vi.stubGlobal("location", { search: "?sound=off" });
   const { element } = await createTestGame();
-  expect(element("#sound").textContent).toBe("Sound off");
+  expect(element("#soundLabel").textContent).toBe("Sound off");
+  expect(element("#sound").title).toBe("Sound off · Click to unmute");
 });
 
 test("keyboard shortcuts move, frame, zoom and reset without camera mode switches", async () => {
