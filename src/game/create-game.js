@@ -46,6 +46,7 @@ import { createGarden } from "../locations/garden/world.js";
 import { createHud } from "../ui/hud.js";
 import { createLocationManager } from "./location-manager.js";
 import { createGameLoop } from "./game-loop.js";
+import { createLocationSave } from "./location-save.js";
 import { registerAdventureProgress } from "../integrations/adventure-progress.js";
 
 export function createGame({ createRenderer, models } = {}) {
@@ -732,6 +733,7 @@ export function createGame({ createRenderer, models } = {}) {
     $("#objective").textContent =
       "Break the wooden targets and find the sunstones.";
     toast("A fresh adventure begins");
+    locationSave.flush();
   };
   function getHud() {
     return locations.active.getHud?.() ?? {};
@@ -948,6 +950,7 @@ export function createGame({ createRenderer, models } = {}) {
     renderer.render(view.scene, view.camera);
     if (photoMode.active) photography.updateSelection();
     activePlace.afterRender?.(paused);
+    locationSave.update(dt);
   }
   camera.position
     .set(
@@ -964,11 +967,45 @@ export function createGame({ createRenderer, models } = {}) {
   });
   toast("WASD to move · Drag to look around · Click to throw");
   const loop = createGameLoop(frame);
+  const locationSave = createLocationSave({
+    places,
+    locations,
+    transitions,
+    hero,
+    companion,
+    state,
+    camera,
+    resetCamera,
+    canSave: () =>
+      !passageTransition.active &&
+      !photoMode.active &&
+      !photography.viewing &&
+      !benchMoment.seated &&
+      !bedRest.resting &&
+      !boatTrip.rowing &&
+      !cableCar.riding &&
+      !funfairActivities.riding &&
+      !funfairActivities.playing &&
+      !alpineCart.riding &&
+      !alpineCart.vanishing &&
+      !sheepMoment.active &&
+      !sheepMoment.viewing &&
+      !festivalMoment.active,
+  });
+  let opened = false;
   if (typeof location !== "undefined") {
     const query = new URLSearchParams(location.search);
     const area = query.get("area");
-    if (area) transitions.open(area, { activity: query.get("activity") });
+    if (area)
+      opened = transitions.open(area, { activity: query.get("activity") });
   }
+  if (!opened && locationSave.restore())
+    toast("Welcome back · Journey resumed");
+  locationSave.flush();
+  addEventListener("pagehide", () => locationSave.flush());
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") locationSave.flush();
+  });
   registerAdventureProgress(readProgress);
   function readProgress() {
     return {

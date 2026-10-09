@@ -29,7 +29,11 @@ export function createGardenPlace(context) {
   return {
     id: "garden",
     group: garden,
-    terrain: { ...gardenTerrain, blockers },
+    terrain: {
+      ...gardenTerrain,
+      blockers,
+      contains: (x, z) => Math.hypot(x, z) <= 49 && !inLake(x, z, 0.4),
+    },
     companionObstacles,
     companionTerrain: gardenTerrain,
     getHud: createGardenHud(context),

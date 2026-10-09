@@ -498,6 +498,20 @@ export function createBoatTrip({
     start,
     update,
     reset,
+    restoreDestination() {
+      rowing = false;
+      atLagoon = enabled = true;
+      elapsed = 0;
+      switched = false;
+      restorePose();
+      lagoonGroup.visible = boat.visible = true;
+      riverside.group.visible = false;
+      lagoonGroup.add(companion.character);
+      hero.position.copy(lagoonDock);
+      companion.reset(hero.position, lagoon.blockers, lagoon);
+      idleBoat();
+      onSceneChange(true);
+    },
     setEnabled(value) {
       enabled = value;
       boat.visible = value;

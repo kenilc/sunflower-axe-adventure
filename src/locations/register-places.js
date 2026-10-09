@@ -32,6 +32,7 @@ export function registerPlaces(places, context) {
     kind: "context",
     group: boatTrip.lagoon.group,
     terrain: boatTrip.lagoon,
+    restore: () => boatTrip.restoreDestination(),
     cameraTarget: () => (cableCar.riding ? 3 : 1),
   });
   places.register({
@@ -42,6 +43,7 @@ export function registerPlaces(places, context) {
     kind: "context",
     group: cableCar.summit.group,
     terrain: cableCar.summit,
+    restore: () => cableCar.restoreDestination(),
     cameraTarget: () => (cableCar.riding ? 3 : 5),
     getGate: () =>
       !cableCar.riding && cableCar.summit.castle.isEntrance(hero.position)

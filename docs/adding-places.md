@@ -71,6 +71,8 @@ Import the factory in `src/locations/register-places.js`, then add `places.regis
 
 `?area=grove` opens registered root places through their parent route. An optional `activity` query is passed to entry adapters. The generic `settings.spawn` is used for direct entries.
 
+Walking positions and camera views save automatically for registered areas and rooms. Reload restores the parent route before placing the player on the saved terrain. A `kind: "context"` place must provide `restore()` to restore its transport state and scenery without replaying the journey (as the lagoon and summit do). Saves contain location and view only; per-place collectibles and activity progress remain session state.
+
 ## Contract
 
 | Field or hook                                           | Purpose                                                                                                                                                                                        |

@@ -70,7 +70,9 @@ export async function createTestGame({ storage } = {}) {
           toDataURL: () => "data:image/png;base64,d29vbGx5",
         };
       },
-      addEventListener() {},
+      addEventListener(name, callback) {
+        handlers.set(name, callback);
+      },
       body: { classList: { toggle() {} } },
     },
     FakeRenderer: class {

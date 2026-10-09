@@ -289,6 +289,19 @@ export function createCableCar({
     update,
     nearby,
     reset,
+    restoreDestination() {
+      riding = false;
+      atSummit = enabled = true;
+      elapsed = 0;
+      restorePose();
+      group.visible = lagoon.group.visible = true;
+      cabin.position.copy(endPoint);
+      hero.position.copy(summitLanding);
+      summit.group.add(companion.character);
+      companion.reset(hero.position, summit.blockers, summit);
+      showScenery();
+      onArrival(true);
+    },
     updateVisibility(camera, characters, dt) {
       if (atSummit && !riding) castle.updateVisibility(camera, characters, dt);
     },

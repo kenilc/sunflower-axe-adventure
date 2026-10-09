@@ -167,6 +167,25 @@ export function createPlaceTransitions({
       return run(() => commit(id, options));
     },
     jump: commit,
+    restore(id) {
+      if (!places.has(id)) return false;
+      const route = [];
+      let next = id;
+      while (next && next !== home) {
+        if (route.includes(next)) return false;
+        const place = places.get(next);
+        if (place.kind === "context" && !place.restore) return false;
+        route.unshift(next);
+        next = place.parent;
+      }
+      if (next !== home) return false;
+      for (const destination of route) {
+        const place = places.get(destination);
+        if (place.kind === "context") place.restore();
+        else commit(destination);
+      }
+      return locations.current === id;
+    },
     open(id, options = {}) {
       if (!places.has(id) || places.get(id).kind !== "area") return false;
       const route = [];
