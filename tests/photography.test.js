@@ -136,8 +136,11 @@ test("camera and album pause gameplay, capture current framing, survive restart,
   expect(photoAlbum.photos).toHaveLength(0);
   key("Enter");
   expect(photoAlbum.photos).toHaveLength(1);
-  // The saved canvas uses the same aspect as the live camera, including portrait.
-  game.rendering.camera.aspect = 0.6;
+  // Resizing to a phone gives the preview a matching portrait camera crop.
+  vi.stubGlobal("innerWidth", 390);
+  vi.stubGlobal("innerHeight", 844);
+  handlers.get("resize")();
+  expect(game.rendering.camera.aspect).toBe(3 / 4);
   expect(photography.takePhoto()).toBe(true);
   expect(photoAlbum.photos).toHaveLength(2);
   expect(photography.openAlbum()).toBe(true);
@@ -184,4 +187,10 @@ test("camera mode is available in other destinations and cannot interrupt an act
   game.transitions.open("funfair", { activity: "ring-toss" });
   expect(photography.enter()).toBe(false);
   expect(photography.openAlbum()).toBe(false);
+});
+
+test("sound=off keeps the debugging preview silent at startup", async () => {
+  vi.stubGlobal("location", { search: "?sound=off" });
+  const { element } = await createTestGame();
+  expect(element("#sound").textContent).toBe("Sound off");
 });

@@ -166,11 +166,14 @@
         reach the garden.
       </p>
       <p>
-        <b>Camera / M</b> — pause and arrange both characters, drag to orbit,
-        adjust tilt, zoom and framing, then take a photo with Enter. Exit
-        restores your exploration positions.<br /><b>Album / L</b> — view,
-        download or delete photos. Up to 30 photos stay in this browser across
-        reloads and new adventures.<br />
+        <b>Camera / M</b> — pause and arrange both characters. Tap a friend and
+        drag to turn; choose Move to reposition. Tap the scene and drag to
+        orbit. Pinch to zoom; drag with two fingers to frame. Use the shutter or
+        Enter to take a photo. Exit restores your exploration positions.<br /><b
+          >Album / L</b
+        >
+        — view, download or delete photos. Up to 30 photos stay in this browser
+        across reloads and new adventures.<br />
         <b>WASD / arrows</b> — move<br /><b>Shift</b> — run · <b>Space</b> —
         throw<br /><b>Click / Space</b> — throw straight ahead<br /><b
           >Drag the screen / Q / E</b
@@ -209,61 +212,69 @@
       <p id="sheepPhotoCaption">A woolly afternoon ♥</p>
       <button id="closeSheepPhoto" type="button">Keep exploring</button>
     </dialog>
-    <section id="photoControls" aria-label="Camera controls" hidden>
-      <div class="photo-toolbar">
-        <span class="eyebrow">CAMERA MODE</span
-        ><button id="exitPhotoMode" type="button">Exit · Esc</button>
+    <section id="photoControls" aria-label="Camera viewfinder" hidden>
+      <div class="camera-topbar">
+        <span class="eyebrow"
+          >SUNFLOWER <span class="camera-label">/ CAMERA</span></span
+        >
+        <div>
+          <button id="resetPhoto" type="button">Reset</button
+          ><button id="exitPhotoMode" type="button" aria-label="Exit camera">
+            ✕
+          </button>
+        </div>
       </div>
-      <p>Arrange a moment for two.</p>
-      <label
-        >Character
-        <select id="photoActor">
-          <option value="0">Flower adventurer</option>
-          <option value="1">Companion</option>
-        </select></label
+      <div id="photoFrame" aria-hidden="true">
+        <div class="viewfinder-grid"></div>
+        <i class="frame-corner corner-tl"></i
+        ><i class="frame-corner corner-tr"></i>
+        <i class="frame-corner corner-bl"></i
+        ><i class="frame-corner corner-br"></i>
+        <span id="photoFrameFormat" class="frame-format">4:3</span
+        ><span id="photoZoom">1.0×</span>
+        <div id="photoSelection" hidden></div>
+        <div id="photoFlash"></div>
+      </div>
+      <div class="camera-bottom">
+        <div class="camera-subject">
+          <span id="photoSubject">Scene</span>
+          <div class="camera-modes">
+            <button id="photoTurn" type="button" aria-pressed="true">
+              Orbit</button
+            ><button id="photoMove" type="button" aria-pressed="false">
+              Frame
+            </button>
+          </div>
+        </div>
+        <p id="photoHint">
+          Tap a friend to select · Drag the scene · Pinch to zoom
+        </p>
+        <div class="camera-shutter-row">
+          <button
+            id="photoAlbumAction"
+            type="button"
+            aria-label="Open photo album"
+          >
+            <img id="photoAlbumThumb" alt="" hidden /><span>Album</span>
+          </button>
+          <button id="takePhoto" type="button" aria-label="Take photo">
+            <span></span>
+          </button>
+          <div class="camera-zoom-buttons">
+            <button id="photoZoomOut" type="button" aria-label="Zoom out">
+              −</button
+            ><button id="photoZoomIn" type="button" aria-label="Zoom in">
+              +
+            </button>
+          </div>
+        </div>
+        <p id="photoStatus" role="status"></p>
+      </div>
+      <span class="sr-only"
+        >Keyboard: 1 selects the adventurer, 2 selects the companion, 0 selects
+        the scene. Arrow keys turn or move the selection. Enter takes a photo.
+        Escape exits.</span
       >
-      <label
-        >Position left / right
-        <input id="actor-x" type="range" min="-5" max="5" step="0.1" value="0"
-      /></label>
-      <label
-        >Position forward / back
-        <input id="actor-z" type="range" min="-5" max="5" step="0.1" value="0"
-      /></label>
-      <label
-        >Turn character
-        <input
-          id="actor-heading"
-          type="range"
-          min="-180"
-          max="180"
-          step="1"
-          value="0"
-      /></label>
-      <details open>
-        <summary>Camera &amp; framing</summary>
-        <label
-          >Tilt <input id="photo-pitch" type="range" min="-5" max="80" step="1"
-        /></label>
-        <label
-          >Zoom distance
-          <input id="photo-distance" type="range" min="3" max="40" step="0.1"
-        /></label>
-        <label
-          >Frame left / right
-          <input id="photo-horizontal" type="range" min="-8" max="8" step="0.1"
-        /></label>
-        <label
-          >Frame up / down
-          <input id="photo-vertical" type="range" min="-4" max="6" step="0.1"
-        /></label>
-      </details>
-      <div class="photo-toolbar">
-        <button id="resetPhoto" type="button">Reset</button
-        ><button id="photoAlbumAction" type="button">Album</button
-        ><button id="takePhoto" type="button">Take photo</button>
-      </div>
-      <p id="photoStatus" role="status"></p>
     </section>
     <dialog id="photoAlbum" aria-labelledby="albumTitle">
       <div class="photo-toolbar">

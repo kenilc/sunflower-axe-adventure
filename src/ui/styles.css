@@ -531,56 +531,286 @@ body:has(#funfairExit:not([hidden])) #toast {
 }
 
 #photoControls[hidden],
+#photoSelection[hidden],
+#photoAlbumThumb[hidden],
 #albumDetail[hidden] {
   display: none;
 }
+body.photo-mode {
+  background: #0d1918;
+}
+body.photo-mode header,
 body.photo-mode .quest,
 body.photo-mode .compass,
 body.photo-mode footer,
 body.photo-mode #mobile,
 body.photo-mode #benchControls,
-body.photo-mode .brand,
 body.photo-mode #toast {
   display: none;
 }
 #photoControls {
   position: fixed;
-  right: 24px;
-  top: 100px;
-  width: 310px;
-  max-height: calc(100dvh - 124px);
-  overflow: auto;
-  border: 1px solid #ffdd7666;
-  border-radius: 16px;
-  padding: 18px;
-  background: #153e35ed;
-  backdrop-filter: blur(12px);
+  inset: 0;
+  pointer-events: none;
 }
-#photoControls p {
-  margin: 8px 0 12px;
+#photoControls button {
+  pointer-events: auto;
+  min-height: 44px;
 }
-#photoControls label {
+.camera-topbar {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  left: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.camera-topbar > div {
+  display: flex;
+  gap: 8px;
+}
+.camera-label {
+  color: #c0cfc7;
+}
+.camera-topbar button {
+  padding: 8px 14px;
+  background: #1c2e2a;
+}
+#photoFrame {
+  overflow: hidden;
+  border: 1px solid #ffffff35;
+  border-radius: 4px;
+}
+.viewfinder-grid {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to right,
+      transparent calc(33.333% - 0.5px),
+      #ffffff30 33.333%,
+      transparent calc(33.333% + 0.5px),
+      transparent calc(66.666% - 0.5px),
+      #ffffff30 66.666%,
+      transparent calc(66.666% + 0.5px)
+    ),
+    linear-gradient(
+      to bottom,
+      transparent calc(33.333% - 0.5px),
+      #ffffff30 33.333%,
+      transparent calc(33.333% + 0.5px),
+      transparent calc(66.666% - 0.5px),
+      #ffffff30 66.666%,
+      transparent calc(66.666% + 0.5px)
+    );
+}
+.frame-corner {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border: solid #fff5d5;
+}
+.corner-tl {
+  top: 8px;
+  left: 8px;
+  border-width: 2px 0 0 2px;
+}
+.corner-tr {
+  top: 8px;
+  right: 8px;
+  border-width: 2px 2px 0 0;
+}
+.corner-bl {
+  bottom: 8px;
+  left: 8px;
+  border-width: 0 0 2px 2px;
+}
+.corner-br {
+  bottom: 8px;
+  right: 8px;
+  border-width: 0 2px 2px 0;
+}
+.frame-format,
+#photoZoom {
+  position: absolute;
+  padding: 4px 7px;
+  background: #0d1918aa;
+  border-radius: 4px;
+  font-size: 11px;
+}
+.frame-format {
+  top: 12px;
+  left: 42px;
+}
+#photoZoom {
+  bottom: 12px;
+  right: 42px;
+}
+#photoSelection {
+  position: absolute;
+  border: 2px solid #ffd773;
+  border-radius: 9px;
+  box-shadow: 0 0 0 3px #ffd77325;
+}
+#photoFlash {
+  position: absolute;
+  inset: 0;
+  background: white;
+  opacity: 0;
+}
+.camera-bottom {
+  position: absolute;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  left: 16px;
+  right: 16px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  align-items: center;
+  gap: 7px;
+}
+.camera-subject {
+  display: flex;
+  align-items: center;
+  gap: 14px;
   font-size: 12px;
-  margin: 8px 0;
 }
-#photoControls input {
+.camera-modes {
+  display: flex;
+  padding: 3px;
+  border: 1px solid #ffffff25;
+  border-radius: 24px;
+}
+.camera-modes button {
+  border: 0;
+  border-radius: 22px;
+  min-width: 64px;
+  padding: 6px 12px;
+  background: transparent;
+  font-size: 12px;
+}
+.camera-modes button[aria-pressed="true"] {
+  color: #273d32;
+  background: #f0d997;
+}
+#photoHint {
+  font-size: 11px;
+  margin: 0;
+  text-align: center;
+  color: #c1ccc3;
+}
+.camera-shutter-row {
+  display: grid;
+  grid-template-columns: 100px 80px 100px;
+  align-items: center;
+  gap: 18px;
+}
+#takePhoto {
+  width: 72px;
+  height: 72px;
+  border: 3px solid #fff7e4;
+  border-radius: 50%;
+  padding: 5px;
+  background: transparent;
+  justify-self: center;
+}
+#takePhoto span {
+  display: block;
   width: 100%;
-  accent-color: #f0c666;
-  cursor: pointer;
-}
-#photoControls select {
-  padding: 8px;
-  border-radius: 6px;
+  height: 100%;
   background: #fff7e4;
-  color: #253b2b;
-  font: inherit;
+  border-radius: 50%;
+  transition: transform 0.12s;
 }
-#photoControls summary {
-  cursor: pointer;
-  font-size: 13px;
+#takePhoto:active span {
+  transform: scale(0.85);
+}
+#photoAlbumAction {
+  justify-self: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 10px;
+  border: 0;
+  background: transparent;
+  font-size: 11px;
+}
+#photoAlbumThumb {
+  width: 42px;
+  height: 32px;
+  border-radius: 4px;
+  object-fit: cover;
+  border: 1px solid #fff5d5;
+}
+.camera-zoom-buttons {
+  display: flex;
+  justify-self: end;
+  gap: 5px;
+}
+.camera-zoom-buttons button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  font-size: 23px;
+  border-radius: 50%;
+  background: #1c2e2a;
+}
+#photoStatus {
+  min-height: 16px;
+  max-width: 580px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.2;
+  margin: 0;
+  color: #ffe2a0;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media (max-height: 499px) {
+  .camera-topbar {
+    top: 5px;
+  }
+  .camera-bottom {
+    gap: 3px;
+    bottom: 4px;
+  }
+  .camera-subject {
+    position: fixed;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  #photoHint {
+    display: none;
+  }
+  #takePhoto {
+    width: 54px;
+    height: 54px;
+  }
+  .camera-shutter-row {
+    grid-template-columns: 100px 60px 100px;
+  }
+}
+@media (max-width: 420px) {
+  .camera-topbar {
+    left: 16px;
+    right: 16px;
+  }
+  .camera-label {
+    display: none;
+  }
+  .camera-shutter-row {
+    gap: 12px;
+    grid-template-columns: 88px 76px 88px;
+  }
 }
 .photo-toolbar {
   display: flex;
@@ -592,13 +822,6 @@ body.photo-mode #toast {
   margin: 0;
   width: auto;
   padding: 9px 12px;
-  font-size: 12px;
-}
-#takePhoto {
-  background: #f0c666;
-  color: #253b2b;
-}
-#photoStatus {
   font-size: 12px;
 }
 #photoAlbum {
@@ -675,28 +898,10 @@ body.photo-mode #toast {
   .brand small {
     letter-spacing: 1px;
   }
-  #photoControls {
-    top: auto;
-    bottom: 12px;
-    right: 12px;
-    left: 12px;
-    width: auto;
-    max-height: 42dvh;
-    padding: 14px;
-  }
   #photoAlbum {
     padding: 18px;
   }
   #photoAlbum h2 {
     font-size: 21px;
   }
-}
-
-#photoControls > .photo-toolbar:last-of-type {
-  position: sticky;
-  bottom: 0;
-  background: #153e35;
-  padding-top: 8px;
-  padding-bottom: 8px;
-  z-index: 1;
 }

@@ -4,9 +4,11 @@ A browser adventure built with Three.js, Vite, and JavaScript modules. Explore t
 
 In the alpine village, approach a sheep and press **X** to play together while your companion takes a photo. Walking resumes after the seven-second moment; **P** reopens the latest photo. Photos stay in the current adventure and clear on New adventure. Help pauses the moment. The village camera eases closer near shops and sheep, with manual zoom and rotation still available during exploration.
 
-Use **Camera / M** anywhere during exploration to pause gameplay and arrange both characters independently. Adjust their positions and facing, drag to orbit, scroll or use the sliders for zoom and tilt, and shift the framing. **Take photo / Enter** saves the scene without the interface. **Exit / Esc** restores both characters and the exploration camera. Finish seated moments and rides before opening the camera.
+Use **Camera / M** anywhere during exploration to pause gameplay. Tap or click either character to select them, then drag to turn. Choose **Move** to drag them into position. Tap the scenery to select the scene; drag to orbit or choose **Frame** to shift the view. On phones, pinch to zoom and drag with two fingers to frame; the **− / +** buttons and mouse wheel also zoom. The viewfinder switches between portrait and landscape and shows exactly what the large shutter button saves, without the grid or interface. **Enter** also takes a photo; **Exit / Esc** restores both characters and the exploration camera. Finish seated moments and rides before opening the camera. Keyboard users can select characters with **1 / 2**, select the scene with **0**, and use the arrow keys to turn or move.
 
-Open **Album / L** to browse, download, or delete your photos. JPEG photos match the live camera framing and are saved in local storage (up to 30 photos, subject to browser storage space). They survive reloads and New adventure on the same browser and origin; clearing browser data removes them. A storage failure reports an error and preserves existing photos.
+For quiet debugging, open the preview with `?sound=off`; it stays muted across reloads.
+
+Open **Album / L** to browse, download, or delete your photos. JPEG photos match the viewfinder framing and are saved in local storage (up to 30 photos, subject to browser storage space). They survive reloads and New adventure on the same browser and origin; clearing browser data removes them. A storage failure reports an error and preserves existing photos.
 
 ## Development
 

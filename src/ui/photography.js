@@ -10,32 +10,59 @@ export function bindPhotography({
   clearInput,
   toast,
   getLocation,
+  view,
+  resetGestures = () => {},
 }) {
   let selected = null;
-  const actorOffsets = [
-    { x: 0, z: 0, heading: 0 },
-    { x: 0, z: 0, heading: 0 },
-  ];
   const albumDialog = $("#photoAlbum");
-  function syncCamera() {
-    for (const name of ["pitch", "distance", "horizontal", "vertical"])
-      $(`#photo-${name}`).value = mode.settings[name];
+  function updateControls() {
+    const actor = mode.selectedActor;
+    $("#photoSubject").textContent =
+      actor === null
+        ? "Scene"
+        : actor === 0
+          ? "Flower adventurer"
+          : "Companion";
+    $("#photoTurn").textContent = actor === null ? "Orbit" : "Turn";
+    $("#photoMove").textContent = actor === null ? "Frame" : "Move";
+    $("#photoTurn").setAttribute(
+      "aria-pressed",
+      String(mode.manipulation === "turn"),
+    );
+    $("#photoMove").setAttribute(
+      "aria-pressed",
+      String(mode.manipulation === "move"),
+    );
+    $("#photoHint").textContent =
+      actor === null
+        ? "Tap a friend to select · Drag the scene · Pinch to zoom"
+        : mode.manipulation === "move"
+          ? "Drag this friend to move · Tap the scene to frame"
+          : "Drag this friend to turn · Tap Move to reposition";
+    $("#photoZoom").textContent =
+      `${(12 / mode.settings.distance).toFixed(1)}×`;
   }
-  function syncActor() {
-    const index = Number($("#photoActor").value);
-    for (const name of ["x", "z", "heading"])
-      $(`#actor-${name}`).value = actorOffsets[index][name];
+  function updateSelection() {
+    const bounds = mode.selectionBounds();
+    const reticle = $("#photoSelection");
+    reticle.hidden = !bounds;
+    if (bounds)
+      Object.assign(reticle.style, {
+        left: `${bounds.left * 100}%`,
+        top: `${bounds.top * 100}%`,
+        width: `${bounds.width * 100}%`,
+        height: `${bounds.height * 100}%`,
+      });
   }
   function reset() {
+    resetGestures();
     mode.reset();
-    actorOffsets.forEach((offset) =>
-      Object.assign(offset, { x: 0, z: 0, heading: 0 }),
-    );
-    syncActor();
-    syncCamera();
+    updateControls();
   }
   function exit() {
+    resetGestures();
     mode.exit();
+    view.resize(false);
     $("#photoControls").hidden = true;
     document.body.classList.toggle("photo-mode", false);
     $("#cameraAction").setAttribute("aria-pressed", "false");
@@ -51,13 +78,12 @@ export function bindPhotography({
     }
     clearInput();
     mode.enter();
+    view.resize(true);
     reset();
     $("#photoControls").hidden = false;
     document.body.classList.toggle("photo-mode", true);
     $("#cameraAction").setAttribute("aria-pressed", "true");
-    $("#photoActor").focus?.();
-    $("#photoStatus").textContent =
-      "Drag to orbit · Scroll to zoom · Enter to take a photo · Esc to exit";
+    $("#photoStatus").textContent = "";
     return true;
   }
   function takePhoto() {
@@ -79,7 +105,11 @@ export function bindPhotography({
       if (!image) throw new Error("capture-unavailable");
       album.add(image, getLocation());
       $("#photoStatus").textContent =
-        `Photo saved ♥ ${album.photos.length} / ${PHOTO_LIMIT} in your album`;
+        `Photo saved ♥ ${album.photos.length} / ${PHOTO_LIMIT}`;
+      $("#photoAlbumThumb").src = image;
+      $("#photoAlbumThumb").hidden = false;
+      const flash = $("#photoFlash");
+      flash.animate?.([{ opacity: 0.8 }, { opacity: 0 }], { duration: 250 });
       return true;
     } catch (error) {
       $("#photoStatus").textContent =
@@ -138,6 +168,7 @@ export function bindPhotography({
     clearInput();
   }
   function openAlbum() {
+    resetGestures();
     if (!mode.active && !canEnter()) {
       toast(
         "Finish the activity or close the open view before opening the album.",
@@ -168,27 +199,35 @@ export function bindPhotography({
         "Photo could not be deleted. Browser storage is unavailable.";
     }
   };
-  $("#photoActor").onchange = syncActor;
-  for (const name of ["x", "z", "heading"]) {
-    $(`#actor-${name}`).oninput = (event) => {
-      const index = Number($("#photoActor").value);
-      actorOffsets[index][name] = Number(event.target.value);
-      mode.adjustActor(index, actorOffsets[index]);
-    };
-  }
-  for (const name of ["pitch", "distance", "horizontal", "vertical"]) {
-    $(`#photo-${name}`).oninput = (event) => {
-      mode.settings[name] = Number(event.target.value);
-      mode.updateCamera();
-    };
-  }
+  $("#photoTurn").onclick = () => {
+    resetGestures();
+    mode.setManipulation("turn");
+    updateControls();
+  };
+  $("#photoMove").onclick = () => {
+    resetGestures();
+    mode.setManipulation("move");
+    updateControls();
+  };
+  $("#photoZoomIn").onclick = () => {
+    mode.zoomByScale(0.85);
+    updateControls();
+  };
+  $("#photoZoomOut").onclick = () => {
+    mode.zoomByScale(1 / 0.85);
+    updateControls();
+  };
+  const latest = album.photos[0];
+  $("#photoAlbumThumb").hidden = !latest;
+  if (latest) $("#photoAlbumThumb").src = latest.image;
   return {
     enter,
     exit,
     openAlbum,
     closeAlbum,
     takePhoto,
-    syncCamera,
+    updateControls,
+    updateSelection,
     get viewing() {
       return albumDialog.open;
     },
@@ -201,6 +240,35 @@ export function bindPhotography({
       if (event.code === "Escape" && mode.active) {
         event.preventDefault();
         exit();
+        return true;
+      }
+      if (mode.active && ["Digit1", "Digit2", "Digit0"].includes(event.code)) {
+        mode.selectActor(
+          event.code === "Digit0" ? null : Number(event.code.at(-1)) - 1,
+        );
+        updateControls();
+        return true;
+      }
+      if (mode.active && event.code.startsWith("Arrow")) {
+        event.preventDefault();
+        const dx =
+          event.code === "ArrowRight"
+            ? 10
+            : event.code === "ArrowLeft"
+              ? -10
+              : 0;
+        const dy =
+          event.code === "ArrowDown" ? 10 : event.code === "ArrowUp" ? -10 : 0;
+        if (mode.selectedActor !== null) {
+          if (mode.manipulation === "move") {
+            const position = mode.selectedPosition;
+            position.x += dx * 0.03;
+            position.z += dy * 0.03;
+            mode.moveSelected(position);
+          } else mode.turnSelected(dx);
+        } else if (mode.manipulation === "move") mode.pan(dx, dy, 600);
+        else mode.rotate(dx, dy);
+        updateControls();
         return true;
       }
       if (editing || $("#guide").open) return mode.active;

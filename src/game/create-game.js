@@ -32,6 +32,8 @@ import { resolveObstacleCollisions } from "../systems/collision.js";
 import { createSceneTransition } from "./scene-transition.js";
 import { createBenchMoment, inLake } from "../locations/garden/lakeside.js";
 import { createRendering } from "../rendering/renderer.js";
+import { createPhotoView } from "../rendering/photo-view.js";
+import { bindPhotoGestures } from "../rendering/photo-gestures.js";
 import { createPhotoMode } from "../rendering/photo-mode.js";
 import { createPhotoAlbum } from "../systems/photo-album.js";
 import { bindPhotography } from "../ui/photography.js";
@@ -71,7 +73,9 @@ export function createGame({ createRenderer, models } = {}) {
     won: false,
     walk: 0,
     throwAnim: 0,
-    sound: true,
+    sound:
+      typeof location === "undefined" ||
+      new URLSearchParams(location.search).get("sound") !== "off",
     toastUntil: 0,
   };
   const $ = (s) => document.querySelector(s);
@@ -573,8 +577,8 @@ export function createGame({ createRenderer, models } = {}) {
       toast("Audio could not start. Tap Sound to try again.");
     }
   }
-  // Enable audio now; the existing gesture listeners resume it if autoplay is blocked.
-  void setSound(true);
+  // A muted preview URL stays quiet through reloads during development.
+  void setSound(state.sound);
   function fire() {
     if (
       photoMode.active ||
@@ -619,6 +623,14 @@ export function createGame({ createRenderer, models } = {}) {
     getPlace: () => locations.active,
   });
   const photoAlbum = createPhotoAlbum();
+  const photoView = createPhotoView({
+    renderer,
+    camera,
+    frame: $("#photoFrame"),
+    format: $("#photoFrameFormat"),
+  });
+  let photoGestures;
+
   const photography = bindPhotography({
     $,
     mode: photoMode,
@@ -642,6 +654,8 @@ export function createGame({ createRenderer, models } = {}) {
     clearInput: clearRestInput,
     toast,
     getLocation: () => locations.active.name ?? locations.active.id,
+    view: photoView,
+    resetGestures: () => photoGestures?.reset(),
   });
   const { joy, cameraDrag } = bindGameInput({
     $,
@@ -650,7 +664,7 @@ export function createGame({ createRenderer, models } = {}) {
     passageTransition,
     invokeShortcut,
     handleKeydown: photography.keydown,
-    extraPaused: () => photography.viewing,
+    extraPaused: () => photoMode.active || photography.viewing,
     pointerAction: () =>
       photoMode.active || photography.viewing
         ? undefined
@@ -659,22 +673,15 @@ export function createGame({ createRenderer, models } = {}) {
           : fire(),
     repeatAllowed: () => !locations.active.blockPointerRepeat?.(),
     cameraLocked: () =>
+      photoMode.active ||
       photography.viewing ||
       $("#guide").open ||
       sheepMoment.viewing ||
-      (!photoMode.active && cameraLocked()),
+      cameraLocked(),
     rotate(dx, dy) {
-      if (photoMode.active) {
-        photoMode.rotate(dx, dy);
-        photography.syncCamera();
-      } else if (!cameraLocked()) state.yaw -= dx * 0.006;
+      if (!cameraLocked()) state.yaw -= dx * 0.006;
     },
     zoomBy(delta) {
-      if (photoMode.active) {
-        photoMode.zoomBy(delta);
-        photography.syncCamera();
-        return;
-      }
       state.zoom = THREE.MathUtils.clamp(
         state.zoom + delta * 0.012,
         10,
@@ -682,6 +689,12 @@ export function createGame({ createRenderer, models } = {}) {
       );
     },
     toggleSound: () => setSound(!state.sound),
+  });
+  photoGestures = bindPhotoGestures(renderer.domElement, {
+    mode: photoMode,
+    paused: () =>
+      photography.viewing || $("#guide").open || passageTransition.active,
+    changed: photography.updateControls,
   });
   $("#restart").onclick = () => {
     photography.exit();
@@ -931,6 +944,7 @@ export function createGame({ createRenderer, models } = {}) {
     const view = activePlace.getRenderView?.() ??
       rootPlace.getRenderView?.() ?? { scene, camera };
     renderer.render(view.scene, view.camera);
+    if (photoMode.active) photography.updateSelection();
     activePlace.afterRender?.(paused);
   }
   camera.position
@@ -941,11 +955,10 @@ export function createGame({ createRenderer, models } = {}) {
     )
     .add(hero.position);
   addEventListener("resize", () => {
-    camera.aspect = innerWidth / innerHeight;
-    camera.updateProjectionMatrix();
+    photoGestures.reset();
+    photoView.resize(photoMode.active);
     funfair.tossCamera.aspect = camera.aspect;
     funfair.tossCamera.updateProjectionMatrix();
-    renderer.setSize(innerWidth, innerHeight);
   });
   toast("WASD to move · Drag to look around · Click to throw");
   const loop = createGameLoop(frame);
