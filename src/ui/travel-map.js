@@ -5,6 +5,25 @@ export function bindTravelMap({ $, journey, canOpen, clearInput, toast }) {
     const destinations = journey.destinations;
     $("#travelSummary").textContent =
       `${destinations.filter((entry) => entry.unlocked).length} of ${destinations.length} places discovered`;
+    const byId = new Map(destinations.map((entry) => [entry.id, entry]));
+    const paths = $("#journeyPaths");
+    paths.replaceChildren();
+    for (const destination of destinations) {
+      const parent = byId.get(destination.parent);
+      if (!parent) continue;
+      const path = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "path",
+      );
+      path.setAttribute(
+        "d",
+        `M${parent.x * 10} ${parent.y * 10} L${destination.x * 10} ${destination.y * 10}`,
+      );
+      path.setAttribute("data-from", parent.id);
+      path.setAttribute("data-to", destination.id);
+      path.setAttribute("data-unlocked", String(destination.unlocked));
+      paths.appendChild(path);
+    }
     const grid = $("#travelDestinations");
     grid.replaceChildren();
     for (const destination of destinations) {
@@ -29,6 +48,12 @@ export function bindTravelMap({ $, journey, canOpen, clearInput, toast }) {
       for (const [className, text] of [
         ["travel-icon", destination.icon],
         ["travel-name", destination.name],
+        [
+          "travel-route",
+          destination.parent
+            ? `From ${byId.get(destination.parent)?.name ?? destination.parent}`
+            : "Start here",
+        ],
         ["travel-status", status],
       ]) {
         const label = document.createElement("span");

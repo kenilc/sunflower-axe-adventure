@@ -396,6 +396,7 @@ export function createGame({ createRenderer, models } = {}) {
   const keepsakes = createKeepsakes();
   const placeContext = {
     keepsakes,
+    places,
     changePassage,
     models,
     rand,

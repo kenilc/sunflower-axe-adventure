@@ -30,7 +30,7 @@ export function createSeasidePlace(context) {
     maxZoom: 38,
     entrance: {
       from: "garden",
-      contains: (p) => Math.hypot(p.x - 23, p.z - 25) < 1.6,
+      contains: world.entranceGate.contains,
     },
     returnSpawn: [23, 0, 21],
     settings: {
@@ -53,12 +53,11 @@ export function createSeasidePlace(context) {
       );
     },
     getGate: () =>
-      hero.position.z > 22 && Math.abs(hero.position.x) < 2
-        ? { id: "garden" }
-        : null,
+      world.returnGate.contains(hero.position) ? { id: "garden" } : null,
     getHud() {
       const nearby = world.nearest(hero.position),
-        count = keepsakes.items.length;
+        count = keepsakes.items.length,
+        nearGate = world.returnGate.nearby(hero.position);
       return {
         region: "Sunset Beach",
         quest: {
@@ -70,17 +69,24 @@ export function createSeasidePlace(context) {
               : "Wander the shore together. Collect shells and smooth stones to remember this evening.",
         },
         progress: `${count} / ${BEACH_FINDS.length} beach keepsakes`,
-        hint: nearby
-          ? `${nearby.name} nearby · X to collect`
-          : "Look for tiny glimmers in the sand · Keepsakes / K · Garden path: south",
+        hint: nearGate
+          ? "Walk through the shell arch to the garden, or press X"
+          : nearby
+            ? `${nearby.name} nearby · X to collect`
+            : "Look for tiny glimmers in the sand · Keepsakes / K · Garden path: south",
         instructions:
           "<kbd>W A S D</kbd> walk <kbd>X</kbd> collect <kbd>K</kbd> keepsakes <kbd>M</kbd> camera",
         actions: [
           {
             key: "KeyX",
-            label: nearby ? `Collect ${nearby.name} · X` : "Collect · X",
-            visible: Boolean(nearby),
-            run: collect,
+            label: nearGate
+              ? "Return to garden · X"
+              : nearby
+                ? `Collect ${nearby.name} · X`
+                : "Collect · X",
+            visible: nearGate || Boolean(nearby),
+            run: () =>
+              nearGate ? context.transitions.go("garden") : collect(),
           },
         ],
       };
@@ -91,6 +97,7 @@ export function createSeasidePlace(context) {
       shells: keepsakes.items.filter(({ kind }) => kind === "shell").length,
       stones: keepsakes.items.filter(({ kind }) => kind === "stone").length,
     }),
+    animateBackground: world.animateGates,
     animate(dt, time, paused) {
       if (!paused) world.animate(time);
     },

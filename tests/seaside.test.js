@@ -124,8 +124,17 @@ test("the garden path opens a walkable sunset beach, collection pauses play, and
   element("#guide").open = true;
   expect(game.controls.openKeepsakes()).toBe(false);
   element("#guide").open = false;
-  hero.position.set(0, 0, 22.5);
+  // The old invisible trigger must not return us from an empty patch of sand.
+  hero.position.set(0, 0, 23);
   frames(game);
+  expect(game.state.area).toBe("seaside");
+  // Walk toward the visible return arch, rather than teleporting to a trigger.
+  hero.position
+    .copy(beach.returnGate.group.position)
+    .add({ x: 0, y: 0, z: -3 });
+  game.input.keys.KeyS = true;
+  frames(game, 40);
+  game.input.keys.KeyS = false;
   expect(game.state.area).toBe("garden");
   expect(hero.position.toArray()).toEqual([23, 0, 21]);
   expect(game.rendering.scene.background.getHex()).toBe(background);
@@ -201,4 +210,44 @@ test("a failed save leaves a find on the beach for retry and paused actions cann
   game.activities.photography.exit();
   game.controls.openMap();
   expect(game.controls.openKeepsakes()).toBe(false);
+});
+
+test("shell arches keep their triggers aligned, offer X at both ends, and respect paused views", async () => {
+  const { game, element } = await createTestGame();
+  const beach = game.places.get("seaside").terrain,
+    hero = game.characters.hero;
+  hero.position
+    .copy(beach.entranceGate.group.position)
+    .add({ x: 0, y: 0, z: -3 });
+  game.update();
+  expect(element("#placeAction").textContent).toBe("Visit Sunset Beach · X");
+  element("#guide").open = true;
+  game.controls.interact();
+  expect(game.passageTransition.active).toBe(false);
+  element("#guide").open = false;
+  game.controls.interact();
+  frames(game);
+  expect(game.state.area).toBe("seaside");
+  const gate = beach.returnGate;
+  expect(gate.group.getObjectByName("pearl-shell-crest")).toBeTruthy();
+  expect(gate.contains(gate.group.position)).toBe(true);
+  expect(
+    gate.contains(gate.group.position.clone().add({ x: 2.3, y: 0, z: 0 })),
+  ).toBe(false);
+  // Moving the visible arch also moves the doorway detection.
+  const old = gate.group.position.clone();
+  gate.group.position.x -= 6;
+  expect(gate.contains(old)).toBe(false);
+  expect(gate.contains(gate.group.position)).toBe(true);
+  hero.position.copy(gate.group.position).add({ x: 0, y: 0, z: -3 });
+  game.update();
+  expect(element("#placeAction").textContent).toBe("Return to garden · X");
+  game.controls.openKeepsakes();
+  game.controls.interact();
+  expect(game.passageTransition.active).toBe(false);
+  game.activities.collection.close();
+  element("#placeAction").onclick();
+  frames(game);
+  expect(game.state.area).toBe("garden");
+  expect(hero.position.toArray()).toEqual([23, 0, 21]);
 });

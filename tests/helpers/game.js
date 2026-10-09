@@ -50,6 +50,9 @@ export async function createTestGame({ storage } = {}) {
     },
     document: {
       querySelector: element,
+      createElementNS(namespace, tag) {
+        return this.createElement(tag);
+      },
       createElement() {
         return {
           style: {},

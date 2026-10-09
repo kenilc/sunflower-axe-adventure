@@ -2,7 +2,10 @@ export function createGardenHud(context) {
   const { hero, heroRig, benchMoment } = context;
   return () => {
     const x = hero.position.x,
-      z = hero.position.z;
+      z = hero.position.z,
+      nearBeachGate = context.places
+        .get("seaside")
+        .terrain.entranceGate.nearby(hero.position);
     return {
       instructions: `<kbd>W A S D</kbd> move <kbd>SHIFT</kbd> run ${heroRig.items.canThrow ? "<kbd>CLICK</kbd> throw " : ""}<kbd>DRAG / Q E</kbd> rotate <kbd>R / F</kbd> view up / down`,
       countsId: "gardenCounts",
@@ -24,6 +27,12 @@ export function createGardenHud(context) {
                       ? "Wildflower trail"
                       : "Petal clearing",
       actions: [
+        {
+          key: "KeyX",
+          label: "Visit Sunset Beach · X",
+          visible: nearBeachGate && !benchMoment.seated,
+          run: () => context.transitions.go("seaside"),
+        },
         {
           id: "benchAction",
           key: "KeyB",

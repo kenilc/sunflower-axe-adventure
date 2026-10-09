@@ -283,3 +283,51 @@ test("journey storage filters unknown destinations and unavailable storage still
   expect(() => blocked.reset()).not.toThrow();
   expect(blocked.travel("castle")).toBe(false);
 });
+
+test("map paths match place parents and show the beach southeast of the garden", async () => {
+  const { game, element } = await createTestGame();
+  game.controls.openMap();
+  const paths = element("#journeyPaths").children.map(
+    ({ attributes }) => `${attributes["data-from"]}->${attributes["data-to"]}`,
+  );
+  expect(paths.sort()).toEqual(
+    [
+      "garden->cave",
+      "garden->village",
+      "garden->funfair",
+      "garden->riverside",
+      "garden->seaside",
+      "funfair->festival",
+      "riverside->lagoon",
+      "lagoon->summit",
+      "summit->castle",
+    ].sort(),
+  );
+  expect(paths).not.toContain("village->seaside");
+  const locations = new Map(
+    game.journey.destinations.map((entry) => [entry.id, entry]),
+  );
+  const garden = locations.get("garden");
+  expect(locations.get("seaside").x).toBeGreaterThan(garden.x);
+  expect(locations.get("seaside").y).toBeGreaterThan(garden.y);
+  expect(locations.get("riverside").x).toBeLessThan(garden.x);
+  expect(locations.get("funfair").x).toBeGreaterThan(garden.x);
+  expect(locations.get("cave").y).toBeLessThan(garden.y);
+  expect(locations.get("village").y).toBeGreaterThan(garden.y);
+  expect(
+    destination(element, "seaside").children.find(
+      (child) => child.className === "travel-route",
+    ).textContent,
+  ).toBe("From Sunken Garden");
+  game.travelMap.close();
+  game.transitions.open("seaside");
+  game.update();
+  game.controls.openMap();
+  const beachPath = element("#journeyPaths").children.find(
+    ({ attributes }) => attributes["data-to"] === "seaside",
+  );
+  expect(beachPath.attributes["data-unlocked"]).toBe("true");
+  expect(destination(element, "seaside").attributes["aria-current"]).toBe(
+    "location",
+  );
+});

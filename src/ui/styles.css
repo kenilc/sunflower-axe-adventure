@@ -830,12 +830,13 @@ body.photo-mode #toast {
 }
 .journey-map {
   position: relative;
-  height: 430px;
+  height: 600px;
   margin-top: 18px;
   border-radius: 14px;
   background:
-    radial-gradient(ellipse at 12% 47%, #54795a30, transparent 35%),
-    radial-gradient(ellipse at 88% 60%, #77b1bd25, transparent 45%), #102e29;
+    radial-gradient(ellipse at 50% 30%, #54795a30, transparent 35%),
+    radial-gradient(ellipse at 14% 65%, #77b1bd25, transparent 45%),
+    radial-gradient(ellipse at 78% 75%, #edb18520, transparent 35%), #102e29;
 }
 .journey-paths,
 #travelDestinations {
@@ -860,7 +861,7 @@ body.photo-mode #toast {
   justify-content: center;
   gap: 4px;
   width: 150px;
-  min-height: 86px;
+  min-height: 96px;
   padding: 9px 6px;
   margin: 0;
   border: 1px solid #91b79570;
@@ -883,6 +884,18 @@ body.photo-mode #toast {
   border: 2px solid #ffda82;
   background: #395d40;
   cursor: default;
+}
+.journey-paths path {
+  vector-effect: non-scaling-stroke;
+}
+.journey-paths path[data-unlocked="true"] {
+  stroke: #ffda82;
+  stroke-dasharray: none;
+}
+.travel-route {
+  font-size: 9px;
+  font-weight: 400;
+  color: #c0d5c6;
 }
 .travel-icon {
   font-size: 23px;

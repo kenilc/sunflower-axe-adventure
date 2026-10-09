@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createSeasideGate } from "./gate.js";
 import { BEACH_FINDS } from "../../systems/keepsakes.js";
 
 export function createSeaside({ scene, garden, helpers, keepsakes }) {
@@ -143,44 +144,20 @@ export function createSeaside({ scene, garden, helpers, keepsakes }) {
   driftwood.rotation.y = 0.4;
   blockers.push({ x: 18, z: 17, r: 2.6 });
 
-  function sign(parent, x, z, beach) {
-    const marker = new THREE.Group();
-    marker.position.set(x, 0, z);
-    parent.add(marker);
-    for (const dx of [-2.2, 2.2])
-      cyl(0.1, 0.14, 3.8, "#99745c", dx, 1.9, 0, marker);
-    box(5, 0.75, 0.22, "#d9ad75", 0, 3.6, 0, marker);
-    // Sun over waves: a recognizable coastal trail marker, no image assets.
-    ball(0.25, "#ffd789", 0, 3.65, 0.18, marker);
-    for (let i = 0; i < 3; i++)
-      box(0.85, 0.045, 0.06, "#6d9da2", (i - 1) * 0.8, 3.36, 0.17, marker);
-    const canvas = document.createElement("canvas");
-    canvas.width = 512;
-    canvas.height = 128;
-    const ctx = canvas.getContext("2d");
-    ctx.fillStyle = "#f5deaf";
-    ctx.fillRect(0, 0, 512, 128);
-    ctx.fillStyle = "#664e46";
-    ctx.font = "bold 42px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(beach ? "SUNSET BEACH" : "GARDEN PATH", 256, 80);
-    const label = mesh(
-      new THREE.PlaneGeometry(4.2, 1.05),
-      new THREE.MeshBasicMaterial({
-        map: new THREE.CanvasTexture(canvas),
-        side: THREE.DoubleSide,
-      }),
-      0,
-      2.55,
-      0.18,
-      marker,
-    );
-    label.castShadow = false;
-    return marker;
-  }
-  const entrance = sign(garden, 23, 25, true);
-  sign(group, -6, 23, false);
-  box(4, 0.025, 6, "#e2c5a0", 23, 0.02, 23, garden);
+  const entranceGate = createSeasideGate({
+    parent: garden,
+    helpers,
+    x: 23,
+    z: 25,
+    destination: "seaside",
+  });
+  const returnGate = createSeasideGate({
+    parent: group,
+    helpers,
+    x: -6,
+    z: 23,
+    destination: "garden",
+  });
 
   const distantMaterial = new THREE.MeshBasicMaterial({
     color: "#8d8097",
@@ -309,7 +286,13 @@ export function createSeaside({ scene, garden, helpers, keepsakes }) {
   }
   return {
     group,
-    entrance,
+    entrance: entranceGate.group,
+    entranceGate,
+    returnGate,
+    animateGates(time) {
+      if (garden.visible) entranceGate.animate(time);
+      if (group.visible) returnGate.animate(time);
+    },
     blockers,
     finds,
     heightAt,
