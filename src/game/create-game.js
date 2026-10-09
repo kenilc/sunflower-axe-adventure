@@ -47,6 +47,8 @@ import { createHud } from "../ui/hud.js";
 import { createLocationManager } from "./location-manager.js";
 import { createGameLoop } from "./game-loop.js";
 import { createLocationSave } from "./location-save.js";
+import { createKeepsakes } from "../systems/keepsakes.js";
+import { bindKeepsakes } from "../ui/keepsakes.js";
 import { createJourney } from "./journey.js";
 import { bindTravelMap } from "../ui/travel-map.js";
 import { createTreeVisibility } from "../rendering/tree-visibility.js";
@@ -391,7 +393,9 @@ export function createGame({ createRenderer, models } = {}) {
   const passageTransition = createSceneTransition((opacity) => {
     $("#sceneTransition").style.opacity = String(opacity);
   });
+  const keepsakes = createKeepsakes();
   const placeContext = {
+    keepsakes,
     changePassage,
     models,
     rand,
@@ -608,6 +612,7 @@ export function createGame({ createRenderer, models } = {}) {
     if (
       photoMode.active ||
       photography.viewing ||
+      collection?.open ||
       state.cooldown > 0 ||
       $("#guide").open ||
       travelMap?.open ||
@@ -655,7 +660,7 @@ export function createGame({ createRenderer, models } = {}) {
     frame: $("#photoFrame"),
     format: $("#photoFrameFormat"),
   });
-  let photoGestures, travelMap;
+  let photoGestures, travelMap, collection;
 
   const photography = bindPhotography({
     $,
@@ -664,6 +669,7 @@ export function createGame({ createRenderer, models } = {}) {
     camera,
     capture: createPhotoCapture({ renderer, scene }),
     canEnter: () =>
+      !collection?.open &&
       !travelMap?.open &&
       !$("#guide").open &&
       !passageTransition.active &&
@@ -691,11 +697,19 @@ export function createGame({ createRenderer, models } = {}) {
     passageTransition,
     invokeShortcut,
     handleKeydown: (event) =>
-      travelMap?.keydown(event) || photography.keydown(event),
+      collection?.keydown(event) ||
+      travelMap?.keydown(event) ||
+      photography.keydown(event),
     extraPaused: () =>
-      photoMode.active || photography.viewing || travelMap?.open,
+      photoMode.active ||
+      photography.viewing ||
+      collection?.open ||
+      travelMap?.open,
     pointerAction: () =>
-      photoMode.active || photography.viewing || travelMap?.open
+      photoMode.active ||
+      photography.viewing ||
+      collection?.open ||
+      travelMap?.open
         ? undefined
         : locations.active.pointerAction
           ? locations.active.pointerAction()
@@ -704,6 +718,7 @@ export function createGame({ createRenderer, models } = {}) {
     cameraLocked: () =>
       photoMode.active ||
       photography.viewing ||
+      collection?.open ||
       travelMap?.open ||
       $("#guide").open ||
       sheepMoment.viewing ||
@@ -724,12 +739,14 @@ export function createGame({ createRenderer, models } = {}) {
     mode: photoMode,
     paused: () =>
       photography.viewing ||
+      collection?.open ||
       travelMap?.open ||
       $("#guide").open ||
       passageTransition.active,
     changed: photography.updateControls,
   });
   $("#restart").onclick = () => {
+    if (collection?.open) collection.close();
     if (travelMap.open) travelMap.close();
     photography.exit();
     if (photography.viewing) photography.closeAlbum();
@@ -774,6 +791,7 @@ export function createGame({ createRenderer, models } = {}) {
     if (
       photoMode.active ||
       photography.viewing ||
+      collection?.open ||
       travelMap.open ||
       $("#guide").open ||
       passageTransition.active
@@ -795,6 +813,7 @@ export function createGame({ createRenderer, models } = {}) {
     canInteract: () =>
       !photoMode.active &&
       !photography.viewing &&
+      !collection?.open &&
       !travelMap.open &&
       !$("#guide").open &&
       !passageTransition.active,
@@ -810,6 +829,7 @@ export function createGame({ createRenderer, models } = {}) {
     const paused =
       photoMode.active ||
       photography.viewing ||
+      collection?.open ||
       travelMap.open ||
       $("#guide").open ||
       transitioning ||
@@ -944,6 +964,7 @@ export function createGame({ createRenderer, models } = {}) {
     if (
       photoMode.updateCamera() ||
       (!photography.viewing &&
+        !collection?.open &&
         (activePlace.updateCamera?.(dt) ||
           (activePlace !== rootPlace && rootPlace.updateCamera?.(dt))))
     ) {
@@ -1010,6 +1031,7 @@ export function createGame({ createRenderer, models } = {}) {
       !passageTransition.active &&
       !photoMode.active &&
       !photography.viewing &&
+      !collection?.open &&
       !benchMoment.seated &&
       !bedRest.resting &&
       !boatTrip.rowing &&
@@ -1033,6 +1055,13 @@ export function createGame({ createRenderer, models } = {}) {
     $,
     journey,
     canOpen: () => canSaveLocation() && !$("#guide").open,
+    clearInput: clearRestInput,
+    toast,
+  });
+  collection = bindKeepsakes({
+    $,
+    keepsakes,
+    canOpen: () => canSaveLocation() && !travelMap.open && !$("#guide").open,
     clearInput: clearRestInput,
     toast,
   });
@@ -1065,6 +1094,7 @@ export function createGame({ createRenderer, models } = {}) {
   registerAdventureProgress(readProgress);
   function readProgress() {
     return {
+      beachKeepsakes: keepsakes.items.length,
       discoveredPlaces: journey.destinations
         .filter((entry) => entry.unlocked)
         .map((entry) => entry.id),
@@ -1126,6 +1156,8 @@ export function createGame({ createRenderer, models } = {}) {
     activities: {
       photoMode,
       photoAlbum,
+      keepsakes,
+      collection,
       photography,
       boatTrip,
       cableCar,
@@ -1142,6 +1174,7 @@ export function createGame({ createRenderer, models } = {}) {
       travelTo: (id, options) => transitions.go(id, options),
       fastTravel: (id) => journey.travel(id),
       openMap: travelMap.openMap,
+      openKeepsakes: collection.openCollection,
       interact: () => invokeShortcut("KeyX"),
       usePassage,
       useCastlePassage,

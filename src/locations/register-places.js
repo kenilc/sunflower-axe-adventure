@@ -1,3 +1,4 @@
+import { createSeasidePlace } from "./seaside/place.js";
 import { createCavePlace } from "./cave/place.js";
 import { createVillagePlace } from "./village/place.js";
 import { createFunfairPlace } from "./funfair/place.js";
@@ -23,6 +24,7 @@ export function registerPlaces(places, context) {
   places.register(createFestivalPlace(context));
 
   places.register(createGardenPlace(context));
+  places.register(createSeasidePlace(context));
   places.register(createCavePlace(context));
   places.register({
     id: "lagoon",

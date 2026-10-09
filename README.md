@@ -1,8 +1,8 @@
 # Sunflower — Axe & Adventure
 
-A browser adventure built with Three.js, Vite, and JavaScript modules. Explore the garden, riverside, village, funfair, festival, and castle with a companion.
+A browser adventure built with Three.js, Vite, and JavaScript modules. Explore the garden, riverside, village, funfair, festival, castle, and sunset beach with a companion.
 
-Your current location, walking position, and camera view save automatically in this browser and resume when you return. Shops, the lagoon, the summit, and the castle are included. During rides, seated moments, and photography, the last walking checkpoint is kept. **New adventure** replaces the checkpoint with a fresh garden start; explicit `?area=...` links open their requested destination. Collectibles and activity progress still reset on reload. Clearing browser data removes the checkpoint; play remains available if browser storage is disabled or full.
+Your current location, walking position, and camera view save automatically in this browser and resume when you return. Shops, the lagoon, the summit, and the castle are included. During rides, seated moments, and photography, the last walking checkpoint is kept. **New adventure** replaces the checkpoint with a fresh garden start; explicit `?area=...` links open their requested destination. Beach keepsakes and photos stay saved; other collectibles and activity progress still reset on reload. Clearing browser data removes the checkpoint; play remains available if browser storage is disabled or full.
 
 Open **Map / V** to revisit a discovered destination. Walk through its gate, take the boat, or ride the cable car on your first visit; each place unlocks on arrival. Choose an unlocked stop on the map to travel there together with a scene fade. Shops use the village stop, and the lagoon, summit, and castle have their own stops. The map pauses gameplay and closes with **Close / Esc / V**. Finish rides, seated moments, and photography before travelling. Discovered places persist in this browser; **New adventure** clears them.
 
@@ -13,6 +13,10 @@ Use **Camera / M** anywhere during exploration to pause gameplay. Drag either ch
 For quiet debugging, open the preview with `?sound=off`; it stays muted across reloads.
 
 Open **Album / L** to browse, download, or delete your photos. JPEG photos match the viewfinder framing and are saved in local storage (up to 30 photos, subject to browser storage space). They survive reloads and New adventure on the same browser and origin; clearing browser data removes them. A storage failure reports an error and preserves existing photos.
+
+Follow the **Sunset Beach** sign in the southeast garden to walk along the seaside together under a sunset sky. Approach a glimmer in the sand and press **X** (or tap Collect) to keep a seashell or smooth stone. There are twelve distinct finds, six of each kind. The beach unlocks on the map after your first visit, and `?area=seaside` opens it directly. The garden return path is at the south end of the beach.
+
+Open **Keepsakes / K** anywhere during exploration to view your finds, their descriptions, and the date you collected them; filter by seashells or stones. The collection pauses gameplay and closes with **Close / Esc / K**. Keepsakes survive reloads, revisits, and New adventure in the same browser, like photos. Clearing browser data removes them. A storage failure leaves the find on the sand so you can retry.
 
 ## Development
 

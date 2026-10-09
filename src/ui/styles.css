@@ -1008,3 +1008,128 @@ body.photo-mode #toast {
     font-size: 21px;
   }
 }
+
+#keepsakesDialog {
+  width: min(820px, 94vw);
+  max-height: 90dvh;
+  overflow: auto;
+  background: #293d40;
+}
+#keepsakesTitle {
+  margin: 8px 0 0;
+}
+#keepsakesSummary,
+#keepsakesDate,
+.keepsakes-note {
+  font-size: 12px;
+  color: #dac9b1;
+}
+.keepsakes-filters {
+  display: flex;
+  gap: 8px;
+  margin: 18px 0;
+}
+#keepsakesDialog .keepsakes-filters button {
+  margin: 0;
+  width: auto;
+  background: #ffffff0c;
+  color: #eadcc6;
+}
+#keepsakesDialog .keepsakes-filters button[aria-pressed="true"] {
+  background: #e4bd8c;
+  color: #493f38;
+}
+#keepsakesDetail {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #f6e7cc;
+  color: #493f38;
+}
+#keepsakesDetail[hidden] {
+  display: none;
+}
+#keepsakesImage {
+  width: 160px;
+  flex-shrink: 0;
+}
+#keepsakesDetail p {
+  color: #6f6054;
+}
+#keepsakesName {
+  margin: 0;
+}
+#keepsakesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+.keepsake-card {
+  margin: 0;
+  padding: 8px;
+  background: #f6e7cc;
+  color: #493f38;
+  font-size: 12px;
+}
+.keepsake-card img {
+  display: block;
+  width: 100%;
+  height: 100px;
+}
+.keepsake-card[aria-pressed="true"] {
+  outline: 3px solid #e4bd8c;
+}
+.keepsake-card:hover {
+  background: #ffefd3;
+}
+@media (max-width: 600px) {
+  header {
+    left: 12px;
+    right: 12px;
+  }
+  .actions {
+    gap: 5px;
+  }
+  .actions button {
+    padding: 9px 6px;
+    font-size: 11px;
+  }
+  .flower {
+    font-size: 32px;
+  }
+  #keepsakesDetail {
+    flex-direction: column;
+    gap: 0;
+    text-align: center;
+  }
+  #keepsakesDialog .eyebrow {
+    font-size: 9px;
+    letter-spacing: 1px;
+  }
+  #keepsakesTitle {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 760px) {
+  header .brand > div {
+    display: none;
+  }
+  .actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: calc(100% - 42px);
+  }
+}
+@media (max-width: 380px) {
+  header .brand {
+    display: none;
+  }
+  .actions {
+    max-width: 100%;
+    width: 100%;
+  }
+}

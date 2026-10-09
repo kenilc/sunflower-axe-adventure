@@ -203,6 +203,7 @@ export function createPlaceTransitions({
         fade.active ||
         context.$("#guide").open ||
         context.$("#travelMap").open ||
+        context.$("#keepsakesDialog").open ||
         !allowed(id, options)
       )
         return false;

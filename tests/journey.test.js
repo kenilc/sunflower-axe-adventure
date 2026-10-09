@@ -39,7 +39,7 @@ test("the map starts with only the garden, blocks locked travel and pauses all i
   );
   expect(destination(element, "cave").disabled).toBe(true);
   expect(element("#travelSummary").textContent).toBe(
-    "1 of 9 places discovered",
+    "1 of 10 places discovered",
   );
   const position = game.characters.hero.position.clone();
   handlers.get("keydown")(event("KeyD"));

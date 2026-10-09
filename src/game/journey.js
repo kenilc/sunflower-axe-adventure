@@ -34,6 +34,14 @@ export const JOURNEY_DESTINATIONS = [
     hint: "East gate from the garden",
   },
   {
+    id: "seaside",
+    name: "Sunset Beach",
+    icon: "☀",
+    x: 12,
+    y: 82,
+    hint: "Southeast path from the garden",
+  },
+  {
     id: "festival",
     name: "Night Festival",
     icon: "✺",

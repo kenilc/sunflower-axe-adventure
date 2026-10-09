@@ -43,6 +43,15 @@
         </button>
         <button id="albumAction" type="button">Album</button>
         <button
+          id="keepsakesAction"
+          type="button"
+          aria-haspopup="dialog"
+          aria-controls="keepsakesDialog"
+          title="Keepsakes · K"
+        >
+          Keepsakes
+        </button>
+        <button
           id="sound"
           aria-label="Toggle background music and sound effects"
           aria-pressed="true"
@@ -184,6 +193,11 @@
         shutter or Enter to take a photo. Exit restores your exploration
         positions.<br /><b>Album / L</b> — view, download or delete photos. Up
         to 30 photos stay in this browser across reloads and new adventures.<br />
+        <b>Sunset Beach</b> — follow the sign in the southeast garden. Walk
+        together along the shore and press <b>X</b> near a glimmer to collect a
+        shell or stone.<br />
+        <b>Keepsakes / K</b> — view your beach finds. They stay in this browser
+        across reloads and New adventure, like photos.<br />
         <b>WASD / arrows</b> — move<br /><b>Shift</b> — run · <b>Space</b> —
         throw<br /><b>Click / Space</b> — throw straight ahead<br /><b
           >Drag the screen / Q / E</b
@@ -229,7 +243,9 @@
           preserveAspectRatio="none"
           aria-hidden="true"
         >
-          <path d="M120 52 H880 M500 52 V353 M310 52 V202 H120 M880 52 V361" />
+          <path
+            d="M120 52 H880 M500 52 V353 M310 52 V202 H120 V353 M880 52 V361"
+          />
         </svg>
         <div id="travelDestinations"></div>
       </div>
@@ -319,6 +335,41 @@
         </div>
       </div>
       <div id="albumGrid"></div>
+    </dialog>
+    <dialog id="keepsakesDialog" aria-labelledby="keepsakesTitle">
+      <div class="photo-toolbar">
+        <div>
+          <span class="eyebrow">LITTLE THINGS, LOVELY MEMORIES</span>
+          <h2 id="keepsakesTitle">Our beach keepsakes</h2>
+        </div>
+        <button id="closeKeepsakes" type="button">Close</button>
+      </div>
+      <p id="keepsakesSummary" role="status"></p>
+      <div class="keepsakes-filters" role="group" aria-label="Filter keepsakes">
+        <button id="keepsakes-all" type="button" aria-pressed="true">
+          All finds
+        </button>
+        <button id="keepsakes-shell" type="button" aria-pressed="false">
+          Seashells
+        </button>
+        <button id="keepsakes-stone" type="button" aria-pressed="false">
+          Stones
+        </button>
+      </div>
+      <p id="keepsakesEmpty"></p>
+      <div id="keepsakesDetail" hidden>
+        <img id="keepsakesImage" alt="" />
+        <div>
+          <h3 id="keepsakesName"></h3>
+          <p id="keepsakesDescription"></p>
+          <p id="keepsakesDate"></p>
+        </div>
+      </div>
+      <div id="keepsakesGrid"></div>
+      <p class="keepsakes-note">
+        Collected together at Sunset Beach. Kept through new adventures;
+        clearing browser data removes this collection.
+      </p>
     </dialog>
     <script type="module" src="src/main.js"></script>
   </body>
