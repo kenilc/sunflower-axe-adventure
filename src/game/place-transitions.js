@@ -159,32 +159,66 @@ export function createPlaceTransitions({
     context.clearRestInput();
     return true;
   }
+  function restoreRoute(id) {
+    if (!places.has(id)) return null;
+    const route = [];
+    let next = id;
+    while (next && next !== home) {
+      if (route.includes(next) || !places.has(next)) return null;
+      const place = places.get(next);
+      if (place.kind === "context" && !place.restore) return null;
+      route.unshift(next);
+      next = place.parent;
+    }
+    return next === home ? route : null;
+  }
+  function restore(id) {
+    const route = restoreRoute(id);
+    if (!route) return false;
+    if (locations.current !== home) commit(home);
+    for (const destination of route) {
+      const place = places.get(destination);
+      if (place.kind === "context") place.restore();
+      else commit(destination);
+    }
+    if (id === home) {
+      context.hero.position.set(0, 0, 7);
+      const place = locations.active;
+      context.companion.reset(
+        context.hero.position,
+        place.companionObstacles ?? place.terrain.blockers ?? [],
+        place.companionTerrain ?? place.terrain,
+      );
+    }
+    for (const rig of [context.heroRig, context.companion.rig])
+      rig.items.setWeaponsAllowed(locations.active.canThrow);
+    context.state.passageCooldown = 1;
+    context.resetCamera();
+    return locations.current === id;
+  }
   return {
     run,
     go(id, options = {}) {
-      if (fade.active || context.$("#guide").open || !allowed(id, options))
+      if (
+        fade.active ||
+        context.$("#guide").open ||
+        context.$("#travelMap").open ||
+        !allowed(id, options)
+      )
         return false;
       return run(() => commit(id, options));
     },
     jump: commit,
-    restore(id) {
-      if (!places.has(id)) return false;
-      const route = [];
-      let next = id;
-      while (next && next !== home) {
-        if (route.includes(next)) return false;
-        const place = places.get(next);
-        if (place.kind === "context" && !place.restore) return false;
-        route.unshift(next);
-        next = place.parent;
-      }
-      if (next !== home) return false;
-      for (const destination of route) {
-        const place = places.get(destination);
-        if (place.kind === "context") place.restore();
-        else commit(destination);
-      }
-      return locations.current === id;
+    restore,
+    fastTravel(id) {
+      if (
+        fade.active ||
+        !restoreRoute(id) ||
+        id === locations.current ||
+        locations.active.canLeave?.({ to: id, options: {} }) === false
+      )
+        return false;
+      return run(() => restore(id));
     },
     open(id, options = {}) {
       if (!places.has(id) || places.get(id).kind !== "area") return false;

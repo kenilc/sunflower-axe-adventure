@@ -47,6 +47,8 @@ import { createHud } from "../ui/hud.js";
 import { createLocationManager } from "./location-manager.js";
 import { createGameLoop } from "./game-loop.js";
 import { createLocationSave } from "./location-save.js";
+import { createJourney } from "./journey.js";
+import { bindTravelMap } from "../ui/travel-map.js";
 import { registerAdventureProgress } from "../integrations/adventure-progress.js";
 
 export function createGame({ createRenderer, models } = {}) {
@@ -588,6 +590,7 @@ export function createGame({ createRenderer, models } = {}) {
       photography.viewing ||
       state.cooldown > 0 ||
       $("#guide").open ||
+      travelMap?.open ||
       !locations.active.canThrow ||
       !heroRig.items.canThrow ||
       benchMoment.seated ||
@@ -632,7 +635,7 @@ export function createGame({ createRenderer, models } = {}) {
     frame: $("#photoFrame"),
     format: $("#photoFrameFormat"),
   });
-  let photoGestures;
+  let photoGestures, travelMap;
 
   const photography = bindPhotography({
     $,
@@ -641,6 +644,7 @@ export function createGame({ createRenderer, models } = {}) {
     camera,
     capture: createPhotoCapture({ renderer, scene }),
     canEnter: () =>
+      !travelMap?.open &&
       !$("#guide").open &&
       !passageTransition.active &&
       !sheepMoment.viewing &&
@@ -666,10 +670,12 @@ export function createGame({ createRenderer, models } = {}) {
     keys,
     passageTransition,
     invokeShortcut,
-    handleKeydown: photography.keydown,
-    extraPaused: () => photoMode.active || photography.viewing,
+    handleKeydown: (event) =>
+      travelMap?.keydown(event) || photography.keydown(event),
+    extraPaused: () =>
+      photoMode.active || photography.viewing || travelMap?.open,
     pointerAction: () =>
-      photoMode.active || photography.viewing
+      photoMode.active || photography.viewing || travelMap?.open
         ? undefined
         : locations.active.pointerAction
           ? locations.active.pointerAction()
@@ -678,6 +684,7 @@ export function createGame({ createRenderer, models } = {}) {
     cameraLocked: () =>
       photoMode.active ||
       photography.viewing ||
+      travelMap?.open ||
       $("#guide").open ||
       sheepMoment.viewing ||
       cameraLocked(),
@@ -696,10 +703,14 @@ export function createGame({ createRenderer, models } = {}) {
   photoGestures = bindPhotoGestures(renderer.domElement, {
     mode: photoMode,
     paused: () =>
-      photography.viewing || $("#guide").open || passageTransition.active,
+      photography.viewing ||
+      travelMap?.open ||
+      $("#guide").open ||
+      passageTransition.active,
     changed: photography.updateControls,
   });
   $("#restart").onclick = () => {
+    if (travelMap.open) travelMap.close();
     photography.exit();
     if (photography.viewing) photography.closeAlbum();
     passageTransition.cancel();
@@ -733,6 +744,7 @@ export function createGame({ createRenderer, models } = {}) {
     $("#objective").textContent =
       "Break the wooden targets and find the sunstones.";
     toast("A fresh adventure begins");
+    journey.reset();
     locationSave.flush();
   };
   function getHud() {
@@ -742,6 +754,7 @@ export function createGame({ createRenderer, models } = {}) {
     if (
       photoMode.active ||
       photography.viewing ||
+      travelMap.open ||
       $("#guide").open ||
       passageTransition.active
     )
@@ -762,6 +775,7 @@ export function createGame({ createRenderer, models } = {}) {
     canInteract: () =>
       !photoMode.active &&
       !photography.viewing &&
+      !travelMap.open &&
       !$("#guide").open &&
       !passageTransition.active,
     canThrow: () => locations.active.canThrow && heroRig.items.canThrow,
@@ -776,6 +790,7 @@ export function createGame({ createRenderer, models } = {}) {
     const paused =
       photoMode.active ||
       photography.viewing ||
+      travelMap.open ||
       $("#guide").open ||
       transitioning ||
       (sheepMoment.viewing && !sheepMoment.active);
@@ -950,6 +965,8 @@ export function createGame({ createRenderer, models } = {}) {
     renderer.render(view.scene, view.camera);
     if (photoMode.active) photography.updateSelection();
     activePlace.afterRender?.(paused);
+    if (!passageTransition.active && !boatTrip.rowing && !cableCar.riding)
+      journey.discover(locations.current);
     locationSave.update(dt);
   }
   camera.position
@@ -967,16 +984,8 @@ export function createGame({ createRenderer, models } = {}) {
   });
   toast("WASD to move · Drag to look around · Click to throw");
   const loop = createGameLoop(frame);
-  const locationSave = createLocationSave({
-    places,
-    locations,
-    transitions,
-    hero,
-    companion,
-    state,
-    camera,
-    resetCamera,
-    canSave: () =>
+  function canSaveLocation() {
+    return (
       !passageTransition.active &&
       !photoMode.active &&
       !photography.viewing &&
@@ -990,7 +999,32 @@ export function createGame({ createRenderer, models } = {}) {
       !alpineCart.vanishing &&
       !sheepMoment.active &&
       !sheepMoment.viewing &&
-      !festivalMoment.active,
+      !festivalMoment.active
+    );
+  }
+  const journey = createJourney({
+    places,
+    getCurrent: () => locations.current,
+    canTravel: () => canSaveLocation() && !$("#guide").open,
+    transitions,
+  });
+  travelMap = bindTravelMap({
+    $,
+    journey,
+    canOpen: () => canSaveLocation() && !$("#guide").open,
+    clearInput: clearRestInput,
+    toast,
+  });
+  const locationSave = createLocationSave({
+    places,
+    locations,
+    transitions,
+    hero,
+    companion,
+    state,
+    camera,
+    resetCamera,
+    canSave: canSaveLocation,
   });
   let opened = false;
   if (typeof location !== "undefined") {
@@ -1001,6 +1035,7 @@ export function createGame({ createRenderer, models } = {}) {
   }
   if (!opened && locationSave.restore())
     toast("Welcome back · Journey resumed");
+  journey.discover(locations.current);
   locationSave.flush();
   addEventListener("pagehide", () => locationSave.flush());
   document.addEventListener("visibilitychange", () => {
@@ -1009,6 +1044,9 @@ export function createGame({ createRenderer, models } = {}) {
   registerAdventureProgress(readProgress);
   function readProgress() {
     return {
+      discoveredPlaces: journey.destinations
+        .filter((entry) => entry.unlocked)
+        .map((entry) => entry.id),
       funfairPrizes: funfairActivities.collected,
       funfairRide: funfairActivities.ride,
       ringTossFirstPerson: funfairActivities.playing,
@@ -1081,6 +1119,8 @@ export function createGame({ createRenderer, models } = {}) {
     },
     controls: {
       travelTo: (id, options) => transitions.go(id, options),
+      fastTravel: (id) => journey.travel(id),
+      openMap: travelMap.openMap,
       interact: () => invokeShortcut("KeyX"),
       usePassage,
       useCastlePassage,
@@ -1134,6 +1174,8 @@ export function createGame({ createRenderer, models } = {}) {
       },
     },
     input: { keys },
+    journey,
+    travelMap,
     effects,
     places,
     transitions,

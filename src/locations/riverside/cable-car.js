@@ -276,6 +276,7 @@ export function createCableCar({
     enabled = false;
     group.visible = false;
     cabin.position.copy(startPoint);
+    showScenery();
   }
   cabin.position.copy(startPoint);
   showScenery();

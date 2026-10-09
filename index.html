@@ -29,6 +29,15 @@
         <div>SUNFLOWER<small>AXE & ADVENTURE</small></div>
       </div>
       <div class="actions">
+        <button
+          id="travelAction"
+          type="button"
+          aria-haspopup="dialog"
+          aria-controls="travelMap"
+          title="Travel map · V"
+        >
+          Map
+        </button>
         <button id="cameraAction" type="button" aria-pressed="false">
           Camera
         </button>
@@ -166,6 +175,9 @@
         reach the garden.
       </p>
       <p>
+        <b>Map / V</b> — revisit places you have discovered. Walk, sail, or ride
+        to a new destination first to unlock it. Your discoveries stay in this
+        browser; New adventure clears the travel map.<br />
         <b>Camera / M</b> — pause and arrange both characters. Tap a friend and
         drag to turn; hold a friend before dragging to move. Drag the scenery to
         orbit. Pinch to zoom; slide two fingers together to frame. Use the
@@ -191,6 +203,40 @@
         fly straight ahead. On touch screens, use the joystick and Throw.
       </p>
       <button id="close">Back to the garden</button>
+    </dialog>
+    <dialog
+      id="travelMap"
+      aria-labelledby="travelMapTitle"
+      aria-describedby="travelMapHint"
+    >
+      <div class="travel-toolbar">
+        <div>
+          <span class="eyebrow">OUR JOURNEY</span>
+          <h2 id="travelMapTitle">Places we've been</h2>
+        </div>
+        <button id="closeTravelMap" type="button" aria-label="Close travel map">
+          Close
+        </button>
+      </div>
+      <p id="travelMapHint">
+        Discover a place together, then return whenever you like.
+      </p>
+      <p id="travelSummary"></p>
+      <div class="journey-map">
+        <svg
+          class="journey-paths"
+          viewBox="0 0 1000 430"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <path d="M120 52 H880 M500 52 V353 M310 52 V202 H120 M880 52 V361" />
+        </svg>
+        <div id="travelDestinations"></div>
+      </div>
+      <p class="travel-note">
+        Choose a discovered place to travel there. Finish your ride or activity
+        before setting off.
+      </p>
     </dialog>
     <div id="error" hidden>
       WebGL could not start. Please open this game in a browser with hardware

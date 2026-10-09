@@ -22,7 +22,9 @@ export async function createTestGame({ storage } = {}) {
         firstChild: { textContent: "" },
         open: false,
         setAttribute() {},
-        appendChild() {},
+        appendChild(child) {
+          this.children.push(child);
+        },
         addEventListener() {},
       });
     return elements.get(selector);
@@ -50,8 +52,12 @@ export async function createTestGame({ storage } = {}) {
       querySelector: element,
       createElement() {
         return {
+          style: {},
+          attributes: {},
           children: [],
-          setAttribute() {},
+          setAttribute(name, value) {
+            this.attributes[name] = value;
+          },
           appendChild(child) {
             this.children.push(child);
           },
