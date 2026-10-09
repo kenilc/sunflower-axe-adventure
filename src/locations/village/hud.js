@@ -23,17 +23,6 @@ export function createVillageHud(context) {
             state.villageActivityCooldown > 0,
           run: () => context.interactVillage(),
         },
-        {
-          id: "sheepPhotoAction",
-          key: "KeyP",
-          label: "View sheep photo · P",
-          visible:
-            sheepMoment.hasPhoto &&
-            !sheepMoment.active &&
-            !alpineCart.riding &&
-            !state.activeVillageShop,
-          run: () => sheepMoment.showPhoto(),
-        },
       ],
       hideStick: sheepMoment.active || alpineCart.riding,
       hint: sheepMoment.active
