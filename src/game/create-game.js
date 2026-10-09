@@ -149,6 +149,8 @@ export function createGame({ createRenderer, models } = {}) {
     companion,
     camera,
     capturePhoto: createPhotoCapture({ renderer, scene }),
+    savePhoto: (image) =>
+      photography.savePhoto(image, "Edelweiss Village · Sheep meadow"),
     mesh,
     box,
     cyl,

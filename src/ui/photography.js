@@ -76,6 +76,12 @@ export function bindPhotography({
     $("#photoStatus").textContent = "";
     return true;
   }
+  function savePhoto(image, location) {
+    const photo = album.add(image, location);
+    $("#photoAlbumThumb").src = image;
+    $("#photoAlbumThumb").hidden = false;
+    return photo;
+  }
   function takePhoto() {
     if (!mode.active || albumDialog.open || $("#guide").open) return false;
     resetGestures();
@@ -94,11 +100,9 @@ export function bindPhotography({
         quality: 0.82,
       });
       if (!image) throw new Error("capture-unavailable");
-      album.add(image, getLocation());
+      savePhoto(image, getLocation());
       $("#photoStatus").textContent =
         `Photo saved ♥ ${album.photos.length} / ${PHOTO_LIMIT}`;
-      $("#photoAlbumThumb").src = image;
-      $("#photoAlbumThumb").hidden = false;
       const flash = $("#photoFlash");
       flash.animate?.([{ opacity: 0.8 }, { opacity: 0 }], { duration: 250 });
       return true;
@@ -119,8 +123,9 @@ export function bindPhotography({
     $("#albumCaption").textContent =
       `${photo.location} · ${new Date(photo.createdAt).toLocaleString()}`;
     $("#downloadPhoto").href = photo.image;
+    const extension = photo.image.startsWith("data:image/png;") ? "png" : "jpg";
     $("#downloadPhoto").download =
-      `sunflower-${photo.createdAt.replace(/[:.]/g, "-")}.jpg`;
+      `sunflower-${photo.createdAt.replace(/[:.]/g, "-")}.${extension}`;
   }
   function renderAlbum() {
     const photos = album.photos;
@@ -198,6 +203,7 @@ export function bindPhotography({
     openAlbum,
     closeAlbum,
     takePhoto,
+    savePhoto,
     updateControls,
     updateSelection,
     get viewing() {
