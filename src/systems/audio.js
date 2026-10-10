@@ -1,270 +1,292 @@
-// A small original score, synthesized locally: no downloads or audio services.
-export function createGameAudio(isInCave, isInFestival = () => false) {
+import { MUSIC_SCORES, musicScoreId } from "./music-scores.js";
+
+// Original music synthesized locally. Each track has its own bus so melodies
+// actually overlap during a crossfade; effects always use the independent master.
+export function createGameAudio(getLocation = () => "garden") {
   let ctx,
     master,
-    music,
+    delay,
     enabled = false,
     timer = null,
-    nextTime = 0,
-    step = 0,
-    soft = false;
-  const voices = new Set();
-  const beat = 60 / 96 / 2;
-  // A slower, spacious pentatonic melody for the summer lantern streets.
-  const festivalBeat = 60 / 68 / 2;
-  const festivalMelody = [
-    72,
-    null,
-    null,
-    null,
-    74,
-    null,
-    76,
-    null,
-    79,
-    null,
-    null,
-    null,
-    76,
-    null,
-    74,
-    null,
-    69,
-    null,
-    null,
-    null,
-    72,
-    null,
-    74,
-    null,
-    76,
-    null,
-    72,
-    null,
-    null,
-    null,
-    null,
-    null,
-  ];
-  const festivalChords = [
-    [48, 55, 62],
-    [45, 52, 60],
-    [41, 48, 55],
-    [43, 50, 57],
-  ];
-  const melody = [
-    76,
-    null,
-    79,
-    76,
-    74,
-    null,
-    72,
-    null,
-    76,
-    79,
-    81,
-    null,
-    79,
-    76,
-    74,
-    null,
-    72,
-    null,
-    76,
-    77,
-    79,
-    null,
-    77,
-    76,
-    74,
-    null,
-    71,
-    74,
-    79,
-    null,
-    74,
-    null,
-    76,
-    79,
-    84,
-    null,
-    83,
-    79,
-    76,
-    null,
-    77,
-    null,
-    81,
-    79,
-    77,
-    76,
-    72,
-    null,
-    74,
-    77,
-    79,
-    null,
-    83,
-    81,
-    79,
-    74,
-    76,
-    null,
-    74,
-    72,
-    null,
-    null,
-    null,
-    null,
-  ];
-  const chords = [
-    [48, 52, 55],
-    [45, 48, 52],
-    [41, 45, 48],
-    [43, 47, 50],
-    [48, 52, 55],
-    [41, 45, 48],
-    [43, 47, 50],
-    [48, 52, 55],
-  ];
+    active = null;
+  let generation = 0;
+  const tracks = new Set(),
+    voices = new Set();
+  const fadeDuration = 1.8;
+  const hz = (n) => 440 * Math.pow(2, (n - 69) / 12);
+  // [harmonic, relative level, waveform]. Small additive voices suggest acoustic
+  // instruments without samples or the sharp edges of full-volume square waves.
+  const instruments = {
+    piano: {
+      attack: 0.012,
+      partials: [
+        [1, 1, "sine"],
+        [2, 0.22, "sine"],
+        [3, 0.08, "sine"],
+      ],
+    },
+    guitar: {
+      attack: 0.009,
+      partials: [
+        [1, 1, "triangle"],
+        [2, 0.12, "sine"],
+      ],
+    },
+    pluck: {
+      attack: 0.006,
+      partials: [
+        [1, 1, "sine"],
+        [2, 0.3, "sine"],
+        [3, 0.12, "sine"],
+      ],
+    },
+    bell: {
+      attack: 0.008,
+      partials: [
+        [1, 1, "sine"],
+        [2.76, 0.14, "sine"],
+        [4.07, 0.05, "sine"],
+      ],
+    },
+    flute: {
+      attack: 0.09,
+      partials: [
+        [1, 1, "sine"],
+        [2, 0.08, "sine"],
+      ],
+    },
+    accordion: {
+      attack: 0.07,
+      partials: [
+        [1, 1, "sine"],
+        [2, 0.24, "sine"],
+        [3, 0.1, "sine"],
+      ],
+    },
+    pad: {
+      attack: 0.3,
+      partials: [
+        [1, 1, "sine"],
+        [2, 0.12, "sine"],
+      ],
+    },
+  };
+
   function init() {
     if (ctx) return;
     const Audio = window.AudioContext || window.webkitAudioContext;
     if (!Audio) throw new Error("Audio is not available in this browser.");
     ctx = new Audio();
     master = ctx.createGain();
-    master.gain.value = 0.65;
+    master.gain.value = 0;
     master.connect(ctx.destination);
-    music = ctx.createGain();
-    soft = isInFestival();
-    music.gain.value = soft ? 0.21 : 0.32;
-    music.connect(master);
-    const delay = ctx.createDelay(1),
-      feedback = ctx.createGain(),
+    delay = ctx.createDelay(1);
+    const feedback = ctx.createGain(),
       wet = ctx.createGain();
-    delay.delayTime.value = 0.28;
-    feedback.gain.value = 0.18;
-    wet.gain.value = 0.22;
-    music.connect(delay);
+    delay.delayTime.value = 0.3;
+    feedback.gain.value = 0.16;
+    wet.gain.value = 0.16;
     delay.connect(feedback);
     feedback.connect(delay);
     delay.connect(wet);
     wet.connect(master);
   }
-  function tone(freq, start, duration, level, type, bus, endFrequency) {
-    const o = ctx.createOscillator(),
-      g = ctx.createGain();
-    o.type = type;
-    o.frequency.setValueAtTime(freq, start);
+
+  function tone(
+    freq,
+    start,
+    duration,
+    level,
+    type,
+    bus,
+    owner,
+    attack = 0.025,
+    endFrequency,
+  ) {
+    const oscillator = ctx.createOscillator(),
+      gain = ctx.createGain();
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(freq, start);
     if (endFrequency)
-      o.frequency.exponentialRampToValueAtTime(endFrequency, start + duration);
-    g.gain.setValueAtTime(0.0001, start);
-    g.gain.exponentialRampToValueAtTime(level, start + 0.025);
-    g.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-    o.connect(g);
-    g.connect(bus);
-    voices.add(o);
-    o.onended = () => {
-      voices.delete(o);
-      o.disconnect();
-      g.disconnect();
+      oscillator.frequency.exponentialRampToValueAtTime(
+        endFrequency,
+        start + duration,
+      );
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(
+      level,
+      start + Math.min(attack, duration / 3),
+    );
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    oscillator.connect(gain);
+    gain.connect(bus);
+    const voice = { oscillator, gain, owner };
+    voices.add(voice);
+    oscillator.onended = () => {
+      voices.delete(voice);
+      oscillator.disconnect();
+      gain.disconnect();
     };
-    o.start(start);
-    o.stop(start + duration + 0.03);
+    oscillator.start(start);
+    oscillator.stop(start + duration + 0.03);
   }
-  const hz = (n) => 440 * Math.pow(2, (n - 69) / 12);
+
+  function note(track, midi, start, duration, level, instrument) {
+    const { partials, attack } = instruments[instrument];
+    for (const [harmonic, weight, type] of partials)
+      tone(
+        hz(midi) * harmonic,
+        start,
+        duration,
+        level * weight,
+        type,
+        track.bus,
+        track,
+        attack,
+      );
+  }
+
+  function clearVoices(owner) {
+    for (const voice of voices) {
+      if (owner && voice.owner !== owner) continue;
+      try {
+        voice.oscillator.stop();
+      } catch {}
+      // Disconnect synchronously as well: suspended contexts defer onended.
+      voice.oscillator.disconnect();
+      voice.gain.disconnect();
+      voices.delete(voice);
+    }
+  }
+  function removeTrack(track) {
+    clearVoices(track);
+    track.bus.disconnect();
+    tracks.delete(track);
+  }
+  function clearTracks() {
+    for (const track of tracks) removeTrack(track);
+    active = null;
+  }
+
+  function gainAt(track, time) {
+    const progress = Math.max(
+      0,
+      Math.min(1, (time - track.fadeStart) / fadeDuration),
+    );
+    return track.fadeFrom + (track.fadeTo - track.fadeFrom) * progress;
+  }
+  function fade(track, target, time) {
+    const current = gainAt(track, time);
+    track.bus.gain.cancelScheduledValues(time);
+    track.bus.gain.setValueAtTime(current, time);
+    track.bus.gain.linearRampToValueAtTime(target, time + fadeDuration);
+    track.fadeStart = time;
+    track.fadeFrom = current;
+    track.fadeTo = target;
+  }
+  function selectTrack() {
+    const id = musicScoreId(getLocation());
+    if (active?.id === id) return;
+    const time = ctx.currentTime;
+    if (active) {
+      fade(active, 0, time);
+      active.endsAt = time + fadeDuration;
+    }
+    const bus = ctx.createGain();
+    bus.gain.value = 0;
+    bus.connect(master);
+    bus.connect(delay);
+    active = {
+      id,
+      score: MUSIC_SCORES[id],
+      bus,
+      step: 0,
+      nextTime: time + 0.04,
+      fadeStart: time,
+      fadeFrom: 0,
+      fadeTo: 0,
+      endsAt: Infinity,
+    };
+    tracks.add(active);
+    fade(active, active.score.volume, time);
+  }
+
+  function scheduleTrack(track) {
+    const score = track.score,
+      pulse = 60 / score.bpm / 2;
+    const stepsPerBar = score.stepsPerBar ?? 8;
+    if (track.nextTime < ctx.currentTime)
+      track.nextTime = ctx.currentTime + 0.04;
+    while (track.nextTime < Math.min(ctx.currentTime + 0.18, track.endsAt)) {
+      const step = track.step,
+        time = track.nextTime,
+        position = step % stepsPerBar;
+      const chord =
+        score.chords[Math.floor(step / stepsPerBar) % score.chords.length];
+      const midi = score.melody[step];
+      if (midi !== null)
+        note(track, midi, time, pulse * score.sustain, 0.15, score.lead);
+      if (position % (score.arpEvery ?? 1) === 0) {
+        const arp =
+          chord[
+            [0, 1, 2, 1][Math.floor(position / (score.arpEvery ?? 1)) % 4]
+          ] + 12;
+        note(track, arp, time, pulse * 2.5, 0.045, score.backing);
+      }
+      if (position === 0) {
+        note(
+          track,
+          chord[0] - 12,
+          time,
+          pulse * (stepsPerBar - 0.5),
+          0.075,
+          "pad",
+        );
+        if (["pad", "flute", "accordion"].includes(score.backing))
+          for (const n of chord)
+            note(track, n, time, pulse * stepsPerBar, 0.02, score.backing);
+      }
+      track.nextTime += pulse;
+      track.step = (step + 1) % score.melody.length;
+    }
+  }
   function schedule() {
     if (!enabled || document.hidden || ctx.state !== "running") return;
-    if (nextTime < ctx.currentTime) nextTime = ctx.currentTime + 0.04;
-    while (nextTime < ctx.currentTime + 0.18) {
-      const festival = isInFestival();
-      if (festival !== soft) {
-        soft = festival;
-        step = 0;
-        // Crossfade the music bus without changing sound effects or mute state.
-        music.gain.cancelScheduledValues(ctx.currentTime);
-        music.gain.setValueAtTime(music.gain.value, ctx.currentTime);
-        music.gain.linearRampToValueAtTime(
-          soft ? 0.21 : 0.32,
-          ctx.currentTime + 0.8,
-        );
-      }
-      const cave = isInCave(),
-        phrase = soft ? festivalMelody : melody,
-        pulse = soft ? festivalBeat : beat,
-        chord = (soft ? festivalChords : chords)[Math.floor(step / 8)],
-        n = phrase[step];
-      if (n !== null)
-        tone(
-          hz(n - (cave ? 12 : 0)),
-          nextTime,
-          pulse * (soft ? 3.8 : 2.6),
-          soft ? 0.1 : cave ? 0.13 : 0.17,
-          "sine",
-          music,
-        );
-      const arp = chord[[0, 1, 2, 1][step % 4]] + 12;
-      if (!soft || step % 2 === 0)
-        tone(
-          hz(arp),
-          nextTime,
-          pulse * (soft ? 3 : 1.8),
-          soft ? 0.032 : cave ? 0.05 : 0.08,
-          soft ? "sine" : "triangle",
-          music,
-        );
-      if (step % 8 === 0) {
-        tone(
-          hz(chord[0] - 12),
-          nextTime,
-          pulse * 7,
-          soft ? 0.055 : 0.14,
-          "sine",
-          music,
-        );
-        if (soft)
-          chord.forEach((note) =>
-            tone(hz(note), nextTime, pulse * 9, 0.024, "sine", music),
-          );
-      }
-      nextTime += pulse;
-      step = (step + 1) % phrase.length;
+    selectTrack();
+    for (const track of tracks) {
+      if (ctx.currentTime >= track.endsAt) removeTrack(track);
+      else scheduleTrack(track);
     }
   }
-  function clearVoices() {
-    for (const voice of voices) {
-      try {
-        voice.stop();
-      } catch {}
-    }
-    voices.clear();
+  function stopTimer() {
+    if (timer !== null) clearInterval(timer);
+    timer = null;
   }
   function startTimer() {
-    if (timer !== null) clearInterval(timer);
+    stopTimer();
     schedule();
     timer = setInterval(schedule, 80);
   }
   async function setEnabled(value) {
-    if (!value) {
-      enabled = false;
-      if (timer !== null) clearInterval(timer);
-      timer = null;
+    const request = ++generation;
+    enabled = Boolean(value);
+    if (!enabled) {
+      stopTimer();
       if (ctx) {
         master.gain.cancelScheduledValues(ctx.currentTime);
         master.gain.setValueAtTime(0, ctx.currentTime);
+        clearTracks();
         clearVoices();
       }
       return;
     }
     init();
-    enabled = true;
+    if (document.hidden) return;
     await ctx.resume();
-    if (!enabled) return;
+    if (!enabled || request !== generation || document.hidden) return;
     master.gain.cancelScheduledValues(ctx.currentTime);
     master.gain.setValueAtTime(0, ctx.currentTime);
     master.gain.linearRampToValueAtTime(0.65, ctx.currentTime + 0.12);
-    nextTime = ctx.currentTime + 0.05;
     startTimer();
   }
   function effect(freq, duration = 0.1) {
@@ -276,31 +298,32 @@ export function createGameAudio(isInCave, isInFestival = () => false) {
         0.1,
         "sine",
         master,
+        null,
+        0.025,
         freq * 0.55,
       );
+  }
+  async function resume() {
+    const request = generation;
+    await ctx.resume();
+    if (enabled && request === generation && !document.hidden) {
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.setValueAtTime(0.65, ctx.currentTime);
+      startTimer();
+    }
   }
   document.addEventListener("visibilitychange", () => {
     if (!ctx || !enabled) return;
     if (document.hidden) {
-      if (timer !== null) clearInterval(timer);
-      timer = null;
+      stopTimer();
+      clearTracks();
       clearVoices();
       void ctx.suspend().catch(() => {});
-    } else
-      void ctx
-        .resume()
-        .then(() => {
-          if (enabled) {
-            nextTime = ctx.currentTime + 0.05;
-            startTimer();
-          }
-        })
-        .catch(() => {});
+    } else void resume().catch(() => {});
   });
-  // Mobile browsers may require another gesture after interrupting audio.
   function unlock() {
     if (enabled && ctx?.state === "suspended" && !document.hidden)
-      void ctx.resume().catch(() => {});
+      void resume().catch(() => {});
   }
   addEventListener("pointerdown", unlock);
   addEventListener("keydown", unlock);

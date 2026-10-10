@@ -602,8 +602,7 @@ export function createGame({ createRenderer, models } = {}) {
   const keys = {};
 
   const audio = createGameAudio(
-    () => locations.active.soundscape === "cave",
-    () => locations.active.soundscape === "festival",
+    () => locations.active.soundscape ?? locations.current,
   );
   function beep(freq, duration = 0.1) {
     audio.effect(freq, duration);

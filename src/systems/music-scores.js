@@ -1,0 +1,221 @@
+// Original, looping sketches. Eight steps form a 4/4 bar; the funfair uses 3/4.
+// Related rising phrases tie the destinations to the garden's adventure theme.
+const bars = (...phrases) => phrases.flat();
+const C = [48, 52, 55],
+  Am = [45, 48, 52],
+  F = [41, 45, 48],
+  G = [43, 47, 50];
+
+export const MUSIC_SCORES = {
+  garden: {
+    bpm: 92,
+    volume: 0.3,
+    lead: "piano",
+    backing: "pluck",
+    sustain: 2.5,
+    chords: [C, Am, F, G, C, F, G, C],
+    melody: bars(
+      [76, null, 79, 76, 74, null, 72, null],
+      [76, 79, 81, null, 79, 76, 74, null],
+      [72, null, 76, 77, 79, null, 77, 76],
+      [74, null, 71, 74, 79, null, 74, null],
+      [76, 79, 84, null, 83, 79, 76, null],
+      [77, null, 81, 79, 77, 76, 72, null],
+      [74, 77, 79, null, 83, 81, 79, 74],
+      [76, null, 74, 72, null, null, null, null],
+    ),
+  },
+  cave: {
+    bpm: 58,
+    volume: 0.23,
+    lead: "bell",
+    backing: "pad",
+    sustain: 4.5,
+    arpEvery: 4,
+    chords: [
+      [45, 52, 59],
+      [41, 48, 55],
+      [48, 55, 59],
+      [43, 50, 57],
+    ],
+    melody: bars(
+      [69, null, null, null, 76, null, 79, null],
+      [77, null, null, 76, null, null, 72, null],
+      [71, null, 76, null, 79, null, null, null],
+      [74, null, null, 71, 69, null, null, null],
+    ),
+  },
+  village: {
+    bpm: 100,
+    volume: 0.27,
+    lead: "flute",
+    backing: "accordion",
+    sustain: 1.5,
+    chords: [C, G, Am, F, C, F, G, C],
+    melody: bars(
+      [76, 79, 81, 79, 76, null, 72, null],
+      [74, 71, 67, null, 71, 74, 79, null],
+      [76, null, 81, 83, 84, 81, 76, null],
+      [77, 76, 72, null, 69, null, 72, null],
+      [79, null, 76, 72, 76, 79, 84, null],
+      [81, 79, 77, null, 76, 77, 72, null],
+      [74, 76, 79, null, 77, 74, 71, null],
+      [72, null, 76, null, 72, null, null, null],
+    ),
+  },
+  winter: {
+    bpm: 64,
+    volume: 0.23,
+    lead: "piano",
+    backing: "bell",
+    sustain: 3,
+    arpEvery: 2,
+    chords: [C, [45, 52, 59], F, [43, 50, 57]],
+    melody: bars(
+      [84, null, 83, null, 79, null, null, null],
+      [81, null, 79, 76, null, null, 72, null],
+      [77, null, 81, null, 79, null, 76, null],
+      [74, null, 79, null, 76, 74, 72, null],
+    ),
+  },
+  funfair: {
+    bpm: 112,
+    volume: 0.25,
+    lead: "bell",
+    backing: "pluck",
+    sustain: 1.3,
+    stepsPerBar: 6,
+    chords: [C, G, F, G, Am, F, G, C],
+    melody: bars(
+      [76, 79, 84, 79, 76, null],
+      [74, 79, 83, 79, 74, null],
+      [77, 81, 84, 81, 77, null],
+      [79, 77, 74, 71, 74, null],
+      [81, 84, 88, 84, 81, null],
+      [84, 81, 77, 76, 77, null],
+      [83, 79, 74, 77, 74, 71],
+      [72, null, 76, 79, 72, null],
+    ),
+  },
+  seaside: {
+    bpm: 62,
+    volume: 0.22,
+    lead: "guitar",
+    backing: "pad",
+    sustain: 3.5,
+    arpEvery: 2,
+    chords: [
+      [48, 55, 59],
+      [45, 52, 55],
+      [41, 48, 52],
+      [43, 50, 57],
+    ],
+    melody: bars(
+      [76, null, null, 79, 81, null, 79, null],
+      [76, null, 72, null, 71, null, null, null],
+      [69, null, 72, null, 76, null, 77, null],
+      [74, null, null, 79, 76, null, 72, null],
+    ),
+  },
+  festival: {
+    bpm: 68,
+    volume: 0.21,
+    lead: "pluck",
+    backing: "flute",
+    sustain: 3.8,
+    arpEvery: 2,
+    chords: [
+      [48, 55, 62],
+      [45, 52, 60],
+      [41, 48, 55],
+      [43, 50, 57],
+    ],
+    melody: bars(
+      [72, null, null, null, 74, null, 76, null],
+      [79, null, null, null, 76, null, 74, null],
+      [69, null, null, null, 72, null, 74, null],
+      [76, null, 72, null, null, null, null, null],
+    ),
+  },
+  riverside: {
+    bpm: 88,
+    volume: 0.27,
+    lead: "flute",
+    backing: "guitar",
+    sustain: 2,
+    chords: [C, F, Am, G],
+    melody: bars(
+      [72, 74, 76, null, 79, 76, 74, null],
+      [77, null, 76, 72, 69, 72, 77, null],
+      [76, 79, 81, null, 84, 81, 79, null],
+      [79, null, 77, 74, 76, null, 72, null],
+    ),
+  },
+  lagoon: {
+    bpm: 54,
+    volume: 0.2,
+    lead: "pluck",
+    backing: "pad",
+    sustain: 5,
+    arpEvery: 4,
+    chords: [
+      [48, 55, 62],
+      [41, 48, 55],
+      [45, 52, 59],
+      [43, 50, 57],
+    ],
+    melody: bars(
+      [79, null, null, null, 84, null, 86, null],
+      [84, null, null, 81, null, null, 79, null],
+      [76, null, null, null, 79, null, 81, null],
+      [79, null, 74, null, 72, null, null, null],
+    ),
+  },
+  summit: {
+    bpm: 66,
+    volume: 0.25,
+    lead: "flute",
+    backing: "pad",
+    sustain: 5,
+    arpEvery: 4,
+    chords: [F, C, [43, 50, 57], C],
+    melody: bars(
+      [72, null, 76, null, 79, null, 84, null],
+      [86, null, null, null, 84, null, 79, null],
+      [83, null, 79, null, 74, null, null, null],
+      [76, null, 79, null, 84, null, null, null],
+    ),
+  },
+  castle: {
+    bpm: 70,
+    volume: 0.23,
+    lead: "bell",
+    backing: "piano",
+    sustain: 3.5,
+    arpEvery: 2,
+    chords: [C, Am, F, G],
+    melody: bars(
+      [84, null, 79, null, 76, null, 79, null],
+      [81, null, 84, 83, 81, null, 76, null],
+      [77, null, 81, null, 84, null, 88, null],
+      [86, null, 83, 79, 76, null, 72, null],
+    ),
+  },
+};
+
+// Interior arrangements keep the village melody, with a softer piano voice.
+MUSIC_SCORES.shop = {
+  ...MUSIC_SCORES.village,
+  bpm: 80,
+  volume: 0.19,
+  lead: "piano",
+  backing: "guitar",
+  sustain: 2.5,
+  arpEvery: 2,
+};
+
+export function musicScoreId(location) {
+  if (typeof location === "string" && location.startsWith("shop:"))
+    return "shop";
+  return Object.hasOwn(MUSIC_SCORES, location) ? location : "garden";
+}
