@@ -37,7 +37,19 @@ test("the map starts with only the garden, blocks locked travel and pauses all i
   expect(destination(element, "garden").attributes["aria-current"]).toBe(
     "location",
   );
-  expect(destination(element, "cave").disabled).toBe(true);
+  expect(destination(element, "cave")).toBeUndefined();
+  const stops = element("#travelDestinations").children;
+  expect(stops.filter((stop) => stop.className === "travel-fog")).toHaveLength(
+    10,
+  );
+  for (const fog of stops.filter((stop) => stop.className === "travel-fog")) {
+    expect(fog.attributes["aria-hidden"]).toBe("true");
+    expect(fog.attributes["aria-label"]).toBeUndefined();
+    expect(fog.value).toBeUndefined();
+    expect(fog.title).toBeUndefined();
+    expect(fog.children).toHaveLength(0);
+  }
+  expect(element("#journeyPaths").children).toHaveLength(0);
   expect(element("#travelSummary").textContent).toBe(
     "1 of 11 places discovered",
   );
@@ -72,6 +84,15 @@ test("walking unlocks a destination, shops share the village stop and selecting 
     "location",
   );
   expect(destination(element, "garden").disabled).toBe(false);
+  expect(
+    destination(element, "village").children.map((child) => child.className),
+  ).toEqual(["travel-landmark"]);
+  expect(destination(element, "village").attributes["aria-label"]).toContain(
+    "Edelweiss Village",
+  );
+  expect(destination(element, "village").title).toContain("You are here");
+  expect(destination(element, "cave")).toBeUndefined();
+  expect(element("#journeyPaths").children).toHaveLength(1);
   destination(element, "garden").onclick();
   expect(game.travelMap.open).toBe(false);
   expect(game.passageTransition.active).toBe(true);
@@ -89,9 +110,15 @@ test("walking unlocks a destination, shops share the village stop and selecting 
   frames(game);
   expect(game.state.activeLocation).toBe("village");
   handlers.get("pagehide")();
-  const { game: resumed } = await createTestGame({ storage });
+  const { game: resumed, element: resumedElement } = await createTestGame({
+    storage,
+  });
   expect(unlocked(resumed)).toEqual(["garden", "village"]);
   expect(resumed.state.activeLocation).toBe("village");
+  resumed.controls.openMap();
+  expect(destination(resumedElement, "village")).toBeDefined();
+  expect(destination(resumedElement, "cave")).toBeUndefined();
+  resumed.travelMap.close();
   expect(resumed.controls.fastTravel("garden")).toBe(true);
 });
 
@@ -286,6 +313,7 @@ test("journey storage filters unknown destinations and unavailable storage still
 
 test("map paths match place parents and show the beach southeast of the garden", async () => {
   const { game, element } = await createTestGame();
+  for (const { id } of game.journey.destinations) game.journey.discover(id);
   game.controls.openMap();
   const paths = element("#journeyPaths").children.map(
     ({ attributes }) => `${attributes["data-from"]}->${attributes["data-to"]}`,
@@ -317,9 +345,14 @@ test("map paths match place parents and show the beach southeast of the garden",
   expect(locations.get("village").y).toBeGreaterThan(garden.y);
   expect(
     destination(element, "seaside").children.find(
-      (child) => child.className === "travel-route",
-    ).textContent,
-  ).toBe("From Sunken Garden");
+      (child) => child.className === "travel-landmark",
+    ).innerHTML,
+  ).toContain("<svg");
+  expect(
+    element("#travelDestinations").children.some(
+      (child) => child.className === "travel-fog",
+    ),
+  ).toBe(false);
   game.travelMap.close();
   game.transitions.open("seaside");
   game.update();

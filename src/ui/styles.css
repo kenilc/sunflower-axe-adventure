@@ -825,9 +825,11 @@ body.photo-mode #toast {
 }
 .journey-map {
   position: relative;
-  height: 600px;
+  height: clamp(480px, 65dvh, 600px);
   margin-top: 18px;
   border-radius: 14px;
+  isolation: isolate;
+  overflow: hidden;
   background:
     radial-gradient(ellipse at 50% 30%, #54795a30, transparent 35%),
     radial-gradient(ellipse at 14% 65%, #77b1bd25, transparent 45%),
@@ -842,7 +844,7 @@ body.photo-mode #toast {
 }
 .journey-paths {
   fill: none;
-  stroke: #a2bd9170;
+  stroke: #dcc89190;
   stroke-width: 2;
   stroke-dasharray: 6 7;
   pointer-events: none;
@@ -854,31 +856,47 @@ body.photo-mode #toast {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  width: 150px;
-  min-height: 96px;
-  padding: 9px 6px;
+  width: 104px;
+  min-height: 94px;
+  padding: 6px;
   margin: 0;
-  border: 1px solid #91b79570;
-  border-radius: 12px;
-  background: #254d40;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
   color: #fff6db;
   backdrop-filter: none;
+  z-index: 1;
+  transition: background 160ms ease;
 }
-#travelMap .travel-destination:hover:not(:disabled) {
-  background: #396751;
-  border-color: #ffda82;
+#travelMap .travel-destination:hover,
+#travelMap .travel-destination:focus-visible {
+  background: #9bbe9220;
 }
-#travelMap .travel-destination[data-unlocked="false"] {
-  color: #aec1b6;
-  background: #1a3831;
-  border-style: dashed;
-  cursor: default;
+#travelMap .travel-destination:focus-visible {
+  outline: 2px solid #ffda82;
+  outline-offset: 3px;
 }
 #travelMap .travel-destination[aria-current="location"] {
-  border: 2px solid #ffda82;
-  background: #395d40;
   cursor: default;
+}
+#travelMap .travel-destination[aria-current="location"] .travel-landmark {
+  background: #65845160;
+  box-shadow:
+    0 0 0 2px #ffda82,
+    0 0 28px #ffda8220;
+}
+#travelMap .travel-destination[aria-current="location"]::after {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: calc(50% - 6px);
+  width: 12px;
+  height: 12px;
+  border: 2px solid #fff0b5;
+  border-radius: 50% 50% 50% 0;
+  background: #e8b957;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 8px #102e2960;
 }
 .journey-paths path {
   vector-effect: non-scaling-stroke;
@@ -887,52 +905,45 @@ body.photo-mode #toast {
   stroke: #ffda82;
   stroke-dasharray: none;
 }
-.travel-route {
-  font-size: 9px;
-  font-weight: 400;
-  color: #c0d5c6;
+.travel-landmark {
+  display: block;
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  background: #537b5b35;
 }
-.travel-icon {
-  font-size: 23px;
-  line-height: 1;
-  color: #ffda82;
+.travel-landmark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
-.travel-name {
-  font-size: 12px;
-  font-weight: 700;
-}
-.travel-status {
-  font-size: 10px;
-  font-weight: 400;
-  color: #c0d5c6;
-}
-#travelMap .travel-note {
-  margin: 12px 0 0;
-  font-size: 12px;
-  color: #b8cbbd;
+.travel-fog {
+  position: absolute;
+  width: 120px;
+  height: 76px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 30% 58%, #b7cec445, transparent 62%),
+    radial-gradient(ellipse at 66% 38%, #b7cec445, transparent 62%);
+  filter: blur(9px);
+  pointer-events: none;
 }
 @media (max-width: 700px) {
   #travelMap {
     padding: 18px;
   }
-  .journey-map {
-    height: auto;
-    padding: 12px;
-  }
-  .journey-paths {
-    display: none;
-  }
-  #travelDestinations {
-    position: static;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
   #travelMap .travel-destination {
-    position: static;
-    transform: none;
-    width: 100%;
-    min-height: 88px;
+    width: 80px;
+    min-height: 72px;
+  }
+  .travel-landmark {
+    width: 60px;
+    height: 60px;
+  }
+  .travel-fog {
+    width: 80px;
+    height: 65px;
   }
 }
 @media (max-width: 480px) {

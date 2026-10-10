@@ -1,3 +1,5 @@
+import { travelLandmark } from "./travel-landmarks.js";
+
 export function bindTravelMap({ $, journey, canOpen, clearInput, toast }) {
   const dialog = $("#travelMap"),
     trigger = $("#travelAction");
@@ -10,7 +12,7 @@ export function bindTravelMap({ $, journey, canOpen, clearInput, toast }) {
     paths.replaceChildren();
     for (const destination of destinations) {
       const parent = byId.get(destination.parent);
-      if (!parent) continue;
+      if (!parent?.unlocked || !destination.unlocked) continue;
       const path = document.createElementNS(
         "http://www.w3.org/2000/svg",
         "path",
@@ -27,43 +29,37 @@ export function bindTravelMap({ $, journey, canOpen, clearInput, toast }) {
     const grid = $("#travelDestinations");
     grid.replaceChildren();
     for (const destination of destinations) {
+      if (!destination.unlocked) {
+        // Never render an unvisited place's name, landmark, hint or route.
+        const fog = document.createElement("span");
+        fog.className = "travel-fog";
+        fog.style.left = `${destination.x}%`;
+        fog.style.top = `${destination.y}%`;
+        fog.setAttribute("aria-hidden", "true");
+        grid.appendChild(fog);
+        continue;
+      }
       const button = document.createElement("button");
       button.type = "button";
       button.value = destination.id;
       button.className = "travel-destination";
       button.style.left = `${destination.x}%`;
       button.style.top = `${destination.y}%`;
-      button.disabled = !destination.unlocked || destination.current;
+      button.disabled = false;
+      button.setAttribute("aria-disabled", String(destination.current));
       button.setAttribute("data-unlocked", String(destination.unlocked));
       if (destination.current) button.setAttribute("aria-current", "location");
-      const status = destination.current
-        ? "You are here"
-        : destination.unlocked
-          ? "Travel here"
-          : "Explore to unlock";
+      const status = destination.current ? "You are here" : "Travel here";
       button.setAttribute(
         "aria-label",
         `${destination.name} · ${status}. ${destination.hint}`,
       );
-      for (const [className, text] of [
-        ["travel-icon", destination.icon],
-        ["travel-name", destination.name],
-        [
-          "travel-route",
-          destination.parent
-            ? `From ${byId.get(destination.parent)?.name ?? destination.parent}`
-            : "Start here",
-        ],
-        ["travel-status", status],
-      ]) {
-        const label = document.createElement("span");
-        label.className = className;
-        label.textContent = text;
-        if (className === "travel-icon")
-          label.setAttribute("aria-hidden", "true");
-        button.appendChild(label);
-      }
-      button.title = destination.hint;
+      const illustration = document.createElement("span");
+      illustration.className = "travel-landmark";
+      illustration.innerHTML = travelLandmark(destination.id);
+      illustration.setAttribute("aria-hidden", "true");
+      button.appendChild(illustration);
+      button.title = `${destination.name} · ${status}`;
       button.onclick = () => {
         if (journey.travel(destination.id)) close();
       };
