@@ -241,47 +241,94 @@ export function createSauna({ context, parent, hut }) {
 }
 
 export function createSaunaOutfits(rigs, helpers) {
-  const { cyl, box, ball } = helpers;
+  const { cyl, box } = helpers;
+  const skin = "#f0bd8a";
+  const bareFeet = [];
+  const hands = rigs.flatMap((rig) =>
+    rig.hands.map((hand) => {
+      const original = hand.material;
+      const material = original.clone();
+      material.color.set(skin);
+      return { hand, original, material };
+    }),
+  );
   rigs.forEach((rig, i) => {
     const parts = [];
-    const robe = new THREE.Group();
-    robe.name = "sauna-linen-robe";
-    robe.userData.clothingSlot = "torso";
-    rig.body.add(robe);
-    parts.push(robe);
+    const towel = new THREE.Group();
+    towel.name = "sauna-towel-wrap";
+    towel.userData.clothingSlot = "torso";
+    rig.body.add(towel);
+    parts.push(towel);
     const linen = i ? "#a5c3bc" : "#eee0bb";
-    cyl(0.48, 0.57, 1.15, linen, 0, 1.22, 0, robe, 12);
-    for (const side of [-1, 1]) {
-      const collar = box(
-        0.13,
-        0.55,
-        0.055,
+    const height = i ? 0.6 : 1.04;
+    const center = i ? 0.81 : 1.16;
+    cyl(0.49, 0.56, height, linen, 0, center, 0, towel, 12);
+    for (const y of [center - height / 2 + 0.06, center + height / 2 - 0.04])
+      cyl(
+        0.51 + (center - y) * 0.07,
+        0.51 + (center - y) * 0.07,
+        0.045,
         "#faf0d7",
-        side * 0.16,
-        1.58,
-        0.46,
-        robe,
+        0,
+        y,
+        0,
+        towel,
+        12,
       );
-      collar.rotation.z = side * -0.28;
+    const fold = box(
+      0.07,
+      height - 0.12,
+      0.04,
+      "#faf0d7",
+      0.24,
+      center,
+      0.51,
+      towel,
+    );
+    fold.rotation.z = -0.12;
+    parts.push(cyl(0.28, 0.3, 0.15, skin, 0, 1.73, 0.03, rig.body, 12));
+    if (i) {
+      const torso = cyl(0.44, 0.49, 0.7, skin, 0, 1.36, 0, rig.body, 12);
+      torso.name = "sauna-bare-torso";
+      parts.push(torso);
     }
-    cyl(0.52, 0.54, 0.09, "#faf0d7", 0, 1.03, 0, robe, 12);
-    box(0.09, 0.32, 0.055, "#faf0d7", 0.12, 0.9, 0.53, robe);
     rig.arms.forEach((arm, j) => {
-      parts.push(
-        box(0.37, 0.46, 0.4, linen, (j ? 1 : -1) * 0.09, -0.15, 0, arm),
+      const bareArm = cyl(
+        0.14,
+        0.15,
+        0.63,
+        skin,
+        (j ? 1 : -1) * 0.09,
+        -0.25,
+        0,
+        arm,
+        10,
       );
-      parts.push(
-        cyl(0.14, 0.14, 0.3, "#f0bd8a", (j ? 1 : -1) * 0.09, -0.48, 0.02, arm),
-      );
-      parts.push(ball(0.18, "#f0bd8a", (j ? 1 : -1) * 0.1, -0.63, 0.03, arm));
+      bareArm.name = "sauna-bare-arm";
+      parts.push(bareArm);
     });
     rig.legs.forEach((leg) => {
-      parts.push(box(0.34, 0.29, 0.37, linen, 0, 0.03, 0, leg));
-      parts.push(box(0.25, 0.4, 0.28, "#f0bd8a", 0, -0.25, 0, leg));
+      const bareLeg = box(0.25, 0.65, 0.28, skin, 0, -0.14, 0, leg);
+      bareLeg.name = "sauna-bare-leg";
+      parts.push(bareLeg);
     });
-    rig.feet.forEach((foot) =>
-      parts.push(box(0.32, 0.16, 0.49, "#f0bd8a", 0, 0, 0.04, foot)),
-    );
+    rig.feet.forEach((foot) => {
+      // The original foot is a boot mesh hidden by the outfit. Put the bare
+      // foot beside it, so it remains visible and follows the seated foot pose.
+      const bare = box(
+        0.32,
+        0.16,
+        0.49,
+        skin,
+        foot.position.x,
+        foot.position.y,
+        foot.position.z + 0.04,
+        foot.parent,
+      );
+      bare.name = "sauna-bare-foot";
+      parts.push(bare);
+      bareFeet.push({ bare, foot });
+    });
     rig.appearance.registerOutfit("sauna", {
       parts,
       hideSlots: [
@@ -290,8 +337,33 @@ export function createSaunaOutfits(rigs, helpers) {
         "trousers",
         "shoes",
         "scarf",
-        ...(i ? ["headwear"] : []),
+        "headwear",
+        "eyewear",
       ],
     });
   });
+  return {
+    override() {
+      const feet = bareFeet.map(({ bare }) => ({
+        bare,
+        quaternion: bare.quaternion.clone(),
+      }));
+      hands.forEach(({ hand, material }) => {
+        hand.material = material;
+      });
+      return () => {
+        hands.forEach(({ hand, original }) => {
+          hand.material = original;
+        });
+        feet.forEach(({ bare, quaternion }) =>
+          bare.quaternion.copy(quaternion),
+        );
+      };
+    },
+    poseFeet() {
+      bareFeet.forEach(({ bare, foot }) =>
+        bare.quaternion.copy(foot.quaternion),
+      );
+    },
+  };
 }

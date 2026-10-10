@@ -23,6 +23,14 @@ test("the log hut opens a warm sauna, water pouring and photos pause, and leavin
     sauna = place.world.sauna;
   const actors = [game.characters.hero, game.characters.companion.character];
   const rigs = [game.characters.rig, game.characters.companion.rig];
+  const glasses = rigs[1].head.children.filter(
+    (node) => node.userData.clothingSlot === "eyewear",
+  );
+  expect(glasses).toHaveLength(5);
+  expect(glasses.every((node) => node.visible)).toBe(true);
+  const hands = rigs.flatMap((rig) =>
+    rig.hands.map((hand) => ({ hand, material: hand.material })),
+  );
   const outdoor = place.group.getObjectByName("log-smoke-sauna");
   const snow = place.world.snowflakes;
   actors[0].position.copy(sauna.doorway).add(new THREE.Vector3(0, 0, 3));
@@ -63,11 +71,30 @@ test("the log hut opens a warm sauna, water pouring and photos pause, and leavin
   expect(outdoor.visible).toBe(false);
   expect(snow.visible).toBe(false);
   expect(game.rendering.scene.fog.density).toBe(0);
+  expect(glasses.every((node) => !node.visible)).toBe(true);
   for (const rig of rigs) {
     expect(rig.appearance.state.outfit).toBe("sauna");
-    expect(rig.body.getObjectByName("sauna-linen-robe").visible).toBe(true);
+    expect(rig.body.getObjectByName("sauna-towel-wrap").visible).toBe(true);
+    expect(rig.body.getObjectByName("sauna-linen-robe")).toBeUndefined();
+    rig.arms.forEach((arm) =>
+      expect(arm.getObjectByName("sauna-bare-arm").visible).toBe(true),
+    );
+    rig.legs.forEach((leg, i) => {
+      const foot = leg.getObjectByName("sauna-bare-foot");
+      expect(foot.visible).toBe(true);
+      expect(foot.quaternion.equals(rig.feet[i].quaternion)).toBe(true);
+      expect(rig.feet[i].visible).toBe(false);
+    });
+    rig.body.traverse((node) => {
+      if (node.userData.outfit === "winter")
+        expect(node.visible, node.name).toBe(false);
+    });
     expect(rig.held.visible).toBe(false);
   }
+  hands.forEach(({ hand, material }) => {
+    expect(hand.material).not.toBe(material);
+    expect(hand.material.color.getHex()).toBe(0xf0bd8a);
+  });
   expect(game.controls.openMap()).toBe(false);
   expect(game.controls.openKeepsakes()).toBe(false);
   expectSolidScenery(game.rendering.scene, "sauna");
@@ -98,6 +125,7 @@ test("the log hut opens a warm sauna, water pouring and photos pause, and leavin
   expect(actors[0].position.equals(position)).toBe(true);
   expect(steam()).toEqual(paused);
   expect(game.activities.photoMode.canEditActors).toBe(false);
+  expect(glasses.every((node) => !node.visible)).toBe(true);
   expectSolidScenery(game.rendering.scene, "sauna photo");
   expect(game.activities.photography.takePhoto()).toBe(true);
   expect(game.activities.photoAlbum.photos[0].location).toContain(
@@ -125,6 +153,8 @@ test("the log hut opens a warm sauna, water pouring and photos pause, and leavin
     expect(actor.position.equals(walking[i])).toBe(true),
   );
   rigs.forEach((rig) => expect(rig.appearance.state.outfit).toBe("winter"));
+  expect(glasses.every((node) => node.visible)).toBe(true);
+  hands.forEach(({ hand, material }) => expect(hand.material).toBe(material));
   expect(game.characters.rig.items.current).toBe("ice-cream");
   expect(game.characters.rig.held.visible).toBe(true);
   frames(game, 6);
@@ -175,6 +205,11 @@ test("reloading a sauna moment restores the door checkpoint, and restart restore
   expect(winter.world.sauna.ladle.parent.name).toBe("sauna-water-bucket");
   expect(resumed.characters.rig.appearance.state.outfit).toBe("winter");
   expect(resumed.characters.rig.held.visible).toBe(true);
+  expect(
+    resumed.characters.companion.rig.head.children
+      .filter((node) => node.userData.clothingSlot === "eyewear")
+      .every((node) => node.visible),
+  ).toBe(true);
   expect(resumed.rendering.scene.fog.density).toBe(initialFog);
   // Reset restores the garden environment, rather than leaking sauna lighting.
   expect(resumed.rendering.scene.background.equals(gardenColor)).toBe(true);

@@ -22,7 +22,7 @@ export function createWinterActivities(context, world) {
   const actors = [context.hero, context.companion.character];
   const rigs = [context.heroRig, context.companion.rig];
   const helpers = createMeshFactory(world.group);
-  createSaunaOutfits(rigs, helpers);
+  const saunaOutfits = createSaunaOutfits(rigs, helpers);
   const memories = new Set();
   let kind = null,
     elapsed = 0,
@@ -184,6 +184,7 @@ export function createWinterActivities(context, world) {
       );
     } else if (kind === "sauna") {
       world.sauna.enter();
+      releases.push(saunaOutfits.override());
       actors.forEach((actor, i) => {
         actor.position
           .copy(world.sauna.group.position)
@@ -204,11 +205,12 @@ export function createWinterActivities(context, world) {
             accessories: {
               scarf: null,
               harness: null,
-              ...(i ? { headwear: null } : {}),
+              headwear: null,
             },
           }),
         );
       });
+      saunaOutfits.poseFeet();
       context.toast(
         "Saun ♥ Settle into the warmth · B adds water to the stones · X to step outside",
       );
@@ -351,6 +353,7 @@ export function createWinterActivities(context, world) {
         });
       } else if (kind === "sauna") {
         poseSaunaPour(dt);
+        saunaOutfits.poseFeet();
         world.sauna.update(dt);
         rigs.forEach((rig, i) => {
           rig.body.position.y = Math.sin(elapsed * 1.3 + i * 0.3) * 0.012;

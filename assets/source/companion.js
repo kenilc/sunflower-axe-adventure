@@ -76,6 +76,7 @@ export function createCompanionModel({ ball, box, cyl, mesh }) {
     fringe.rotation.z = -0.22;
   }
   const eyes = createCharacterEyes({ body, ball, mesh });
+  const eyewear = [];
   for (const side of [-1, 1]) {
     ball(0.12, "#f0bd8a", side * 0.49, 2.09, 0.13, body);
     const blush = ball(0.075, "#df967c", side * 0.31, 2, 0.61, body);
@@ -89,10 +90,14 @@ export function createCompanionModel({ ball, box, cyl, mesh }) {
       body,
     );
     glasses.scale.set(1.1, 0.87, 1);
-    box(0.05, 0.045, 0.38, "#22262b", side * 0.43, 2.19, 0.46, body);
+    eyewear.push(glasses);
+    eyewear.push(
+      box(0.05, 0.045, 0.38, "#22262b", side * 0.43, 2.19, 0.46, body),
+    );
     box(0.18, 0.04, 0.04, "#47352b", side * 0.2, 2.37, 0.63, body);
   }
-  box(0.1, 0.045, 0.05, "#22262b", 0, 2.18, 0.73, body);
+  eyewear.push(box(0.1, 0.045, 0.05, "#22262b", 0, 2.18, 0.73, body));
+  clothing(eyewear, "eyewear");
   const smile = mesh(
     new THREE.TorusGeometry(0.09, 0.016, 5, 12, Math.PI),
     "#845340",
