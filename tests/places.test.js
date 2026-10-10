@@ -172,7 +172,7 @@ test("a registered place supports entry, movement, actions, a room, return, and 
   assert.equal(memory.souvenirs, 2, "Progress survives departure");
   assert(game.controls.travelTo("test-grove"));
   for (let i = 0; i < 15; i++) game.update();
-  element("#restart").onclick();
+  game.controls.resetAdventure();
   game.update();
   assert.equal(game.state.area, "garden");
   assert.equal(memory.souvenirs, 0);

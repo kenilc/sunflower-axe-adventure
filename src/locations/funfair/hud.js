@@ -8,6 +8,7 @@ export function createFunfairHud(context) {
         {
           id: "funfairAction",
           key: "KeyX",
+          icon: activity.riding ? "return" : undefined,
           label: activity.aiming
             ? "Throw ring · X"
             : (action?.label ?? "Explore the funfair · X"),
@@ -21,6 +22,7 @@ export function createFunfairHud(context) {
           id: "funfairExit",
           key: "Escape",
           label: "Leave booth · Esc",
+          icon: "return",
           visible: activity.playing,
           run: () => context.leaveRingToss(),
         },

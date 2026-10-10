@@ -149,7 +149,7 @@ test("sheep photos pause, restore walking, survive travel, and reset with the ad
   game.controls.interactVillage();
   expect(sheepMoment.active).toBe(true);
   for (let i = 0; i < 25; i++) game.update();
-  element("#restart").onclick();
+  game.controls.resetAdventure();
   expect(game.state.area).toBe("garden");
   expect(
     sheepMoment.active ||

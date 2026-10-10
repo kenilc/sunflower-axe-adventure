@@ -1,3 +1,5 @@
+import { renderActionButton } from "./return-button.js";
+
 const actionIds = [
   "placeAction",
   "boatAction",
@@ -64,7 +66,8 @@ export function createHud({
       const element = button(action.id ?? "placeAction");
       element.hidden = paused || action.visible === false;
       element.disabled = Boolean(action.disabled);
-      element.textContent = action.label ?? "Interact · X";
+      const label = action.label ?? "Interact · X";
+      renderActionButton(element, label, action.icon);
     }
     $("#throw").hidden = !canThrow();
     for (const id of countIds) $(`#${id}`).hidden = id !== model.countsId;

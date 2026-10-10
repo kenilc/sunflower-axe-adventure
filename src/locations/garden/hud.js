@@ -44,6 +44,7 @@ export function createGardenHud(context) {
           id: "benchStand",
           key: "KeyB",
           label: "Stand up · B",
+          icon: "return",
           visible: benchMoment.seated,
           run: () => benchMoment.stand(),
         },

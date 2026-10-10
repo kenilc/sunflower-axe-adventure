@@ -20,6 +20,11 @@
     <link rel="stylesheet" href="src/ui/styles.css" />
   </head>
   <body>
+    <svg class="icon-sprite" aria-hidden="true" focusable="false">
+      <symbol id="returnIcon" viewBox="0 0 24 24">
+        <path d="m9 4-5 5 5 5M4 9h10a6 6 0 0 1 0 12h-3" />
+      </symbol>
+    </svg>
     <div id="sceneTransition" aria-hidden="true"></div>
     <div id="loading" role="status">Loading the adventure…</div>
     <main id="game" aria-label="3D adventure game"></main>
@@ -229,7 +234,6 @@
         <kbd>W A S D</kbd> move <kbd>SHIFT</kbd> run <kbd>CLICK</kbd> throw
         <kbd>DRAG / Q E</kbd> rotate <kbd>R / F</kbd> view up / down
       </div>
-      <button id="restart">New adventure</button>
     </footer>
     <div id="mobile">
       <div id="stick"><div id="knob"></div></div>
@@ -251,8 +255,8 @@
         the flower island and ride the cable car to the mountain summit. Enter
         the castle arch to discover a furnished great room: find six hidden
         stars, unlock the chest, share tea, play piano, read the storybook, and
-        lie down together on the bed. Use X or Get up to finish resting. Leave
-        through the pink arch to return to the summit.
+        lie down together on the bed. Use X or the return arrow to finish
+        resting. Leave through the pink arch to return to the summit.
       </p>
       <p>
         Follow the sunflower gate on the east path to Sunflower Funfair. Ride
@@ -284,18 +288,21 @@
       <p>
         <b>Map / V</b> — revisit places you have discovered. Walk, sail, or ride
         to a new destination first to unlock it. Your discoveries stay in this
-        browser; New adventure clears the travel map.<br />
+        browser. Use the map to return to the garden or another discovered
+        place.<br />
         <b>Camera / M</b> — pause and arrange both characters. Tap a friend and
         drag to turn; hold a friend before dragging to move. Drag the scenery to
         orbit. Pinch to zoom; slide two fingers together to frame. Use the
-        shutter or Enter to take a photo. Exit restores your exploration
-        positions.<br /><b>Album / L</b> — view, download or delete photos. Up
-        to 30 photos stay in this browser across reloads and new adventures.<br />
+        shutter or Enter to take a photo. During activities, Camera holds the
+        current poses while you orbit and zoom. Exit resumes the moment. During
+        exploration, exit restores your positions.<br /><b>Album / L</b> — view,
+        download or delete photos. Up to 30 photos stay in this browser across
+        reloads.<br />
         <b>Sunset Beach</b> — follow the sign in the southeast garden. Walk
         together along the shore and press <b>X</b> near a glimmer to collect a
         shell or stone.<br />
         <b>Keepsakes / K</b> — view your beach finds. They stay in this browser
-        across reloads and New adventure, like photos.<br />
+        across reloads, like photos.<br />
         <b>WASD / arrows</b> — move<br /><b>Shift</b> — run · <b>Space</b> —
         throw<br /><b>Click / Space</b> — throw straight ahead<br /><b
           >Drag the screen / Q / E</b
@@ -314,7 +321,17 @@
         Move to face a direction. She keeps that heading when you stop, and axes
         fly straight ahead. On touch screens, use the joystick and Throw.
       </p>
-      <button id="close">Back to the garden</button>
+      <button
+        id="close"
+        type="button"
+        class="return-button"
+        aria-label="Return to game · Esc"
+        title="Return to game · Esc"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <use href="#returnIcon" />
+        </svg>
+      </button>
     </dialog>
     <dialog
       id="travelMap"
@@ -326,8 +343,16 @@
           <span class="eyebrow">OUR JOURNEY</span>
           <h2 id="travelMapTitle">Places we've been</h2>
         </div>
-        <button id="closeTravelMap" type="button" aria-label="Close travel map">
-          Close
+        <button
+          id="closeTravelMap"
+          type="button"
+          class="return-button"
+          aria-label="Close travel map · Esc / V"
+          title="Close travel map · Esc / V"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <use href="#returnIcon" />
+          </svg>
         </button>
       </div>
       <p id="travelMapHint">
@@ -366,7 +391,17 @@
         alt="She plays with an alpine sheep, photographed from his camera."
       />
       <p id="sheepPhotoCaption">A woolly afternoon ♥</p>
-      <button id="closeSheepPhoto" type="button">Keep exploring</button>
+      <button
+        id="closeSheepPhoto"
+        type="button"
+        class="return-button"
+        aria-label="Return to exploring"
+        title="Return to exploring"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <use href="#returnIcon" />
+        </svg>
+      </button>
     </dialog>
     <section id="photoControls" aria-label="Camera viewfinder" hidden>
       <div class="camera-topbar">
@@ -374,8 +409,16 @@
           >SUNFLOWER <span class="camera-label">/ CAMERA</span></span
         >
         <div>
-          <button id="exitPhotoMode" type="button" aria-label="Exit camera">
-            ✕
+          <button
+            id="exitPhotoMode"
+            type="button"
+            class="return-button"
+            aria-label="Exit camera · Esc / M"
+            title="Exit camera · Esc / M"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <use href="#returnIcon" />
+            </svg>
           </button>
         </div>
       </div>
@@ -419,7 +462,17 @@
     <dialog id="photoAlbum" aria-labelledby="albumTitle">
       <div class="photo-toolbar">
         <h2 id="albumTitle">Our photo album</h2>
-        <button id="closeAlbum" type="button">Close</button>
+        <button
+          id="closeAlbum"
+          type="button"
+          class="return-button"
+          aria-label="Close photo album · Esc / L"
+          title="Close photo album · Esc / L"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <use href="#returnIcon" />
+          </svg>
+        </button>
       </div>
       <p id="albumSummary" role="status"></p>
       <div id="albumDetail" hidden>
@@ -438,7 +491,17 @@
           <span class="eyebrow">LITTLE THINGS, LOVELY MEMORIES</span>
           <h2 id="keepsakesTitle">Our beach keepsakes</h2>
         </div>
-        <button id="closeKeepsakes" type="button">Close</button>
+        <button
+          id="closeKeepsakes"
+          type="button"
+          class="return-button"
+          aria-label="Close keepsakes · Esc / K"
+          title="Close keepsakes · Esc / K"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <use href="#returnIcon" />
+          </svg>
+        </button>
       </div>
       <p id="keepsakesSummary" role="status"></p>
       <div class="keepsakes-filters" role="group" aria-label="Filter keepsakes">
@@ -463,8 +526,8 @@
       </div>
       <div id="keepsakesGrid"></div>
       <p class="keepsakes-note">
-        Collected together at Sunset Beach. Kept through new adventures;
-        clearing browser data removes this collection.
+        Collected together at Sunset Beach. Saved in this browser; clearing
+        browser data removes this collection.
       </p>
     </dialog>
     <script type="module" src="src/main.js"></script>

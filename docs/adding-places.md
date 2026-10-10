@@ -88,7 +88,7 @@ Walking positions and camera views save automatically for registered areas and r
 | `animate(dt,time,paused)`                               | Active visual updates. Use `paused` to freeze interactive animation when appropriate.                                                                                                          |
 | `getHud()`                                              | Returns region, hint, optional quest/instructions/progress, and actions. Rendering and dispatch stay in shared modules.                                                                        |
 | `getProgress()`                                         | Optional place-specific progress included in the browser progress tool's `placeProgress` field.                                                                                                |
-| `reset()`                                               | Clears progress on New adventure. Ordinary entry/exit preserves progress.                                                                                                                      |
+| `reset()`                                               | Clears progress when the game is reset. Ordinary entry/exit preserves progress.                                                                                                                |
 | `canEnter`, `canLeave`                                  | Optional guards receiving route information. Parent returns are otherwise allowed; home can be reached through its parent chain.                                                               |
 | `canThrow`, `maxZoom`, `cameraTarget()`                 | Weapon and camera policy.                                                                                                                                                                      |
 
@@ -98,10 +98,12 @@ For a room, set `kind: "room"` and `parent` to its containing place. Attach a se
 
 Transport-controlled terrain uses `kind: "context"` and a parent's `resolve()` callback. Existing lagoon and summit definitions use this because their activities control arrival and scenery. New ordinary places generally use the default `kind: "area"`.
 
-A place can supply `canSaveLocation()` to return `false` during a temporary seated pose. The coordinator keeps the previous walking checkpoint and blocks the map and Keepsakes until the activity finishes. Photography also follows this guard by default. A place can supply `canPhotograph()` to allow photographs of a paused activity, and `getPhotoPreset()` to set its initial `target` (Vector3), `yaw` (radians), `pitch` (degrees), and `distance`. Set `lockActors: true` to preserve the activity pose while allowing camera orbit, pan, and zoom. `photoLocation()` optionally gives saved photos an activity-specific caption. Pair it with `canLeave()` and restore all character transforms in `exit()` and `reset()`.
+A place can supply `canSaveLocation()` to return `false` during a temporary seated pose. The coordinator keeps the previous walking checkpoint and blocks the map and Keepsakes until the activity finishes. Photography follows this guard by default for custom activities; built-in activity controllers supply a paused photo preset through the coordinator. A place can supply `canPhotograph()` to allow photographs of a paused activity, and `getPhotoPreset()` to set its initial `target` (Vector3), `yaw` (radians), `pitch` (degrees), `distance`, and optional `fov` (degrees). Set `lockActors: true` to preserve the activity pose while allowing camera orbit, pan, and zoom. `photoLocation()` optionally gives saved photos an activity-specific caption. Pair it with `canLeave()` and restore all character transforms in `exit()` and `reset()`.
 
 ## Validation
 
 Run `npm test` and `npm run test:build`. Add focused place tests using `createTestGame()` from `tests/helpers/game.js`. Include entry and return, collision/boundary behavior, action dispatch, pause, persistent progress, and restart during an activity or fade.
 
 The larger gameplay regression scenario remains as coverage for existing journeys between destinations. Models continue to use the GLB workflow documented in the README.
+
+HUD actions can set `icon: "return"` for the shared return arrow. Keep a descriptive `label` with the shortcut; it becomes the accessible name and tooltip.

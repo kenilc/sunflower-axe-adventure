@@ -21,7 +21,11 @@ export async function createTestGame({ storage } = {}) {
         },
         firstChild: { textContent: "" },
         open: false,
-        setAttribute() {},
+        attributes: {},
+        classList: { toggle() {} },
+        setAttribute(name, value) {
+          this.attributes[name] = value;
+        },
         appendChild(child) {
           this.children.push(child);
         },

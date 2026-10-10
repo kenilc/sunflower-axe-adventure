@@ -35,6 +35,7 @@ import { createRendering } from "../rendering/renderer.js";
 import { createPhotoView } from "../rendering/photo-view.js";
 import { bindPhotoGestures } from "../rendering/photo-gestures.js";
 import { createPhotoMode } from "../rendering/photo-mode.js";
+import { createActivityPhoto } from "../rendering/activity-photo.js";
 import { createPhotoAlbum } from "../systems/photo-album.js";
 import { bindPhotography } from "../ui/photography.js";
 import { createPhotoCapture } from "../rendering/photo-capture.js";
@@ -654,10 +655,26 @@ export function createGame({ createRenderer, models } = {}) {
       places.get(locations.area).cameraLocked?.(),
     );
   }
+  const activityPhoto = createActivityPhoto({
+    hero,
+    companion,
+    benchMoment,
+    bedRest,
+    boatTrip,
+    cableCar,
+    funfairActivities,
+    alpineCart,
+    sheepMoment,
+    festivalMoment,
+    village,
+    getLocation: () => locations.current,
+  });
   const photoMode = createPhotoMode({
     camera,
     actors: [hero, companion.character],
     getPlace: () => locations.active,
+    getPreset: () =>
+      locations.active.getPhotoPreset?.() ?? activityPhoto.preset(),
   });
   const photoAlbum = createPhotoAlbum();
   const photoView = createPhotoView({
@@ -675,27 +692,19 @@ export function createGame({ createRenderer, models } = {}) {
     camera,
     capture: createPhotoCapture({ renderer, scene }),
     canEnter: () =>
-      (locations.active.canPhotograph?.() ??
-        locations.active.canSaveLocation?.() !== false) &&
+      (Boolean(activityPhoto.label()) ||
+        (locations.active.canPhotograph?.() ??
+          locations.active.canSaveLocation?.() !== false)) &&
       !collection?.open &&
       !travelMap?.open &&
       !$("#guide").open &&
       !passageTransition.active &&
-      !sheepMoment.viewing &&
-      !sheepMoment.active &&
-      !benchMoment.seated &&
-      !bedRest.resting &&
-      !boatTrip.rowing &&
-      !cableCar.riding &&
-      !funfairActivities.riding &&
-      !funfairActivities.playing &&
-      !alpineCart.riding &&
-      !alpineCart.vanishing &&
-      !festivalMoment.active,
+      !sheepMoment.viewing,
     clearInput: clearRestInput,
     toast,
     getLocation: () =>
       locations.active.photoLocation?.() ??
+      activityPhoto.label() ??
       locations.active.name ??
       locations.active.id,
     view: photoView,
@@ -756,7 +765,7 @@ export function createGame({ createRenderer, models } = {}) {
       passageTransition.active,
     changed: photography.updateControls,
   });
-  $("#restart").onclick = () => {
+  function resetAdventure() {
     if (collection?.open) collection.close();
     if (travelMap.open) travelMap.close();
     photography.exit();
@@ -794,7 +803,7 @@ export function createGame({ createRenderer, models } = {}) {
     toast("A fresh adventure begins");
     journey.reset();
     locationSave.flush();
-  };
+  }
   function getHud() {
     return locations.active.getHud?.() ?? {};
   }
@@ -1006,6 +1015,11 @@ export function createGame({ createRenderer, models } = {}) {
         treeVisibility.update(camera, [hero, companion.character], dt);
       if (locations.area === "village")
         village.updateVisibility(camera, [hero, companion.character], dt);
+      if (locations.area === "riverside") {
+        riverside.updateVisibility(camera, [hero, companion.character], dt);
+        cableCar.updateVisibility(camera, [hero, companion.character], dt);
+      }
+      if (locations.current === "castle") castleRoom.updateVisibility(camera);
     } else if (!photography.viewing) {
       for (const place of places.all()) place.afterCamera?.(dt, time);
     }
@@ -1017,8 +1031,10 @@ export function createGame({ createRenderer, models } = {}) {
     sun.target.position.copy(hero.position);
     if (!photoMode.active && !photography.viewing)
       for (const place of places.all()) place.lateAnimate?.(time);
-    const view = activePlace.getRenderView?.() ??
-      rootPlace.getRenderView?.() ?? { scene, camera };
+    const view = photoMode.active
+      ? { scene, camera }
+      : (activePlace.getRenderView?.() ??
+        rootPlace.getRenderView?.() ?? { scene, camera });
     renderer.render(view.scene, view.camera);
     if (photoMode.active) photography.updateSelection();
     activePlace.afterRender?.(paused);
@@ -1187,6 +1203,7 @@ export function createGame({ createRenderer, models } = {}) {
       companionReactions,
     },
     controls: {
+      resetAdventure,
       travelTo: (id, options) => transitions.go(id, options),
       fastTravel: (id) => journey.travel(id),
       openMap: travelMap.openMap,

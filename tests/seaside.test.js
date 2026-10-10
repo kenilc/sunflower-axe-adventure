@@ -181,7 +181,7 @@ test("all beach finds survive reload, revisits, and New adventure with saved loc
   frames(resumed);
   expect(resumed.state.area).toBe("seaside");
   expect(resumed.controls.openKeepsakes()).toBe(true);
-  resumedElement("#restart").onclick();
+  resumed.controls.resetAdventure();
   expect(resumed.activities.collection.open).toBe(false);
   expect(resumed.state.area).toBe("garden");
   expect(resumed.activities.keepsakes.items).toHaveLength(12);
@@ -246,7 +246,9 @@ test("shell arches keep their triggers aligned, offer X at both ends, and respec
   expect(gate.contains(gate.group.position)).toBe(true);
   hero.position.copy(gate.group.position).add({ x: 0, y: 0, z: -3 });
   game.update();
-  expect(element("#placeAction").textContent).toBe("Return to garden · X");
+  expect(element("#placeAction").attributes["aria-label"]).toBe(
+    "Return to garden · X",
+  );
   game.controls.openKeepsakes();
   game.controls.interact();
   expect(game.passageTransition.active).toBe(false);
@@ -339,7 +341,7 @@ test("beach clothing preserves identities and restores other outfits on departur
   expect(rigs[0].appearance.state.outfit).toBe("summer");
   game.transitions.restore("seaside");
   expect(rigs[0].appearance.state.outfit).toBe("beach");
-  element("#restart").onclick();
+  game.controls.resetAdventure();
   rigs.forEach((rig) => {
     expect(rig.appearance.state.outfit).toBe("winter");
     expect(rig.body.getObjectByName("beach-shirt").visible).toBe(false);
@@ -404,7 +406,7 @@ test("towels seat both friends, keep the last walking save, and restore walking 
       place.terrain.ambience.waves[1].foam.geometry.attributes.position.array,
     ),
   ).not.toEqual(wave);
-  expect(element("#sunsetStand").textContent).toBe("Stand up · X");
+  expect(element("#sunsetStand").attributes["aria-label"]).toBe("Stand up · X");
   expect(element("#stick").hidden).toBe(true);
   expect(game.controls.openMap()).toBe(false);
   expect(game.controls.openKeepsakes()).toBe(false);
@@ -448,7 +450,7 @@ test("sunset activity links and restarting restore the seated pose without leavi
   expect(place.rest.seated).toBe(true);
   expect(place.terrain.sunsetSpot.umbrella.name).toBe("sunset-parasol");
   expect(game.characters.rig.appearance.state.outfit).toBe("beach");
-  element("#restart").onclick();
+  game.controls.resetAdventure();
   expect(place.rest.seated).toBe(false);
   expect(game.state.area).toBe("garden");
   expect(game.characters.hero.position.toArray()).toEqual([0, 0, 7]);
@@ -517,7 +519,7 @@ test("sandcastles build together in three stages, pause and cancel safely, and c
   element("#sandcastleReset").onclick();
   expect(castle.stage).toBe(0);
   game.controls.interact();
-  element("#restart").onclick();
+  game.controls.resetAdventure();
   expect(place.activity.active).toBe(false);
   expect(castle.stage).toBe(0);
   expect(game.characters.rig.items.canThrow).toBe(true);

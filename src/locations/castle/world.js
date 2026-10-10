@@ -563,7 +563,7 @@ export function createCastleRoom({ mesh, box, cyl, ball }) {
         message: "✦ A wishing star! Your castle treasure hunt is complete.",
       };
     },
-    update(time, camera, dt) {
+    updateVisibility(camera) {
       walls.forEach(
         (w) =>
           (w.visible =
@@ -571,6 +571,9 @@ export function createCastleRoom({ mesh, box, cyl, ball }) {
               w.position.z * camera.position.z <
             100),
       );
+    },
+    update(time, camera, dt) {
+      this.updateVisibility(camera);
       stars.forEach((s, i) => {
         s.g.rotation.y = time;
         s.g.position.y = 1 + Math.sin(time * 2 + i) * 0.15;

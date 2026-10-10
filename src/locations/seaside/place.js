@@ -210,6 +210,7 @@ export function createSeasidePlace(context) {
                 ? "beachActivityStop"
                 : "placeAction",
             key: "KeyX",
+            icon: busy() || (nearGate && !nearTowels) ? "return" : undefined,
             label,
             visible:
               busy() ||

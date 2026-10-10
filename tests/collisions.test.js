@@ -189,7 +189,7 @@ test("gameplay, collisions, travel, activities and restart", async () => {
   G.characters.hero.position.set(0, 0, -26.5);
   G.update();
   assert(G.state.won, "The shrine blocker must not prevent quest completion");
-  element("#restart").onclick();
+  G.controls.resetAdventure();
   assert(G.worlds.targets.every((t) => !t.hit && t.blocker.active));
   assert(!G.state.won);
   G.controls.usePassage(true, true);
@@ -274,7 +274,7 @@ test("gameplay, collisions, travel, activities and restart", async () => {
     }
   }
   G.controls.usePassage(true, true);
-  element("#restart").onclick();
+  G.controls.resetAdventure();
   for (let i = 0; i < 12; i++) G.update();
   assert(
     !G.state.location.insideRiver &&
@@ -726,7 +726,7 @@ test("gameplay, collisions, travel, activities and restart", async () => {
   G.controls.interactCastle();
   for (let i = 0; i < 12; i++) G.update();
   assert(G.activities.bedRest.resting);
-  element("#restart").onclick();
+  G.controls.resetAdventure();
   G.update();
   assert(
     !G.activities.cableCar.riding &&
@@ -1001,7 +1001,7 @@ test("gameplay, collisions, travel, activities and restart", async () => {
   G.characters.hero.position.copy(park.ferrisBoard);
   G.controls.interactFunfair();
   for (let i = 0; i < 100; i++) G.update();
-  element("#restart").onclick();
+  G.controls.resetAdventure();
   G.update();
   assert(
     !G.state.location.insideFunfair &&
@@ -1014,7 +1014,7 @@ test("gameplay, collisions, travel, activities and restart", async () => {
   assert.equal(G.characters.rig.legs[0].rotation.x, 0);
   assert.equal(G.characters.companion.rig.legs[0].rotation.x, 0);
   G.controls.useFunfairPassage(true);
-  element("#restart").onclick();
+  G.controls.resetAdventure();
   for (let i = 0; i < 12; i++) G.update();
   assert(
     !G.state.location.insideFunfair && !G.passageTransition.active,
@@ -1025,7 +1025,7 @@ test("gameplay, collisions, travel, activities and restart", async () => {
   G.characters.hero.position.copy(park.tossSpot);
   G.controls.interactFunfair();
   G.controls.interactFunfair();
-  element("#restart").onclick();
+  G.controls.resetAdventure();
   for (let i = 0; i < 30; i++) G.update();
   assert(
     !fair.throwing &&
@@ -1686,7 +1686,7 @@ test("gameplay, collisions, travel, activities and restart", async () => {
   );
   G.controls.useVillageShop(village.shops[0]);
   for (let i = 0; i < 12; i++) G.update();
-  element("#restart").onclick();
+  G.controls.resetAdventure();
   G.update();
   assert(
     !G.state.location.insideVillage &&
@@ -1710,7 +1710,7 @@ test("gameplay, collisions, travel, activities and restart", async () => {
   G.controls.interactVillage();
   for (let i = 0; i < 100; i++) G.update();
   assert(G.activities.alpineCart.riding);
-  element("#restart").onclick();
+  G.controls.resetAdventure();
   G.update();
   assert(
     !G.activities.alpineCart.riding &&
@@ -1722,7 +1722,7 @@ test("gameplay, collisions, travel, activities and restart", async () => {
   assert.equal(G.characters.hero.rotation.x, 0);
   assert.equal(village.stamps.size, 0);
   G.controls.useVillagePassage(true);
-  element("#restart").onclick();
+  G.controls.resetAdventure();
   for (let i = 0; i < 12; i++) G.update();
   assert(!G.state.location.insideVillage && !G.passageTransition.active);
   console.log(
@@ -1926,7 +1926,7 @@ test("gameplay, collisions, travel, activities and restart", async () => {
   G.characters.hero.position.set(0, G.worlds.festival.heightAt(0, -6), -6);
   G.update();
   assert(G.activities.festivalMoment.active);
-  element("#restart").onclick();
+  G.controls.resetAdventure();
   G.update();
   assert(
     !G.state.location.insideFestival &&

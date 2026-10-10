@@ -120,7 +120,7 @@ test("ice cream stays held through clicks, keyboard input, travel, and sitting; 
   assert(!rig.held.visible);
   element("#benchStand").onclick();
   assert(rig.held.visible && rig.items.current === "ice-cream");
-  element("#restart").onclick();
+  game.controls.resetAdventure();
   game.update();
   assert(rig.items.current === "axe" && rig.items.canThrow);
   assert.equal(game.characters.companion.rig.items.current, null);

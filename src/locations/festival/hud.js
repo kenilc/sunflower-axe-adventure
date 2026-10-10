@@ -5,6 +5,7 @@ export function createFestivalHud(context) {
       {
         id: "festivalAction",
         key: "KeyX",
+        icon: moment.active ? "return" : undefined,
         label: moment.active
           ? "Keep exploring · X"
           : "Watch fireworks together · X",

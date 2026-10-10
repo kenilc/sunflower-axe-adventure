@@ -67,7 +67,7 @@ export function bindPhotography({
   function enter() {
     if (albumDialog.open || !canEnter()) {
       toast(
-        "Finish the activity or close the open view before using the camera.",
+        "Close the open view or wait for the scene change before using the camera.",
       );
       return false;
     }
@@ -172,7 +172,7 @@ export function bindPhotography({
     resetGestures();
     if (!mode.active && !canEnter()) {
       toast(
-        "Finish the activity or close the open view before opening the album.",
+        "Close the open view or wait for the scene change before opening the album.",
       );
       return false;
     }

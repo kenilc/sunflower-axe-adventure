@@ -1,7 +1,12 @@
 import * as THREE from "three";
 import { resolveObstacleCollisions } from "../systems/collision.js";
 
-export function createPhotoMode({ camera, actors, getPlace }) {
+export function createPhotoMode({
+  camera,
+  actors,
+  getPlace,
+  getPreset = () => getPlace().getPhotoPreset?.(),
+}) {
   let snapshot = null,
     selectedActor = null;
   const raycaster = new THREE.Raycaster();
@@ -49,7 +54,7 @@ export function createPhotoMode({ camera, actors, getPlace }) {
     selectedActor = null;
     actors.forEach((actor, i) => {
       actor.position.copy(snapshot.actors[i].position);
-      actor.rotation.copy(snapshot.actors[i].rotation);
+      actor.quaternion.copy(snapshot.actors[i].quaternion);
     });
     target.copy(actors[0].position).add(actors[1].position).multiplyScalar(0.5);
     target.y += 1.3;
@@ -69,6 +74,8 @@ export function createPhotoMode({ camera, actors, getPlace }) {
     );
     settings.horizontal = settings.vertical = 0;
     const preset = snapshot.preset;
+    camera.fov = preset?.fov ?? snapshot.camera.fov;
+    camera.updateProjectionMatrix();
     if (preset?.target) target.copy(preset.target);
     for (const key of ["yaw", "pitch", "distance"])
       if (preset?.[key] !== undefined) settings[key] = preset[key];
@@ -228,11 +235,12 @@ export function createPhotoMode({ camera, actors, getPlace }) {
     enter() {
       if (snapshot) return;
       snapshot = {
-        preset: getPlace().getPhotoPreset?.(),
+        preset: getPreset(),
         camera: camera.clone(),
         actors: actors.map((actor) => ({
           position: actor.position.clone(),
           rotation: actor.rotation.clone(),
+          quaternion: actor.quaternion.clone(),
         })),
       };
       reset();
@@ -241,10 +249,12 @@ export function createPhotoMode({ camera, actors, getPlace }) {
       if (!snapshot) return;
       actors.forEach((actor, i) => {
         actor.position.copy(snapshot.actors[i].position);
-        actor.rotation.copy(snapshot.actors[i].rotation);
+        actor.quaternion.copy(snapshot.actors[i].quaternion);
       });
       camera.position.copy(snapshot.camera.position);
       camera.quaternion.copy(snapshot.camera.quaternion);
+      camera.fov = snapshot.camera.fov;
+      camera.updateProjectionMatrix();
       snapshot = null;
       selectedActor = null;
     },

@@ -161,13 +161,13 @@ test("camera and album pause gameplay, capture current framing, survive restart,
   expect(photoAlbum.photos).toHaveLength(1);
   photography.closeAlbum();
   expect(createPhotoAlbum({ storage: () => storage }).photos).toHaveLength(1);
-  element("#restart").onclick();
+  game.controls.resetAdventure();
   expect(photoAlbum.photos).toHaveLength(1);
   element("#guide").open = true;
   expect(photography.enter()).toBe(false);
 });
 
-test("camera mode is available in other destinations and cannot interrupt an activity", async () => {
+test("camera mode is available in other destinations and during ring toss", async () => {
   const { game } = await createTestGame();
   const { photography, photoMode } = game.activities;
   const tick = () => {
@@ -185,8 +185,9 @@ test("camera mode is available in other destinations and cannot interrupt an act
     expect(game.characters.hero.position.equals(position), area).toBe(true);
   }
   game.transitions.open("funfair", { activity: "ring-toss" });
-  expect(photography.enter()).toBe(false);
-  expect(photography.openAlbum()).toBe(false);
+  expect(photography.enter()).toBe(true);
+  expect(photoMode.canEditActors).toBe(false);
+  expect(photography.openAlbum()).toBe(true);
 });
 
 test("sound=off keeps the debugging preview silent at startup", async () => {
@@ -231,4 +232,245 @@ test("keyboard shortcuts move, frame, zoom and reset without camera mode switche
   expect(hero.position.equals(origin)).toBe(true);
   expect(hero.rotation.y).toBe(0);
   expect(photoMode.settings.vertical).toBe(0);
+});
+
+test("activity photos pause every ride and pose, save captions, and resume the original view", async () => {
+  const storage = memoryStorage();
+  const { game, element, handlers } = await createTestGame({ storage });
+  const { hero, rig, companion } = game.characters;
+  const {
+    photography,
+    photoMode,
+    photoAlbum,
+    bedRest,
+    boatTrip,
+    cableCar,
+    funfairActivities,
+    alpineCart,
+    sheepMoment,
+    festivalMoment,
+  } = game.activities;
+  const { camera, renderer } = game.rendering;
+  const frames = (count = 25) => {
+    game.rendering.clock.getDelta = () => 0.04;
+    for (let i = 0; i < count; i++) game.update();
+  };
+  const key = (code) =>
+    handlers.get("keydown")({
+      code,
+      repeat: false,
+      target: {},
+      preventDefault: vi.fn(),
+    });
+  const transforms = (objects) =>
+    objects.map((object) => {
+      const result = [];
+      object.traverse((node) =>
+        result.push([
+          ...node.position.toArray(),
+          ...node.quaternion.toArray(),
+          ...node.scale.toArray(),
+        ]),
+      );
+      return result;
+    });
+  const cases = [
+    {
+      name: "Lakeside hug",
+      setup() {
+        hero.position.copy(game.worlds.lakeside.bench.position);
+        game.update();
+        element("#benchAction").onclick();
+      },
+      returnId: "benchStand",
+    },
+    {
+      name: "Resting together",
+      setup() {
+        game.transitions.restore("castle");
+        bedRest.start();
+      },
+      active: () => bedRest.resting,
+      returnId: "castleAction",
+    },
+    {
+      name: "Rowing together",
+      setup() {
+        game.transitions.open("riverside");
+        frames();
+        hero.position.copy(boatTrip.riverDock);
+        game.controls.boardBoat();
+      },
+      active: () => boatTrip.rowing,
+      objects: () => [boatTrip.boat],
+    },
+    {
+      name: "Cable car for two",
+      setup() {
+        game.transitions.restore("lagoon");
+        frames();
+        hero.position.copy(cableCar.islandDock);
+        game.controls.boardCableCar();
+      },
+      active: () => cableCar.riding,
+      objects: () => [cableCar.group],
+    },
+    ...["ferris", "carousel"].map((ride) => ({
+      name: ride === "ferris" ? "Ferris wheel" : "Woodland carousel",
+      setup() {
+        game.transitions.open("funfair");
+        frames();
+        hero.position.copy(
+          game.worlds.funfair[
+            ride === "ferris" ? "ferrisBoard" : "carouselBoard"
+          ],
+        );
+        game.controls.interactFunfair();
+      },
+      active: () => funfairActivities.riding,
+      objects: () =>
+        ride === "ferris"
+          ? game.worlds.funfair.cabins
+          : game.worlds.funfair.mounts.map((m) => m.mount),
+      returnId: "funfairAction",
+    })),
+    {
+      name: "Ring toss",
+      setup() {
+        game.transitions.open("funfair", { activity: "ring-toss" });
+        frames();
+      },
+      active: () => funfairActivities.playing,
+      objects: () => [game.worlds.funfair.ring],
+      returnId: "funfairExit",
+    },
+    {
+      name: "Alpine cart",
+      setup() {
+        game.transitions.open("village", { activity: "lookout" });
+        frames();
+        game.controls.interactVillage();
+      },
+      active: () => alpineCart.riding,
+      objects: () => [alpineCart.cart],
+    },
+    {
+      name: "Sheep meadow",
+      setup() {
+        game.transitions.open("village", { activity: "sheep" });
+        frames();
+        game.controls.interactVillage();
+      },
+      active: () => sheepMoment.active,
+      objects: () => game.worlds.village.sheep.map((sheep) => sheep.group),
+    },
+    {
+      name: "Fireworks for two",
+      setup() {
+        game.transitions.open("festival", { activity: "fireworks" });
+      },
+      active: () => festivalMoment.active,
+      returnId: "festivalAction",
+    },
+    {
+      name: "Via Ferrata",
+      setup() {
+        game.transitions.open("village", { activity: "trail" });
+      },
+    },
+  ];
+  for (const activity of cases) {
+    game.controls.resetAdventure();
+    activity.setup();
+    frames();
+    if (activity.active) expect(activity.active(), activity.name).toBe(true);
+    if (activity.returnId) {
+      const button = element(`#${activity.returnId}`);
+      expect(button.hidden, activity.name).toBe(false);
+      expect(button.innerHTML).toContain("#returnIcon");
+      expect(button.attributes["aria-label"]).toBeTruthy();
+    }
+    handlers.get("pagehide")();
+    const checkpoint = storage.getItem("sunflower-location-v1");
+    const objects = [
+      hero,
+      companion.character,
+      ...(activity.objects?.() ?? []),
+    ];
+    const pose = transforms(objects);
+    const original = {
+      position: camera.position.clone(),
+      quaternion: camera.quaternion.clone(),
+      fov: camera.fov,
+    };
+    const aim = funfairActivities.aim,
+      progress = alpineCart.progress,
+      elapsed = sheepMoment.elapsed;
+    // The same toolbar camera and keyboard shortcut serve every activity.
+    element("#cameraAction").onclick();
+    expect(photoMode.active, activity.name).toBe(true);
+    expect(photoMode.canEditActors, activity.name).toBe(false);
+    photoMode.adjustActor(0, { x: 3, heading: 90 });
+    key("Digit2");
+    key("ArrowRight");
+    key("Equal");
+    expect(photoMode.selectedActor).toBeNull();
+    const photographedView = camera.position.clone();
+    frames(240);
+    expect(transforms(objects), activity.name).toEqual(pose);
+    expect(camera.position.equals(photographedView)).toBe(true);
+    expect(funfairActivities.aim).toBe(aim);
+    expect(alpineCart.progress).toBe(progress);
+    expect(sheepMoment.elapsed).toBe(elapsed);
+    if (activity.active) expect(activity.active(), activity.name).toBe(true);
+    // Photo mode must render the scene it captures, including at the booth.
+    expect(renderer.scene).toBe(game.rendering.scene);
+    expect(renderer.camera).toBe(camera);
+    expect(photography.takePhoto(), activity.name).toBe(true);
+    expect(photoAlbum.photos[0].location).toContain(activity.name);
+    expect(createPhotoAlbum({ storage: () => storage }).photos[0]).toEqual(
+      photoAlbum.photos[0],
+    );
+    photography.openAlbum();
+    frames(15);
+    photography.closeAlbum();
+    expect(transforms(objects)).toEqual(pose);
+    handlers.get("pagehide")();
+    expect(storage.getItem("sunflower-location-v1")).toBe(checkpoint);
+    key("KeyM");
+    expect(photoMode.active).toBe(false);
+    expect(camera.position.equals(original.position)).toBe(true);
+    expect(camera.quaternion.equals(original.quaternion)).toBe(true);
+    expect(camera.fov).toBe(original.fov);
+    if (activity.name === "Via Ferrata") game.input.keys.KeyW = true;
+    frames(5);
+    if (activity.name !== "Ring toss")
+      expect(transforms(objects), `${activity.name} resumes`).not.toEqual(pose);
+    if (activity.name === "Ring toss") {
+      expect(renderer.scene).toBe(game.worlds.funfair.tossScene);
+      expect(renderer.camera).toBe(game.worlds.funfair.tossCamera);
+      expect(funfairActivities.aim).not.toBe(aim);
+      // A ring already in flight also pauses and finishes after returning.
+      game.controls.interactFunfair();
+      frames(4);
+      expect(funfairActivities.throwing).toBe(true);
+      const flying = transforms([game.worlds.funfair.ring]);
+      element("#cameraAction").onclick();
+      frames(80);
+      expect(transforms([game.worlds.funfair.ring])).toEqual(flying);
+      expect(funfairActivities.throwing).toBe(true);
+      photography.exit();
+      frames(30);
+      expect(funfairActivities.throwing).toBe(false);
+      element("#funfairExit").onclick();
+      frames(1);
+      expect(funfairActivities.playing).toBe(false);
+      expect(element("#funfairAction").textContent).not.toContain(
+        "#returnIcon",
+      );
+    }
+  }
+  expect(photoAlbum.photos).toHaveLength(cases.length);
+  expect(element("#restart").onclick).toBeUndefined();
+  expect(rig.items.current).toBe("axe");
 });

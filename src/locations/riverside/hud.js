@@ -11,6 +11,7 @@ export function createRiversideHud(context) {
         {
           id: "boatAction",
           key: "KeyT",
+          icon: boat.atLagoon && !boat.rowing ? "return" : undefined,
           label: boat.rowing
             ? "Rowing together…"
             : boat.atLagoon
@@ -24,6 +25,7 @@ export function createRiversideHud(context) {
         {
           id: "cableAction",
           key: "KeyC",
+          icon: cable.atSummit && !cable.riding ? "return" : undefined,
           label: cable.riding
             ? "Above the treetops…"
             : cable.atSummit

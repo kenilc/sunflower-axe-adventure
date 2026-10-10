@@ -753,7 +753,9 @@ export function createFunfairActivities({
         playing = true;
         phase = "aiming";
         aimTime = 0;
-        hero.rotation.y = Math.PI;
+        characters.forEach((character) =>
+          character.rotation.set(0, Math.PI, 0),
+        );
         park.ring.visible = true;
         park.ring.rotation.set(Math.PI / 2, 0, 0);
         park.syncTossView(won.size);

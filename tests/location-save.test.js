@@ -130,7 +130,7 @@ test("New adventure replaces the checkpoint and leaves the photo album intact", 
   game.activities.photoAlbum.add("data:image/png;base64,d29vbGx5", "garden");
   game.transitions.open("village");
   handlers.get("pagehide")();
-  element("#restart").onclick();
+  game.controls.resetAdventure();
   expect(JSON.parse(storage.getItem(LOCATION_SAVE_KEY)).place).toBe("garden");
   const { game: resumed } = await createTestGame({ storage });
   expect(resumed.state.activeLocation).toBe("garden");

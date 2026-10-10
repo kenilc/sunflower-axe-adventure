@@ -211,7 +211,7 @@ test("map and fast travel respect other views, seated activities and restart", a
   game.activities.bedRest.start();
   expect(game.controls.openMap()).toBe(false);
   expect(game.controls.fastTravel("garden")).toBe(false);
-  element("#restart").onclick();
+  game.controls.resetAdventure();
   expect(unlocked(game)).toEqual(["garden"]);
   expect(JSON.parse(storage.getItem(JOURNEY_SAVE_KEY)).discovered).toEqual([
     "garden",

@@ -323,10 +323,6 @@ dialog button {
   .location small {
     font-size: 10px;
   }
-  #restart {
-    font-size: 12px;
-    padding: 9px;
-  }
 }
 
 #caveHint {
@@ -383,7 +379,7 @@ body.is-moving #toast {
   font-weight: 700;
 }
 #benchControls button[hidden] {
-  display: none;
+  display: none !important;
 }
 #benchControls:has(#sandcastleReset:not([hidden])) {
   display: flex;
@@ -466,10 +462,6 @@ body.is-moving #toast {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-}
-#funfairExit {
-  font-size: 12px;
-  padding: 9px 18px !important;
 }
 #stick[hidden] {
   display: none;
@@ -1216,12 +1208,40 @@ body.photo-mode #toast {
   }
 }
 
-body:has(#sunsetStand:not([hidden]), #beachActivityStop:not([hidden])) #toast {
+body:has(#benchControls button.return-button:not([hidden])) #toast {
   bottom: 80px;
 }
 @media (max-width: 700px) {
-  body:has(#sunsetStand:not([hidden]), #beachActivityStop:not([hidden]))
-    #toast {
+  body:has(#benchControls button.return-button:not([hidden])) #toast {
     bottom: 260px;
   }
+}
+
+/* One return arrow for leaving activities and closing views. */
+.icon-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+button.return-button,
+#benchControls button.return-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  padding: 10px;
+}
+.return-button svg {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
