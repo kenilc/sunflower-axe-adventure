@@ -39,7 +39,7 @@ test("the map starts with only the garden, blocks locked travel and pauses all i
   );
   expect(destination(element, "cave").disabled).toBe(true);
   expect(element("#travelSummary").textContent).toBe(
-    "1 of 10 places discovered",
+    "1 of 11 places discovered",
   );
   const position = game.characters.hero.position.clone();
   handlers.get("keydown")(event("KeyD"));
@@ -293,6 +293,7 @@ test("map paths match place parents and show the beach southeast of the garden",
   expect(paths.sort()).toEqual(
     [
       "garden->cave",
+      "garden->winter",
       "garden->village",
       "garden->funfair",
       "garden->riverside",

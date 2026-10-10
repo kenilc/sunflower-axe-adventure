@@ -392,7 +392,6 @@ export function createAlpineVillage({ mesh, box, cyl, ball }) {
     ladders = [];
   const rockVisibility = createTreeVisibility({
     obstructedOpacity: 0.035,
-    cameraClearance: 0.3,
   });
   const ridgeHeights = [18, 31, 42, 52, 49, 51, 61, 69, 77, 73, 78, 66];
   function solidCliff(i, width) {

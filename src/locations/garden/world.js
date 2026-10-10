@@ -17,6 +17,8 @@ export function createGarden({ scene, rand, benchModel }) {
   path(0, 0, 64, 4);
   path(-12, -12, 4, 28, -0.7);
   path(13, 10, 4, 28, -0.8);
+  path(23, -20, 3.7, 12);
+  const reservedWinterGate = (x, z) => Math.hypot(x - 23, z + 25) < 7;
   const blockers = [];
   const lakeside = createLakeside({ mesh, box, cyl, ball, benchModel });
   group.add(lakeside.group);
@@ -64,6 +66,7 @@ export function createGarden({ scene, rand, benchModel }) {
       Math.abs(z) < 3 ||
       reservedLakeside(x, z) ||
       inLake(x, z, 4) ||
+      reservedWinterGate(x, z) ||
       Math.hypot(x - 6.4, z - 9.6) < 7
     )
       continue;
@@ -72,7 +75,12 @@ export function createGarden({ scene, rand, benchModel }) {
   for (let i = 0; i < 45; i++) {
     let x = (rand() - 0.5) * 88,
       z = (rand() - 0.5) * 88;
-    if (Math.abs(x) > 5 && Math.abs(z) > 5 && !reservedLakeside(x, z))
+    if (
+      Math.abs(x) > 5 &&
+      Math.abs(z) > 5 &&
+      !reservedLakeside(x, z) &&
+      !reservedWinterGate(x, z)
+    )
       rock(x, z, 0.4 + rand() * 1.1);
   }
   for (let i = 0; i < 550; i++) {
@@ -82,7 +90,8 @@ export function createGarden({ scene, rand, benchModel }) {
       Math.hypot(x, z) > 49 ||
       Math.abs(x) < 3 ||
       Math.abs(z) < 2.4 ||
-      reservedLakeside(x, z)
+      reservedLakeside(x, z) ||
+      reservedWinterGate(x, z)
     )
       continue;
     const g = new THREE.Group();
@@ -106,7 +115,7 @@ export function createGarden({ scene, rand, benchModel }) {
   }
   // Small patches of sunflowers echo the adventurer's hood.
   function sunflower(x, z, size = 1) {
-    if (reservedLakeside(x, z)) return;
+    if (reservedLakeside(x, z) || reservedWinterGate(x, z)) return;
     const flower = new THREE.Group();
     flower.position.set(x, 0, z);
     flower.scale.setScalar(size);

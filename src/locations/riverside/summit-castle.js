@@ -15,7 +15,6 @@ export function createSummitCastle({
   castle.scale.setScalar(1.65);
   parent.add(castle);
   const visibility = createTreeVisibility({
-    cameraClearance: 0.5,
     obstructedOpacity: 0.08,
   });
   const shells = [];

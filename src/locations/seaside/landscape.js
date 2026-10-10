@@ -100,7 +100,6 @@ export function createCoastalLandscape({ parent, helpers, blockers }) {
   group.name = "coastal-palm-landscape";
   parent.add(group);
   const visibility = createTreeVisibility({
-    cameraClearance: 0.8,
     obstructedOpacity: 0.12,
   });
   const templates = [palmGeometry(0.65), palmGeometry(-0.9)];

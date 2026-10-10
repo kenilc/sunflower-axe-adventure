@@ -148,7 +148,7 @@ export function createGame({ createRenderer, models } = {}) {
   scene.add(castleRoom.group);
   const companion = createCompanion({ model: models.companion });
   garden.add(companion.character);
-  // Tall gate tops stay prominent on approach, but fade if they hide a friend.
+  // Tall gate tops stay prominent on approach, but fade if they hide the heroine.
   const gateVisibility = createTreeVisibility({ obstructedOpacity: 0.12 });
   for (const gate of [
     village.entrance,
@@ -1008,16 +1008,21 @@ export function createGame({ createRenderer, models } = {}) {
       );
     }
     hearts.update(paused ? 0 : dt, camera);
-    gateVisibility.update(camera, [hero, companion.character], dt);
+    gateVisibility.update(camera, [hero], dt);
     if (photoMode.active) {
-      if (locations.area === "seaside") activePlace.afterCamera?.(dt, time);
+      if (
+        !["garden", "village", "riverside", "castle"].includes(
+          locations.current,
+        )
+      )
+        activePlace.afterCamera?.(dt, time);
       if (locations.area === "garden")
-        treeVisibility.update(camera, [hero, companion.character], dt);
+        treeVisibility.update(camera, [hero], dt);
       if (locations.area === "village")
-        village.updateVisibility(camera, [hero, companion.character], dt);
+        village.updateVisibility(camera, [hero], dt);
       if (locations.area === "riverside") {
-        riverside.updateVisibility(camera, [hero, companion.character], dt);
-        cableCar.updateVisibility(camera, [hero, companion.character], dt);
+        riverside.updateVisibility(camera, [hero], dt);
+        cableCar.updateVisibility(camera, [hero], dt);
       }
       if (locations.current === "castle") castleRoom.updateVisibility(camera);
     } else if (!photography.viewing) {

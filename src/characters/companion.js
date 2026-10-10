@@ -7,6 +7,7 @@ export function createCompanion({ model }) {
   const rig = createCharacterRig(character);
   const { body, legs, arms } = rig;
   const destination = new THREE.Vector3();
+  const forward = new THREE.Vector3();
   const contactDistance = 1.2;
   const wanderRadius = 7;
   const maxDistance = 10;
@@ -50,7 +51,7 @@ export function createCompanion({ model }) {
       }
       if (found) break;
     }
-    character.rotation.y = 0;
+    character.rotation.set(0, 0, 0);
     destination.copy(character.position);
     wait = 0.8;
     walking = false;
@@ -112,20 +113,24 @@ export function createCompanion({ model }) {
       if (distance < 0.12 || travelTime > 9) pause();
       else {
         const heading = Math.atan2(dx, dz);
+        // Activity/photo restoration may express an upright quaternion with
+        // X and Z both at PI. Read its actual forward direction, not Euler Y.
+        forward.set(0, 0, 1).applyQuaternion(character.quaternion);
+        const currentHeading = Math.atan2(forward.x, forward.z);
         const turn = Math.atan2(
-          Math.sin(heading - character.rotation.y),
-          Math.cos(heading - character.rotation.y),
+          Math.sin(heading - currentHeading),
+          Math.cos(heading - currentHeading),
         );
-        character.rotation.y += THREE.MathUtils.clamp(
+        const turning = THREE.MathUtils.clamp(
           turn,
           -dt * (following ? 6 : 2),
           dt * (following ? 6 : 2),
         );
+        character.rotation.set(0, currentHeading + turning, 0);
         const speed = following
           ? Math.min(8.8, 1.05 + (separation - followDistance) * 2.5)
           : 1.05;
-        const step =
-          speed * dt * (following ? 1 : Math.abs(turn) < 0.35 ? 1 : 0);
+        const step = speed * dt * (Math.abs(turn - turning) < 0.35 ? 1 : 0);
         // Try nearby headings to go around rocks rather than getting stuck.
         for (const offset of step > 0 ? [0, 0.5, -0.5, 1, -1, 1.5, -1.5] : []) {
           const angle = (following ? heading : character.rotation.y) + offset;
@@ -145,6 +150,9 @@ export function createCompanion({ model }) {
           )
             continue;
           character.position.set(x, terrain.heightAt(x, z), z);
+          // Obstacle avoidance may choose a different path from the target
+          // heading. Face the accepted step so he never slides backward.
+          character.rotation.set(0, angle, 0);
           moved = step;
           travelTime += dt;
           break;

@@ -18,6 +18,14 @@ export const JOURNEY_DESTINATIONS = [
     hint: "North path from the garden",
   },
   {
+    id: "winter",
+    name: "Lumeküla · Estonia",
+    icon: "❄",
+    x: 78,
+    y: 10,
+    hint: "Northeast winter path from the garden",
+  },
+  {
     id: "village",
     name: "Edelweiss Village",
     icon: "⌂",

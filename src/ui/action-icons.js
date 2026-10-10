@@ -1,4 +1,8 @@
 const shapes = {
+  snowman:
+    '<circle cx="12" cy="7" r="4" /><ellipse cx="12" cy="17" rx="7" ry="5" /><path d="M8 3h8M10 2V1h4v1M9 11h6m-3 0v4M5 15l-3-3m17 3 3-3M12 6l3 1-3 1" />',
+  skate:
+    '<path d="M8 3h8v9l4 2v4H5v-4l3-2ZM3 21h17l2-2M7 18v3m10-3v3M8 7h6m-6 3h6" />',
   interact:
     '<path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7ZM4 18v4m-2-2h4m14-5v4m-2-2h4" />',
   pool: '<circle cx="10" cy="9" r="6" /><path d="m14.5 13.5 6 6M6 9q2-2 4 0t4 0M3 19q2-2 4 0t4 0" />',

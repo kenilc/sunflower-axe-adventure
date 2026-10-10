@@ -1,15 +1,14 @@
 import * as THREE from "three";
 
-// Fade only trees between the camera and either character's silhouette.
-export function createTreeVisibility({
-  cameraClearance = 0,
-  obstructedOpacity = 0.08,
-} = {}) {
+// Fade scenery only along the supplied character sightlines. Gameplay supplies
+// the heroine; the companion may pass behind opaque scenery.
+export function createTreeVisibility({ obstructedOpacity = 0.08 } = {}) {
   const trees = [];
   const raycaster = new THREE.Raycaster();
   const point = new THREE.Vector3();
   const direction = new THREE.Vector3();
   const cameraRight = new THREE.Vector3();
+  const reverse = new THREE.Vector3();
   const rays = [];
   const hits = [];
   function add(group) {
@@ -33,21 +32,31 @@ export function createTreeVisibility({
           point.addScaledVector(cameraRight, offset);
           direction.copy(point).sub(camera.position);
           const distance = direction.length();
-          rays.push({ direction: direction.clone().normalize(), distance });
+          if (distance > 0.001)
+            rays.push({
+              target: point.clone(),
+              direction: direction.clone().normalize(),
+              distance,
+            });
         }
       }
     }
     for (const tree of trees) {
-      // Rays starting inside a mesh can miss its outward-facing triangles.
-      let obstructing =
-        tree.bounds.distanceToPoint(camera.position) <= cameraClearance;
-      for (const ray of obstructing ? [] : rays) {
+      let obstructing = false;
+      for (const ray of rays) {
         raycaster.set(camera.position, ray.direction);
         raycaster.near = 0;
         raycaster.far = ray.distance;
         if (!raycaster.ray.intersectsBox(tree.bounds)) continue;
         hits.length = 0;
         raycaster.intersectObjects(tree.meshes, false, hits);
+        // From inside a canopy, front-face rays can miss the exit surface.
+        // Trace the same segment back from her silhouette to catch that surface
+        // without fading objects just because the camera is near their bounds.
+        if (!hits.length) {
+          raycaster.set(ray.target, reverse.copy(ray.direction).negate());
+          raycaster.intersectObjects(tree.meshes, false, hits);
+        }
         if (hits.length) {
           obstructing = true;
           break;

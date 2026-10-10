@@ -5,7 +5,6 @@ export function createRiverside({ mesh, box, cyl, ball }) {
   const group = new THREE.Group();
   group.visible = false;
   const sceneryVisibility = createTreeVisibility({
-    cameraClearance: 10,
     obstructedOpacity: 0,
   });
   const blockers = [];

@@ -307,7 +307,7 @@ export function createVillagePlace(context) {
       });
 
       if (locations.current === "village")
-        village.updateVisibility(camera, [hero, companion.character], dt);
+        village.updateVisibility(camera, [hero], dt);
     },
     progressLabel: () => state.activeVillageShop?.name ?? "edelweiss village",
 

@@ -255,11 +255,7 @@ export function createSeasidePlace(context) {
     }),
     animateBackground: world.animateGates,
     afterCamera(dt) {
-      world.landscape.visibility.update(
-        context.camera,
-        [hero, context.companion.character],
-        dt,
-      );
+      world.landscape.visibility.update(context.camera, [hero], dt);
     },
     animate(dt, time, paused) {
       if (!paused) world.animate(dt);

@@ -6,6 +6,7 @@ import { createCastlePlace } from "./castle/place.js";
 import { createRiversidePlace } from "./riverside/place.js";
 import { createFestivalPlace } from "./festival/place.js";
 import { createGardenPlace } from "./garden/place.js";
+import { createWinterPlace } from "./winter/place.js";
 
 export function registerPlaces(places, context) {
   const {
@@ -26,6 +27,7 @@ export function registerPlaces(places, context) {
   places.register(createGardenPlace(context));
   places.register(createSeasidePlace(context));
   places.register(createCavePlace(context));
+  places.register(createWinterPlace(context));
   places.register({
     id: "lagoon",
     progressLabel: () => (cableCar.riding ? "cable car" : "lotus lagoon"),
