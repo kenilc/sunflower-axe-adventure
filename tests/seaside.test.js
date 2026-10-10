@@ -4,6 +4,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { createTestGame } from "./helpers/game.js";
 import { createBeachAmbience } from "../src/locations/seaside/ambience.js";
 import { createMeshFactory } from "../src/rendering/mesh-factory.js";
+import { createPhotoAlbum } from "../src/systems/photo-album.js";
 import {
   createKeepsakes,
   KEEPSAKES_KEY,
@@ -407,7 +408,8 @@ test("towels seat both friends, keep the last walking save, and restore walking 
   expect(element("#stick").hidden).toBe(true);
   expect(game.controls.openMap()).toBe(false);
   expect(game.controls.openKeepsakes()).toBe(false);
-  expect(game.activities.photography.enter()).toBe(false);
+  expect(game.activities.photography.enter()).toBe(true);
+  game.activities.photography.exit();
   expect(game.controls.travelTo("garden")).toBe(false);
   expect(game.controls.fastTravel("garden")).toBe(false);
   vi.spyOn(performance, "now").mockReturnValue(60_000);
@@ -481,7 +483,8 @@ test("sandcastles build together in three stages, pause and cancel safely, and c
   expect(hero.position.equals(kneeling)).toBe(true);
   expect(game.controls.openMap()).toBe(false);
   expect(game.controls.openKeepsakes()).toBe(false);
-  expect(game.activities.photography.enter()).toBe(false);
+  expect(game.activities.photography.enter()).toBe(true);
+  game.activities.photography.exit();
   expect(game.controls.travelTo("garden")).toBe(false);
   element("#guide").open = true;
   frames(game, 160);
@@ -734,3 +737,119 @@ test("palm trunks block walking without covering finds, and only obstructing pal
   landscape.visibility.update(camera, [hero], 0.5);
   expect(tree.children[0].material.opacity).toBeGreaterThan(0.99);
 });
+
+test.each(["sunset", "sandcastle", "tidepool"])(
+  "photos preserve the %s activity pose, face the pair, and resume the moment after saving",
+  async (kind) => {
+    const storage = memoryStorage();
+    const { game, element, handlers } = await createTestGame({ storage });
+    game.transitions.open("seaside");
+    const place = game.places.get("seaside"),
+      hero = game.characters.hero;
+    const spot =
+      kind === "sunset"
+        ? place.terrain.sunsetSpot
+        : kind === "sandcastle"
+          ? place.terrain.sandcastle
+          : place.terrain.shoreLife.pools[0];
+    hero.position
+      .copy(spot.group.position)
+      .add(new THREE.Vector3(0, 0, kind === "sunset" ? 2.5 : 3.5));
+    frames(game, 3);
+    handlers.get("pagehide")();
+    const checkpoint = storage.getItem(LOCATION_SAVE_KEY);
+    game.controls.interact();
+    frames(game, 15);
+    const posedNodes = [
+      hero,
+      game.characters.companion.character,
+      ...[game.characters.rig, game.characters.companion.rig].flatMap((rig) => [
+        rig.body,
+        rig.head,
+        ...rig.legs,
+        ...rig.arms,
+      ]),
+    ];
+    const pose = posedNodes.map((node) => ({
+      position: node.position.clone(),
+      quaternion: node.quaternion.clone(),
+    }));
+    const photo = game.activities.photography,
+      mode = game.activities.photoMode,
+      camera = game.rendering.camera;
+    const view = camera.position.clone(),
+      viewRotation = camera.quaternion.clone();
+    const remaining = place.activity.secondsLeft;
+    element("#cameraAction").onclick();
+    expect(mode.active).toBe(true);
+    expect(mode.canEditActors).toBe(false);
+    expect(element("#photoHint").textContent).toContain("Activity paused");
+    expect(element("#photoKeyboard").textContent).toContain(
+      "poses are held in place",
+    );
+    for (const actor of [hero, game.characters.companion.character]) {
+      const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(
+        actor.quaternion,
+      );
+      const towardCamera = camera.position
+        .clone()
+        .sub(actor.position)
+        .setY(0)
+        .normalize();
+      expect(forward.dot(towardCamera)).toBeGreaterThan(0.75);
+    }
+    const savedFraming = mode.settings.yaw;
+    mode.selectActor(0);
+    mode.moveSelected(hero.position.clone().add(new THREE.Vector3(2, 0, 2)));
+    mode.turnSelected(100);
+    mode.adjustActor(1, { x: 2, heading: 180 });
+    expect(mode.selectedActor).toBe(null);
+    mode.rotate(100, 0);
+    expect(mode.settings.yaw).not.toBe(savedFraming);
+    mode.zoomByScale(0.9);
+    game.input.keys.KeyW = true;
+    frames(game, 160);
+    expect(place.activity.secondsLeft).toBe(remaining);
+    posedNodes.forEach((node, i) => {
+      expect(node.position.equals(pose[i].position)).toBe(true);
+      expect(node.quaternion.equals(pose[i].quaternion)).toBe(true);
+    });
+    expect(photo.takePhoto()).toBe(true);
+    expect(game.activities.photoAlbum.photos[0].location).toContain(
+      kind === "sunset"
+        ? "Sunset for two"
+        : kind === "sandcastle"
+          ? "Shape the base"
+          : "Discovering the tide pool",
+    );
+    expect(createPhotoAlbum({ storage: () => storage }).photos).toHaveLength(1);
+    expect(photo.openAlbum()).toBe(true);
+    frames(game, 10);
+    photo.closeAlbum();
+    handlers.get("pagehide")();
+    expect(storage.getItem(LOCATION_SAVE_KEY)).toBe(checkpoint);
+    mode.reset();
+    expect(mode.settings.yaw).toBe(savedFraming);
+    photo.exit();
+    expect(camera.position.equals(view)).toBe(true);
+    expect(camera.quaternion.equals(viewRotation)).toBe(true);
+    expect(game.input.keys.KeyW).toBe(false);
+    expect(kind === "sunset" ? place.rest.seated : place.activity.active).toBe(
+      true,
+    );
+    frames(game, 110);
+    if (kind === "sandcastle") {
+      expect(place.terrain.sandcastle.stage).toBe(1);
+      expect(place.activity.active).toBe(false);
+    } else {
+      expect(
+        kind === "sunset" ? place.rest.seated : place.activity.active,
+      ).toBe(true);
+      game.controls.interact();
+      expect(hero.position.y).toBe(0);
+    }
+    expect(photo.enter()).toBe(true);
+    expect(mode.canEditActors).toBe(true);
+    photo.exit();
+  },
+);

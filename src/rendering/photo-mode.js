@@ -5,6 +5,7 @@ export function createPhotoMode({ camera, actors, getPlace }) {
   let snapshot = null,
     selectedActor = null;
   const raycaster = new THREE.Raycaster();
+  const actorsLocked = () => snapshot?.preset?.lockActors === true;
   function pointerRay(x, y, bounds) {
     camera.updateMatrixWorld(true);
     raycaster.setFromCamera(
@@ -17,6 +18,7 @@ export function createPhotoMode({ camera, actors, getPlace }) {
     return raycaster;
   }
   function placeActor(index, position) {
+    if (actorsLocked()) return;
     const actor = actors[index],
       previous = actor.position.clone();
     const origin = snapshot.actors[index].position;
@@ -66,6 +68,10 @@ export function createPhotoMode({ camera, actors, getPlace }) {
       40,
     );
     settings.horizontal = settings.vertical = 0;
+    const preset = snapshot.preset;
+    if (preset?.target) target.copy(preset.target);
+    for (const key of ["yaw", "pitch", "distance"])
+      if (preset?.[key] !== undefined) settings[key] = preset[key];
     updateCamera();
   }
   function updateCamera() {
@@ -94,13 +100,20 @@ export function createPhotoMode({ camera, actors, getPlace }) {
   }
   return {
     settings,
+    get canEditActors() {
+      return !actorsLocked();
+    },
     get selectedActor() {
       return selectedActor;
     },
     selectActor(index) {
-      selectedActor = actors[index] ? index : null;
+      selectedActor = !actorsLocked() && actors[index] ? index : null;
     },
     selectAt(x, y, bounds) {
+      if (actorsLocked()) {
+        selectedActor = null;
+        return null;
+      }
       actors.forEach((actor) => actor.updateWorldMatrix(true, true));
       const hits = pointerRay(x, y, bounds)
         .intersectObjects(actors, true)
@@ -158,7 +171,7 @@ export function createPhotoMode({ camera, actors, getPlace }) {
       placeActor(selectedActor, position);
     },
     turnSelected(dx) {
-      if (snapshot && selectedActor !== null)
+      if (snapshot && !actorsLocked() && selectedActor !== null)
         actors[selectedActor].rotation.y += dx * 0.012;
     },
     pan(dx, dy, height) {
@@ -215,6 +228,7 @@ export function createPhotoMode({ camera, actors, getPlace }) {
     enter() {
       if (snapshot) return;
       snapshot = {
+        preset: getPlace().getPhotoPreset?.(),
         camera: camera.clone(),
         actors: actors.map((actor) => ({
           position: actor.position.clone(),
@@ -254,7 +268,7 @@ export function createPhotoMode({ camera, actors, getPlace }) {
       updateCamera();
     },
     adjustActor(index, { x = 0, z = 0, heading = 0 }) {
-      if (!snapshot || !actors[index]) return;
+      if (!snapshot || actorsLocked() || !actors[index]) return;
       const actor = actors[index],
         origin = snapshot.actors[index].position;
       const position = origin.clone();

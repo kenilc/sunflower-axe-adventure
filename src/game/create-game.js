@@ -675,7 +675,8 @@ export function createGame({ createRenderer, models } = {}) {
     camera,
     capture: createPhotoCapture({ renderer, scene }),
     canEnter: () =>
-      locations.active.canSaveLocation?.() !== false &&
+      (locations.active.canPhotograph?.() ??
+        locations.active.canSaveLocation?.() !== false) &&
       !collection?.open &&
       !travelMap?.open &&
       !$("#guide").open &&
@@ -693,7 +694,10 @@ export function createGame({ createRenderer, models } = {}) {
       !festivalMoment.active,
     clearInput: clearRestInput,
     toast,
-    getLocation: () => locations.active.name ?? locations.active.id,
+    getLocation: () =>
+      locations.active.photoLocation?.() ??
+      locations.active.name ??
+      locations.active.id,
     view: photoView,
     resetGestures: () => photoGestures?.reset(),
   });

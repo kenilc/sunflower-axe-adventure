@@ -98,7 +98,7 @@ For a room, set `kind: "room"` and `parent` to its containing place. Attach a se
 
 Transport-controlled terrain uses `kind: "context"` and a parent's `resolve()` callback. Existing lagoon and summit definitions use this because their activities control arrival and scenery. New ordinary places generally use the default `kind: "area"`.
 
-A place can supply `canSaveLocation()` to return `false` during a temporary seated pose. The coordinator keeps the previous walking checkpoint and blocks photography, the map, and Keepsakes until the activity finishes. Pair it with `canLeave()` and restore all character transforms in `exit()` and `reset()`.
+A place can supply `canSaveLocation()` to return `false` during a temporary seated pose. The coordinator keeps the previous walking checkpoint and blocks the map and Keepsakes until the activity finishes. Photography also follows this guard by default. A place can supply `canPhotograph()` to allow photographs of a paused activity, and `getPhotoPreset()` to set its initial `target` (Vector3), `yaw` (radians), `pitch` (degrees), and `distance`. Set `lockActors: true` to preserve the activity pose while allowing camera orbit, pan, and zoom. `photoLocation()` optionally gives saved photos an activity-specific caption. Pair it with `canLeave()` and restore all character transforms in `exit()` and `reset()`.
 
 ## Validation
 

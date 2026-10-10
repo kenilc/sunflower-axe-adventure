@@ -1,4 +1,5 @@
 import { createSunsetRest } from "./sunset-rest.js";
+import * as THREE from "three";
 import { createBeachOutfits } from "./outfits.js";
 import { createSeaside } from "./world.js";
 import { BEACH_FINDS } from "../../systems/keepsakes.js";
@@ -50,6 +51,27 @@ export function createSeasidePlace(context) {
     activity,
     canLeave: () => !busy(),
     canSaveLocation: () => !busy(),
+    canPhotograph: () => true,
+    getPhotoPreset() {
+      if (!busy()) return;
+      return {
+        lockActors: true,
+        target: rest.seated
+          ? world.sunsetSpot.group.position
+              .clone()
+              .add(new THREE.Vector3(0, 0.85, 0))
+          : activity.photoTarget,
+        yaw: Math.PI + 0.35,
+        pitch: rest.seated ? 14 : 18,
+        distance: 9,
+      };
+    },
+    photoLocation: () =>
+      rest.seated
+        ? "Sunset Beach · Sunset for two"
+        : activity.active
+          ? `Sunset Beach · ${activity.label}`
+          : "Sunset Beach",
     cameraLocked: busy,
     update(dt) {
       rest.update(dt);
@@ -176,9 +198,9 @@ export function createSeasidePlace(context) {
         progress: `${count} / ${BEACH_FINDS.length} beach keepsakes${nearCastle || castle.stage ? ` · Castle ${castle.stage} / 3` : ""}`,
         hint,
         instructions: rest.seated
-          ? "<kbd>X</kbd> stand up · Watch the sunset together"
+          ? "<kbd>X</kbd> stand up <kbd>M</kbd> photo · Watch the sunset together"
           : activity.active
-            ? "<kbd>X</kbd> back to beach walk"
+            ? "<kbd>X</kbd> back to beach walk <kbd>M</kbd> photo"
             : "<kbd>W A S D</kbd> walk <kbd>X</kbd> explore / build / collect / sit <kbd>K</kbd> keepsakes",
         actions: [
           {

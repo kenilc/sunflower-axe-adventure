@@ -24,11 +24,16 @@ export function bindPhotography({
           ? "Flower adventurer"
           : "Companion";
     $("#photoSelection").setAttribute("data-moving", String(moving));
-    const hint = moving
-      ? "Ready to move · Drag your friend into place"
-      : "Drag to turn · Hold to move · Pinch to zoom";
+    const hint = !mode.canEditActors
+      ? "Activity paused · Drag to orbit · Pinch to zoom"
+      : moving
+        ? "Ready to move · Drag your friend into place"
+        : "Drag to turn · Hold to move · Pinch to zoom";
     if ($("#photoHint").textContent !== hint)
       $("#photoHint").textContent = hint;
+    $("#photoKeyboard").textContent = !mode.canEditActors
+      ? "Activity poses are held in place. Arrow keys orbit; Shift and arrow keys frame. Plus and minus zoom; R resets. Enter takes a photo. Escape resumes the activity."
+      : "Keyboard: 1 selects the adventurer, 2 selects the companion, 0 selects the scene. Arrow keys turn; Shift and arrow keys move or frame. Plus and minus zoom; R resets. Enter takes a photo. Escape exits.";
     $("#photoZoom").textContent =
       `${(12 / mode.settings.distance).toFixed(1)}×`;
   }

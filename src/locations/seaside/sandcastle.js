@@ -272,6 +272,11 @@ export function createBeachActivity({
     get label() {
       return current?.label;
     },
+    get photoTarget() {
+      return current?.spot.group.position
+        .clone()
+        .add(new THREE.Vector3(0, 0.9, 1.4));
+    },
     get secondsLeft() {
       return current && Number.isFinite(current.duration)
         ? Math.ceil(current.duration - current.elapsed)
