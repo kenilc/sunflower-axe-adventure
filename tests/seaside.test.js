@@ -2,6 +2,8 @@ import * as THREE from "three";
 import { LOCATION_SAVE_KEY } from "../src/game/location-save.js";
 import { afterEach, expect, test, vi } from "vitest";
 import { createTestGame } from "./helpers/game.js";
+import { createBeachAmbience } from "../src/locations/seaside/ambience.js";
+import { createMeshFactory } from "../src/rendering/mesh-factory.js";
 import {
   createKeepsakes,
   KEEPSAKES_KEY,
@@ -263,7 +265,10 @@ test("surf and gulls animate during exploration and freeze in paused views", asy
     foam: Array.from(waves[0].foam.geometry.attributes.position.array),
     flight: birds[0].bird.position.toArray(),
     wings: birds.map(({ wings }) => wings[0].rotation.z),
-    shore: shoreBirds[0].bird.position.toArray(),
+    shore: shoreBirds.map(({ bird, head }) => [
+      bird.position.toArray(),
+      head.rotation.x,
+    ]),
   });
   const before = snapshot();
   frames(game, 25);
@@ -448,4 +453,284 @@ test("sunset activity links and restarting restore the seated pose without leavi
   expect(game.characters.rig.leftLeg.position.y).toBe(originalY);
   expect(game.characters.rig.appearance.state.outfit).toBe("winter");
   expect(game.characters.rig.items.canThrow).toBe(true);
+});
+
+test("sandcastles build together in three stages, pause and cancel safely, and can be rebuilt", async () => {
+  const storage = memoryStorage();
+  const { game, element, handlers } = await createTestGame({ storage });
+  game.transitions.open("seaside");
+  const place = game.places.get("seaside"),
+    castle = place.terrain.sandcastle;
+  const hero = game.characters.hero,
+    companion = game.characters.companion;
+  hero.position.copy(castle.group.position).add(new THREE.Vector3(0, 0, 3.4));
+  companion.reset(hero.position, place.terrain.blockers, place.terrain);
+  companion.rig.items.equip("ice-cream");
+  frames(game, 3);
+  handlers.get("pagehide")();
+  const checkpoint = storage.getItem(LOCATION_SAVE_KEY),
+    walking = hero.position.clone();
+  const leg = game.characters.rig.leftLeg.quaternion.clone();
+  const legPosition = game.characters.rig.leftLeg.position.clone();
+  game.controls.interact();
+  expect(place.activity.active).toBe(true);
+  expect(companion.rig.held.visible).toBe(false);
+  const kneeling = hero.position.clone();
+  game.input.keys.KeyW = true;
+  frames(game, 20);
+  expect(hero.position.equals(kneeling)).toBe(true);
+  expect(game.controls.openMap()).toBe(false);
+  expect(game.controls.openKeepsakes()).toBe(false);
+  expect(game.activities.photography.enter()).toBe(false);
+  expect(game.controls.travelTo("garden")).toBe(false);
+  element("#guide").open = true;
+  frames(game, 160);
+  expect(castle.stage).toBe(0);
+  expect(place.activity.active).toBe(true);
+  element("#guide").open = false;
+  handlers.get("pagehide")();
+  expect(storage.getItem(LOCATION_SAVE_KEY)).toBe(checkpoint);
+  game.controls.interact();
+  expect(place.activity.active).toBe(false);
+  expect(hero.position.equals(walking)).toBe(true);
+  expect(game.characters.rig.leftLeg.quaternion.equals(leg)).toBe(true);
+  expect(companion.rig.held.visible).toBe(true);
+  expect(castle.stage).toBe(0);
+  for (let stage = 1; stage <= 3; stage++) {
+    game.controls.interact();
+    frames(game, 115);
+    expect(place.activity.active).toBe(false);
+    expect(castle.stage).toBe(stage);
+    expect(castle.stages.map((part) => part.visible)).toEqual([
+      true,
+      stage >= 2,
+      stage >= 3,
+    ]);
+    expect(game.characters.rig.leftLeg.position.equals(legPosition)).toBe(true);
+  }
+  expect(game.readProgress().placeProgress.sandcastleStage).toBe(3);
+  frames(game, 1);
+  expect(element("#placeAction").textContent).toBe("Admire our castle · X");
+  element("#sandcastleReset").onclick();
+  expect(castle.stage).toBe(0);
+  game.controls.interact();
+  element("#restart").onclick();
+  expect(place.activity.active).toBe(false);
+  expect(castle.stage).toBe(0);
+  expect(game.characters.rig.items.canThrow).toBe(true);
+  expect(game.characters.rig.appearance.state.outfit).toBe("winter");
+});
+
+test("tide pools are approachable, inspectable, animated, and restore the walking pose", async () => {
+  const { game, element } = await createTestGame();
+  game.transitions.open("seaside", { activity: "tidepool" });
+  const place = game.places.get("seaside"),
+    life = place.terrain.shoreLife;
+  expect(place.activity.active).toBe(true);
+  expect(life.pools).toHaveLength(2);
+  const pool = life.pools[0];
+  const ripple = pool.ripple.scale.x;
+  frames(game, 30);
+  expect(pool.ripple.scale.x).not.toBe(ripple);
+  element("#guide").open = true;
+  const pausedRipple = pool.ripple.scale.x;
+  frames(game, 30);
+  expect(pool.ripple.scale.x).toBe(pausedRipple);
+  element("#guide").open = false;
+  frames(game, 100);
+  expect(place.activity.active).toBe(true);
+  expect(element("#toast").textContent).toContain("starfish");
+  game.controls.interact();
+  expect(place.activity.active).toBe(false);
+  expect(game.characters.hero.position.y).toBe(0);
+  for (const spot of life.pools) {
+    const approach = spot.group.position
+      .clone()
+      .add(new THREE.Vector3(0, 0, 3.5));
+    expect(place.terrain.contains(approach.x, approach.z)).toBe(true);
+    expect(
+      place.terrain.blockers.every(
+        (b) => Math.hypot(b.x - approach.x, b.z - approach.z) > b.r + 0.65,
+      ),
+    ).toBe(true);
+    game.characters.hero.position.copy(approach);
+    frames(game, 1);
+    expect(element("#placeAction").textContent).toBe("Explore tide pool · X");
+    game.controls.interact();
+    expect(place.activity.active).toBe(true);
+    game.controls.interact();
+    expect(place.activity.active).toBe(false);
+    expect(game.characters.hero.position.equals(approach)).toBe(true);
+  }
+});
+
+test("footprints remain bounded, fade away, and do not draw teleport trails", async () => {
+  const { game } = await createTestGame();
+  game.transitions.open("seaside");
+  const life = game.places.get("seaside").terrain.shoreLife;
+  const hero = game.characters.hero,
+    companion = game.characters.companion.character;
+  life.resetTracks();
+  hero.position.x += 1;
+  life.update(0.04);
+  const matrix = new THREE.Matrix4();
+  const visible = () => {
+    let count = 0;
+    for (let i = 0; i < life.footprints.count; i++) {
+      life.footprints.getMatrixAt(i, matrix);
+      if (matrix.elements[0] !== 0 || matrix.elements[2] !== 0) count++;
+    }
+    return count;
+  };
+  expect(visible()).toBe(1);
+  hero.position.x += 10;
+  life.update(0.04);
+  expect(visible()).toBe(1);
+  for (let i = 0; i < 140; i++) {
+    hero.position.x += i % 2 ? -1 : 1;
+    companion.position.z += i % 2 ? -1 : 1;
+    life.update(0.04);
+  }
+  expect(life.footprints.count).toBe(120);
+  expect(visible()).toBe(120);
+  life.update(31);
+  expect(visible()).toBe(0);
+});
+
+test("gulls steer smoothly between varied destinations with independent flap and glide intervals", () => {
+  const group = new THREE.Group();
+  const ambience = createBeachAmbience({
+    parent: group,
+    helpers: createMeshFactory(group),
+  });
+  expect(
+    new Set(ambience.birds.map(({ flight }) => flight.routeLeft)).size,
+  ).toBe(7);
+  expect(
+    new Set(ambience.birds.map(({ flight }) => flight.flapRate)).size,
+  ).toBe(7);
+  const firstTarget = ambience.birds[0].flight.target.clone();
+  const glideDurations = [],
+    flapDurations = [];
+  for (let i = 0; i < 1600; i++) {
+    const modes = ambience.birds.map(({ flight }) => flight.gliding);
+    const positions = ambience.birds.map(({ bird }) => bird.position.clone());
+    ambience.update(0.04);
+    ambience.birds.forEach(({ bird, flight }, j) => {
+      expect(bird.position.distanceTo(positions[j])).toBeLessThan(0.18);
+      expect(bird.position.toArray().every(Number.isFinite)).toBe(true);
+      if (modes[j] !== flight.gliding)
+        (flight.gliding ? glideDurations : flapDurations).push(flight.modeLeft);
+    });
+  }
+  expect(ambience.birds[0].flight.target.equals(firstTarget)).toBe(false);
+  expect(new Set(glideDurations).size).toBeGreaterThan(10);
+  expect(new Set(flapDurations).size).toBeGreaterThan(10);
+  expect(
+    glideDurations.every((duration) => duration >= 3.5 && duration <= 11),
+  ).toBe(true);
+  expect(
+    flapDurations.every((duration) => duration >= 0.9 && duration <= 2.8),
+  ).toBe(true);
+});
+
+test("walking faces the direction of travel after restoring a north-facing beach activity pose", async () => {
+  const { game } = await createTestGame();
+  game.transitions.open("seaside");
+  const place = game.places.get("seaside"),
+    hero = game.characters.hero;
+  const companion = game.characters.companion.character;
+  const camera = game.rendering.camera;
+  for (const activity of ["pool", "castle", "castle-complete", "sunset"]) {
+    const spot =
+      activity === "pool"
+        ? place.terrain.shoreLife.pools[0]
+        : activity.startsWith("castle")
+          ? place.terrain.sandcastle
+          : place.terrain.sunsetSpot;
+    hero.position.copy(spot.group.position).add(new THREE.Vector3(0, 0, 3.3));
+    hero.rotation.set(0, Math.PI, 0);
+    if (activity === "sunset") {
+      expect(place.rest.sit()).toBe(true);
+      place.rest.stand(false);
+    } else {
+      expect(
+        place.activity.start(activity === "pool" ? "pool" : "castle", spot),
+      ).toBe(true);
+      if (activity === "castle-complete") frames(game, 115);
+      else place.activity.cancel(false);
+      expect(place.activity.active).toBe(false);
+    }
+    const restored = hero.quaternion.clone();
+    for (const orbitFrames of [0, 15]) {
+      game.input.keys.KeyQ = true;
+      frames(game, orbitFrames);
+      game.input.keys.KeyQ = false;
+      for (const keys of [
+        ["KeyW"],
+        ["KeyS"],
+        ["KeyA"],
+        ["KeyD"],
+        ["KeyW", "KeyD"],
+        ["KeyS", "KeyA"],
+      ]) {
+        // An open patch of sand isolates facing from obstacle deflections.
+        hero.position.set(0, 0, 15);
+        companion.position.set(8, 0, 15);
+        hero.quaternion.copy(restored);
+        const start = hero.position.clone();
+        keys.forEach((code) => (game.input.keys[code] = true));
+        frames(game, 1);
+        keys.forEach((code) => (game.input.keys[code] = false));
+        const direction = hero.position.clone().sub(start).setY(0).normalize();
+        const forward = new THREE.Vector3(0, 0, 1)
+          .applyQuaternion(hero.quaternion)
+          .setY(0)
+          .normalize();
+        expect(direction.length()).toBeGreaterThan(0.9);
+        expect(forward.dot(direction)).toBeCloseTo(1, 6);
+        expect(
+          new THREE.Vector3(0, 1, 0).applyQuaternion(hero.quaternion).y,
+        ).toBeCloseTo(1, 6);
+        expect(camera.position.toArray().every(Number.isFinite)).toBe(true);
+      }
+    }
+  }
+});
+
+test("palm trunks block walking without covering finds, and only obstructing palms fade", async () => {
+  const { game } = await createTestGame();
+  game.transitions.open("seaside");
+  const beach = game.places.get("seaside").terrain,
+    landscape = beach.landscape;
+  const tree = landscape.palms[0].group,
+    hero = game.characters.hero;
+  const trunk = beach.blockers.find(
+    (blocker) => blocker.x === tree.position.x && blocker.z === tree.position.z,
+  );
+  hero.position.copy(tree.position).add(new THREE.Vector3(3, 0, 0));
+  game.input.keys.KeyA = true;
+  frames(game, 28);
+  game.input.keys.KeyA = false;
+  expect(
+    Math.hypot(
+      hero.position.x - tree.position.x,
+      hero.position.z - tree.position.z,
+    ),
+  ).toBeGreaterThanOrEqual(trunk.r + 0.38 - 1e-6);
+  for (const find of beach.finds)
+    for (const palm of landscape.palms.filter(({ near }) => near)) {
+      expect(
+        find.model.position.distanceTo(palm.group.position),
+      ).toBeGreaterThan(1.5);
+    }
+  const camera = game.rendering.camera;
+  hero.position.copy(tree.position).add(new THREE.Vector3(0, 0, 4));
+  camera.position.copy(tree.position).add(new THREE.Vector3(0, 1.4, -4));
+  landscape.visibility.update(camera, [hero], 0.5);
+  expect(tree.children[0].material.opacity).toBeLessThan(0.2);
+  expect(landscape.palms[1].group.children[0].material.opacity).toBe(1);
+  camera.position.copy(tree.position).add(new THREE.Vector3(10, 3, 1));
+  landscape.visibility.update(camera, [hero], 0.5);
+  expect(tree.children[0].material.opacity).toBeGreaterThan(0.99);
 });

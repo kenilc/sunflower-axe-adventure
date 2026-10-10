@@ -927,9 +927,11 @@ export function createGame({ createRenderer, models } = {}) {
           body.position.y = Math.abs(Math.sin(state.walk)) * 0.055;
           legs[0].rotation.x = Math.sin(state.walk) * 0.5;
           legs[1].rotation.x = -Math.sin(state.walk) * 0.5;
-          const facing = hero.position.clone().sub(old);
+          const facing = hero.position.clone().sub(old).setY(0);
+          // Restored quaternions can have equivalent nonzero X/Z Euler angles.
+          // Set the whole upright rotation so the model faces its travel path.
           if (facing.lengthSq() > 0.000001)
-            hero.rotation.y = Math.atan2(facing.x, facing.z);
+            hero.rotation.set(0, Math.atan2(facing.x, facing.z), 0);
         } else if (!benchMoment.seated) {
           legs.forEach((l) => (l.rotation.x *= 0.8));
           body.position.y = Math.sin(time * 2) * 0.018;
@@ -995,6 +997,7 @@ export function createGame({ createRenderer, models } = {}) {
     hearts.update(paused ? 0 : dt, camera);
     gateVisibility.update(camera, [hero, companion.character], dt);
     if (photoMode.active) {
+      if (locations.area === "seaside") activePlace.afterCamera?.(dt, time);
       if (locations.area === "garden")
         treeVisibility.update(camera, [hero, companion.character], dt);
       if (locations.area === "village")

@@ -3,8 +3,18 @@ import { createSunsetSpot } from "./sunset-rest.js";
 import { createBeachAmbience } from "./ambience.js";
 import { createSeasideGate } from "./gate.js";
 import { BEACH_FINDS } from "../../systems/keepsakes.js";
+import { createShoreLife } from "./shore-life.js";
+import { createSandcastle } from "./sandcastle.js";
+import { createCoastalLandscape } from "./landscape.js";
 
-export function createSeaside({ scene, garden, helpers, keepsakes }) {
+export function createSeaside({
+  scene,
+  garden,
+  helpers,
+  keepsakes,
+  hero,
+  companion,
+}) {
   const { mesh, box, ball, cyl } = helpers;
   const group = new THREE.Group();
   group.name = "sunset-seaside";
@@ -137,6 +147,18 @@ export function createSeaside({ scene, garden, helpers, keepsakes }) {
 
   const sunsetSpot = createSunsetSpot({ parent: group, helpers });
   blockers.push(sunsetSpot.blocker);
+  const shoreLife = createShoreLife({
+    parent: group,
+    helpers,
+    actors: [hero, companion.character],
+    blockers,
+  });
+  const sandcastle = createSandcastle({ parent: group, helpers, blockers });
+  const landscape = createCoastalLandscape({
+    parent: group,
+    helpers,
+    blockers,
+  });
 
   const entranceGate = createSeasideGate({
     parent: garden,
@@ -278,6 +300,9 @@ export function createSeaside({ scene, garden, helpers, keepsakes }) {
     blockers,
     ambience,
     sunsetSpot,
+    shoreLife,
+    sandcastle,
+    landscape,
     sea,
     sand,
     wetSand,
@@ -298,8 +323,11 @@ export function createSeaside({ scene, garden, helpers, keepsakes }) {
     },
     animate(dt) {
       ambience.update(dt);
+      shoreLife.update(dt);
       elapsed += dt;
       const time = elapsed;
+      sandcastle.update(time);
+      landscape.update(time);
       const positions = sea.geometry.attributes.position;
       for (let i = 0; i < positions.count; i++)
         positions.setZ(

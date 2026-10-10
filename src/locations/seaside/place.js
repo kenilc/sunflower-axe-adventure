@@ -2,6 +2,7 @@ import { createSunsetRest } from "./sunset-rest.js";
 import { createBeachOutfits } from "./outfits.js";
 import { createSeaside } from "./world.js";
 import { BEACH_FINDS } from "../../systems/keepsakes.js";
+import { createBeachActivity, CASTLE_STAGES } from "./sandcastle.js";
 
 export function createSeasidePlace(context) {
   const { hero, keepsakes, toast } = context;
@@ -19,6 +20,8 @@ export function createSeasidePlace(context) {
     toast,
     clearInput: context.clearRestInput,
   });
+  const activity = createBeachActivity(context);
+  const busy = () => rest.seated || activity.active;
   function collect() {
     const find = world.nearest(hero.position);
     if (!find) return;
@@ -44,15 +47,18 @@ export function createSeasidePlace(context) {
     canThrow: false,
     maxZoom: 38,
     rest,
-    canLeave: () => !rest.seated,
-    canSaveLocation: () => !rest.seated,
-    cameraLocked: () => rest.seated,
+    activity,
+    canLeave: () => !busy(),
+    canSaveLocation: () => !busy(),
+    cameraLocked: busy,
     update(dt) {
       rest.update(dt);
-      return rest.seated;
+      activity.update(dt);
+      return busy();
     },
     updateCamera(dt) {
-      return rest.updateCamera(context.$("#guide").open ? 0 : dt);
+      const delta = context.$("#guide").open ? 0 : dt;
+      return activity.updateCamera(delta) || rest.updateCamera(delta);
     },
     entrance: {
       from: "garden",
@@ -75,6 +81,18 @@ export function createSeasidePlace(context) {
     enter({ options = {} } = {}) {
       outfits.set(true);
       world.sync();
+      world.shoreLife.resetTracks();
+      if (
+        options.activity === "sandcastle" ||
+        options.activity === "tidepool"
+      ) {
+        const castle = options.activity === "sandcastle";
+        const spot = castle ? world.sandcastle : world.shoreLife.pools[0];
+        hero.position.copy(spot.group.position).add({ x: 0, y: 0, z: 3.5 });
+        activity.start(castle ? "castle" : "pool", spot);
+        world.shoreLife.resetTracks();
+        return;
+      }
       if (options.activity === "sunset") {
         hero.position
           .copy(world.sunsetSpot.group.position)
@@ -83,10 +101,11 @@ export function createSeasidePlace(context) {
         return;
       }
       toast(
-        "Sunset Beach · Walk together, find a little keepsake. X to collect · K to view.",
+        "Sunset Beach · Rock pools west, sandcastles in the middle, towels east · X to explore",
       );
     },
     exit() {
+      activity.cancel(false);
       rest.stand(false);
       outfits.set(false);
     },
@@ -96,71 +115,128 @@ export function createSeasidePlace(context) {
       const nearby = world.nearest(hero.position),
         count = keepsakes.items.length,
         nearGate = world.returnGate.nearby(hero.position),
-        nearTowels = rest.nearby() && !nearby;
+        nearTowels = rest.nearby() && !nearby,
+        pool = world.shoreLife.nearestPool(hero.position),
+        castle = world.sandcastle,
+        nearCastle = castle.nearby(hero.position) && !nearby;
+      let label = "Collect · X",
+        hint =
+          "Rock pools: west · Sandcastle: middle · Towels: east · Garden path: south",
+        run = collect;
+      if (rest.seated) {
+        label = "Stand up · X";
+        hint = "Stay awhile and watch the waves · X to stand up";
+        run = () => rest.stand();
+      } else if (activity.active) {
+        label = "Back to beach walk · X";
+        hint = `${activity.label}${activity.secondsLeft === null ? "" : ` · ${activity.secondsLeft}s`} · X to stop`;
+        run = () => activity.cancel();
+      } else if (nearTowels) {
+        label = "Sit & watch sunset · X";
+        hint = "Sit together on the towels · X";
+        run = () => rest.sit();
+      } else if (nearGate) {
+        label = "Return to garden · X";
+        hint = "Walk through the shell arch to the garden, or press X";
+        run = () => context.transitions.go("garden");
+      } else if (nearby) {
+        label = `Collect ${nearby.name} · X`;
+        hint = `${nearby.name} nearby · X to collect`;
+      } else if (nearCastle) {
+        label =
+          castle.stage < 3
+            ? `${CASTLE_STAGES[castle.stage]} · X`
+            : "Admire our castle · X";
+        hint =
+          castle.stage < 3
+            ? `Build together · ${castle.stage} / 3 stages · X`
+            : "Our sandcastle is finished · X to admire · B to rebuild";
+        run = () => activity.start("castle", castle);
+      } else if (pool) {
+        label = "Explore tide pool · X";
+        hint = "Look closely at the little sea creatures · X";
+        run = () => activity.start("pool", pool);
+      }
       return {
-        region: rest.seated ? "A sunset for two" : "Sunset Beach",
-        hideStick: rest.seated,
+        region: rest.seated
+          ? "A sunset for two"
+          : activity.active
+            ? activity.label
+            : "Sunset Beach",
+        hideStick: busy(),
         quest: {
           eyebrow: "AT THE EDGE OF THE SEA",
           title: "The tide rolls in.<br />The day slows down.",
           objective: rest.seated
             ? "A quiet moment together. Watch the sunset, then press X when you are ready to wander."
-            : count === BEACH_FINDS.length
-              ? "All twelve keepsakes saved. Enjoy the sunset together."
-              : "Wander the shore together. Collect shells and smooth stones to remember this evening.",
+            : activity.active
+              ? `${activity.label} together. X to return to your walk.`
+              : "Explore the rock pools, build a sandcastle together, and find a keepsake along the shore.",
         },
-        progress: `${count} / ${BEACH_FINDS.length} beach keepsakes`,
-        hint: rest.seated
-          ? "Stay awhile and watch the waves · X to stand up"
-          : nearTowels
-            ? "Sit together on the towels · X"
-            : nearGate
-              ? "Walk through the shell arch to the garden, or press X"
-              : nearby
-                ? `${nearby.name} nearby · X to collect`
-                : "Sun umbrella & towels: southeast shore · X to sit · Garden path: south",
+        progress: `${count} / ${BEACH_FINDS.length} beach keepsakes${nearCastle || castle.stage ? ` · Castle ${castle.stage} / 3` : ""}`,
+        hint,
         instructions: rest.seated
           ? "<kbd>X</kbd> stand up · Watch the sunset together"
-          : "<kbd>W A S D</kbd> walk <kbd>X</kbd> collect / sit <kbd>K</kbd> keepsakes <kbd>M</kbd> camera",
+          : activity.active
+            ? "<kbd>X</kbd> back to beach walk"
+            : "<kbd>W A S D</kbd> walk <kbd>X</kbd> explore / build / collect / sit <kbd>K</kbd> keepsakes",
         actions: [
           {
-            id: rest.seated ? "sunsetStand" : "placeAction",
+            id: rest.seated
+              ? "sunsetStand"
+              : activity.active
+                ? "beachActivityStop"
+                : "placeAction",
             key: "KeyX",
-            label: rest.seated
-              ? "Stand up · X"
-              : nearTowels
-                ? "Sit & watch sunset · X"
-                : nearGate
-                  ? "Return to garden · X"
-                  : nearby
-                    ? `Collect ${nearby.name} · X`
-                    : "Collect · X",
-            visible: rest.seated || nearTowels || nearGate || Boolean(nearby),
-            run: () =>
-              rest.seated
-                ? rest.stand()
-                : nearTowels
-                  ? rest.sit()
-                  : nearGate
-                    ? context.transitions.go("garden")
-                    : collect(),
+            label,
+            visible:
+              busy() ||
+              nearTowels ||
+              nearGate ||
+              Boolean(nearby) ||
+              nearCastle ||
+              Boolean(pool),
+            run,
+          },
+          {
+            id: "sandcastleReset",
+            key: "KeyB",
+            label: "Rebuild castle · B",
+            visible: !busy() && nearCastle && castle.stage === 3,
+            run: () => {
+              castle.reset();
+              toast(
+                "A fresh patch of sand · X to build another castle together",
+              );
+            },
           },
         ],
       };
     },
     getProgress: () => ({
       resting: rest.seated,
+      beachActivity: activity.active,
+      sandcastleStage: world.sandcastle.stage,
       collected: keepsakes.items.length,
       total: BEACH_FINDS.length,
       shells: keepsakes.items.filter(({ kind }) => kind === "shell").length,
       stones: keepsakes.items.filter(({ kind }) => kind === "stone").length,
     }),
     animateBackground: world.animateGates,
+    afterCamera(dt) {
+      world.landscape.visibility.update(
+        context.camera,
+        [hero, context.companion.character],
+        dt,
+      );
+    },
     animate(dt, time, paused) {
       if (!paused) world.animate(dt);
     },
     reset() {
+      activity.cancel(false);
       rest.stand(false);
+      world.sandcastle.reset();
       outfits.set(false);
       world.sync();
     },

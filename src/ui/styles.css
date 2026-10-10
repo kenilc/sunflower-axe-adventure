@@ -385,6 +385,16 @@ body.is-moving #toast {
 #benchControls button[hidden] {
   display: none;
 }
+#benchControls:has(#sandcastleReset:not([hidden])) {
+  display: flex;
+  gap: 8px;
+  width: min(460px, calc(100vw - 32px));
+  justify-content: center;
+}
+#benchControls:has(#sandcastleReset:not([hidden])) button:not([hidden]) {
+  flex: 1;
+  padding: 12px;
+}
 @media (max-width: 700px) {
   #benchControls {
     bottom: 200px;
@@ -1206,11 +1216,12 @@ body.photo-mode #toast {
   }
 }
 
-body:has(#sunsetStand:not([hidden])) #toast {
+body:has(#sunsetStand:not([hidden]), #beachActivityStop:not([hidden])) #toast {
   bottom: 80px;
 }
 @media (max-width: 700px) {
-  body:has(#sunsetStand:not([hidden])) #toast {
+  body:has(#sunsetStand:not([hidden]), #beachActivityStop:not([hidden]))
+    #toast {
     bottom: 260px;
   }
 }
