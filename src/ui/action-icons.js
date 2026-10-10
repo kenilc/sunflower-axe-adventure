@@ -1,4 +1,6 @@
 const shapes = {
+  sauna:
+    '<path d="M4 15h16v6H4ZM7 15v-3m10 3v-3M7 9q-3-3 0-6m5 6q-3-3 0-6m5 6q-3-3 0-6M3 21h18" />',
   snowman:
     '<circle cx="12" cy="7" r="4" /><ellipse cx="12" cy="17" rx="7" ry="5" /><path d="M8 3h8M10 2V1h4v1M9 11h6m-3 0v4M5 15l-3-3m17 3 3-3M12 6l3 1-3 1" />',
   skate:

@@ -24,7 +24,9 @@ function approach(game, place, kind) {
       ? place.world.snowman.position
       : kind === "skate"
         ? place.world.skateSpot
-        : place.world.cocoaSpot;
+        : kind === "sauna"
+          ? place.world.saunaSpot
+          : place.world.cocoaSpot;
   game.characters.hero.position
     .copy(spot)
     .add(new THREE.Vector3(0, 0, kind === "skate" ? 0 : 2.5));
@@ -330,11 +332,11 @@ test("all winter moments pause for photos, preserve held items and restore walki
   game.transitions.open("winter");
   const place = game.places.get("winter");
   game.characters.rig.items.equip("ice-cream");
-  for (const kind of ["snowman", "skate", "cocoa"]) {
+  for (const kind of ["snowman", "skate", "cocoa", "sauna"]) {
     approach(game, place, kind);
     const walking = poses(game);
     handlers.get("keydown")(key("KeyX"));
-    frames(game, 2);
+    frames(game, kind === "sauna" ? 12 : 2);
     expect(place.activity.kind).toBe(kind);
     expectSolidScenery(game.rendering.scene, kind);
     expect(game.controls.openMap()).toBe(false);
@@ -385,7 +387,7 @@ test("winter resumes the walking checkpoint and restart removes active poses, ou
   expect(resumed.characters.hero.position.equals(walking)).toBe(true);
   expect(resumed.places.get("winter").activity.active).toBe(false);
   resumed.controls.resetAdventure();
-  for (const kind of ["cocoa", "snowman", "skate"]) {
+  for (const kind of ["cocoa", "snowman", "skate", "sauna"]) {
     resumed.transitions.open("winter", { activity: kind });
     const winter = resumed.places.get("winter");
     frames(resumed, 5);

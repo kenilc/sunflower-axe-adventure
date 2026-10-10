@@ -4,6 +4,7 @@ import { createTreeVisibility } from "../../rendering/tree-visibility.js";
 import { createRandom } from "../../systems/random.js";
 import { createWinterSign, createWinterLabel } from "./gate.js";
 import { snowballPose } from "./snowman-building.js";
+import { createSauna } from "./sauna.js";
 
 // Lumeküla is an imagined Estonian village, with timber homes, limestone,
 // a smoke sauna and a flat, wooded landscape rather than alpine peaks.
@@ -146,29 +147,34 @@ export function createWinterWorld(context) {
   cottage(-23, -26, "#8eacaa", "sage-timber-house");
   cottage(11, -22, "#9a855d", "ochre-timber-house");
   cottage(28, 15, "#7c919f", "blue-grey-timber-house");
-  const sauna = cottage(28, -22, "#75604d", "log-smoke-sauna", 5, 4);
+  const saunaHut = cottage(28, -22, "#75604d", "log-smoke-sauna", 5, 4);
   for (let i = 0; i < 12; i++) {
-    const log = cyl(
-      0.13,
-      0.13,
-      5.3,
-      i % 2 ? "#75604d" : "#8a7158",
-      0,
-      0.62 + i * 0.24,
-      2.02,
-      sauna,
-    );
-    log.rotation.z = Math.PI / 2;
+    for (const side of i < 9 ? [-1, 1] : [0]) {
+      const log = cyl(
+        0.13,
+        0.13,
+        side ? 2 : 5.3,
+        i % 2 ? "#75604d" : "#8a7158",
+        side * 1.65,
+        0.62 + i * 0.24,
+        2.02,
+        saunaHut,
+      );
+      log.rotation.z = Math.PI / 2;
+    }
   }
   createWinterLabel({
-    parent: sauna,
+    parent: saunaHut,
     helpers,
-    text: "SAUN",
+    text: "SAUN · X",
     x: 0,
     y: 3.05,
     z: 2.16,
-    width: 2,
+    width: 2.5,
   });
+  const sauna = createSauna({ context, parent: group, hut: saunaHut });
+  const saunaSpot = sauna.doorway;
+  box(1.7, 0.04, 4.4, "#c9dbe5", 28, 0.035, -17.8);
   // A modest limestone church and slender steeple at the end of the lane.
   const church = new THREE.Group();
   church.name = "limestone-village-church";
@@ -560,6 +566,8 @@ export function createWinterWorld(context) {
     pond,
     skateSpot,
     cocoaSpot,
+    sauna,
+    saunaSpot,
     snowman,
     snowflakes,
     visibility,
@@ -571,6 +579,7 @@ export function createWinterWorld(context) {
       if (position.distanceTo(snowman.position) < 3.8) return "snowman";
       if (position.distanceTo(skateSpot) < 3.2) return "skate";
       if (position.distanceTo(cocoaSpot) < 3.4) return "cocoa";
+      if (position.distanceTo(saunaSpot) < 2.8) return "sauna";
       return null;
     },
     get snowmanStage() {

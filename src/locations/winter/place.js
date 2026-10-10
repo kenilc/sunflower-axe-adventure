@@ -11,10 +11,15 @@ export function createWinterPlace(context) {
   const busy = () => activity.active;
   function interact() {
     framedActivity = false;
-    if (busy()) return activity.stop();
+    if (busy())
+      return activity.kind === "sauna"
+        ? context.transitions.run(() => activity.stop())
+        : activity.stop();
     if (world.returnGate.nearby(context.hero.position))
       return context.transitions.go("garden");
     const kind = world.nearby(context.hero.position);
+    if (kind === "sauna")
+      return context.transitions.run(() => activity.start(kind));
     return kind ? activity.start(kind) : false;
   }
   return {
@@ -44,8 +49,9 @@ export function createWinterPlace(context) {
             : activity.kind === "snowman"
               ? Math.PI + 0.2
               : 0.2,
-        pitch: 16,
-        distance: activity.kind === "snowman" ? 13 : 10,
+        pitch: activity.kind === "sauna" ? 13 : 16,
+        distance:
+          activity.kind === "snowman" ? 13 : activity.kind === "sauna" ? 9 : 10,
         fov: 48,
       };
     },
@@ -68,7 +74,7 @@ export function createWinterPlace(context) {
         groundColor: "#899bad",
       },
       instructions:
-        "<kbd>W A S D</kbd> walk <kbd>X</kbd> snowman / skate / cocoa <kbd>M</kbd> photo",
+        "<kbd>W A S D</kbd> walk <kbd>X</kbd> snowman / skate / cocoa / sauna <kbd>M</kbd> photo",
     },
     enter({ options = {} } = {}) {
       framedActivity = false;
@@ -76,13 +82,15 @@ export function createWinterPlace(context) {
       outfits = rigs.map((rig) =>
         rig.appearance.override({ outfit: "winter" }),
       );
-      if (["snowman", "skate", "cocoa"].includes(options.activity)) {
+      if (Object.hasOwn(WINTER_LABELS, options.activity)) {
         const spot =
           options.activity === "snowman"
             ? world.snowman.position
             : options.activity === "skate"
               ? world.skateSpot
-              : world.cocoaSpot;
+              : options.activity === "sauna"
+                ? world.saunaSpot
+                : world.cocoaSpot;
         context.hero.position
           .copy(spot)
           .add(new THREE.Vector3(0, 0, options.activity === "skate" ? 0 : 2.5));
@@ -90,7 +98,7 @@ export function createWinterPlace(context) {
         activity.start(options.activity);
       } else
         context.toast(
-          "Tere tulemast! ♥ Snowman: left · Skating pond: right · Warm cocoa: café bench",
+          "Tere tulemast! ♥ Snowman: left · Skating: pond · Cocoa: café · Sauna: northeast hut",
         );
     },
     exit() {
@@ -121,13 +129,19 @@ export function createWinterPlace(context) {
             ? Math.PI + 0.25
             : 0.2;
       const distance =
-        activity.kind === "skate" ? 15 : activity.kind === "snowman" ? 13 : 11;
+        activity.kind === "skate"
+          ? 15
+          : activity.kind === "snowman"
+            ? 13
+            : activity.kind === "sauna"
+              ? 9
+              : 11;
       const position = target
         .clone()
         .add(
           new THREE.Vector3(
             Math.sin(yaw) * distance,
-            4.5,
+            activity.kind === "sauna" ? 2.4 : 4.5,
             Math.cos(yaw) * distance,
           ),
         );
@@ -140,7 +154,7 @@ export function createWinterPlace(context) {
       return true;
     },
     animate(dt, time, paused) {
-      if (!paused) world.animate(dt);
+      if (!paused && activity.kind !== "sauna") world.animate(dt);
     },
     afterCamera(dt) {
       if (context.locations.area === "winter")
@@ -157,11 +171,17 @@ export function createWinterPlace(context) {
       let label = "Explore the village · X",
         icon = "interact";
       let hint =
-        "Snowman: left of the square · Skating pond: east · Cocoa bench: outside the yellow café · Garden: south";
+        "Snowman: left · Skating pond: east · Cocoa: yellow café · Sauna hut: northeast · Garden: south";
       if (busy()) {
-        label = "Back to village walk · X";
+        label =
+          activity.kind === "sauna"
+            ? "Step outside sauna · X"
+            : "Back to village walk · X";
         icon = "return";
         hint = `${activity.buildStep ?? WINTER_LABELS[activity.kind]}${activity.secondsLeft === null ? "" : ` · ${activity.secondsLeft}s remaining`}${activity.kind === "skate" && !activity.memories.has("skate") ? " · Complete a lap for a memory" : ""} · X to finish · M for a photo`;
+        if (activity.kind === "sauna")
+          hint =
+            "Warm timber, hot stones and gentle steam · B adds water · X steps outside · M takes a photo";
       } else if (nearGate) {
         label = "Return to garden · X";
         icon = "return";
@@ -186,6 +206,11 @@ export function createWinterPlace(context) {
         label = "Share warm cocoa · X";
         icon = "tea";
         hint = "Soe kakao · Sit together on the café bench with a warm mug · X";
+      } else if (nearby === "sauna") {
+        label = "Enter sauna together · X";
+        icon = "sauna";
+        hint =
+          "Saun · Leave the snow outside and warm up together on the wooden bench · X";
       }
       return {
         region: busy() ? WINTER_LABELS[activity.kind] : "Lumeküla · Estonia",
@@ -194,16 +219,25 @@ export function createWinterPlace(context) {
           eyebrow: "A SNOWY VILLAGE IN ESTONIA",
           title: "Snow on the rooftops.<br />Warmth for two.",
           objective:
-            activity.memories.size === 3
-              ? "Three winter memories together. Stay awhile, take a photo, or wander home."
-              : "Build a snowman, skate a lap together, and share warm cocoa at the wooden café.",
+            activity.memories.size === 4
+              ? "Four winter memories together. Stay awhile, take a photo, or wander home."
+              : "Build a snowman, skate together, share cocoa, and warm up inside the log sauna.",
         },
-        progress: `${activity.memories.size} / 3 winter memories · Snowman ${world.snowmanStage} / 3`,
+        progress: `${activity.memories.size} / 4 winter memories · Snowman ${world.snowmanStage} / 3`,
         hint,
         instructions: busy()
           ? "<kbd>X</kbd> back to walk <kbd>M</kbd> photo · A winter moment together"
-          : "<kbd>W A S D</kbd> walk <kbd>X</kbd> build / skate / cocoa <kbd>M</kbd> photo <kbd>V</kbd> map",
+          : "<kbd>W A S D</kbd> walk <kbd>X</kbd> build / skate / cocoa / sauna <kbd>M</kbd> photo <kbd>V</kbd> map",
         actions: [
+          {
+            id: "winterSteam",
+            key: "KeyB",
+            icon: "sauna",
+            label: "Add water to hot stones · B",
+            visible: activity.kind === "sauna",
+            disabled: activity.pouring,
+            run: () => activity.pourWater(),
+          },
           {
             id: busy() ? "winterStop" : "placeAction",
             key: "KeyX",
@@ -233,7 +267,7 @@ export function createWinterPlace(context) {
       activity: activity.kind,
       snowmanStage: world.snowmanStage,
       memories: [...activity.memories],
-      totalMemories: 3,
+      totalMemories: 4,
     }),
     reset() {
       framedActivity = false;

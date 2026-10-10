@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { createMeshFactory } from "../../rendering/mesh-factory.js";
+import { createSaunaOutfits } from "./sauna.js";
 import {
   SNOWMAN_STEP_SECONDS,
   poseSnowmanBuilders,
@@ -14,17 +15,20 @@ export const WINTER_LABELS = {
   snowman: "Our village snowman",
   skate: "Skating together",
   cocoa: "Warm cocoa for two",
+  sauna: "Sauna warmth for two",
 };
 
 export function createWinterActivities(context, world) {
   const actors = [context.hero, context.companion.character];
   const rigs = [context.heroRig, context.companion.rig];
   const helpers = createMeshFactory(world.group);
+  createSaunaOutfits(rigs, helpers);
   const memories = new Set();
   let kind = null,
     elapsed = 0,
     building = false,
     stepElapsed = 0,
+    pourElapsed = null,
     saved = [],
     releases = [];
   const mugs = rigs.map((rig, index) => {
@@ -76,7 +80,9 @@ export function createWinterActivities(context, world) {
   }
   function stop(notify = true) {
     if (!kind) return false;
+    if (kind === "sauna") world.sauna.leave();
     kind = null;
+    pourElapsed = null;
     building = false;
     stepElapsed = 0;
     saved.forEach(({ node, position, quaternion }) => {
@@ -127,6 +133,7 @@ export function createWinterActivities(context, world) {
     context.companionReactions.cancel();
     kind = next;
     elapsed = 0;
+    pourElapsed = null;
     stepElapsed = 0;
     building = kind === "snowman" && world.snowmanStage < 3;
     context.clearRestInput();
@@ -175,6 +182,36 @@ export function createWinterActivities(context, world) {
       context.toast(
         "Soe kakao ♥ Warm mugs, gingerbread at the café, and snow drifting past.",
       );
+    } else if (kind === "sauna") {
+      world.sauna.enter();
+      actors.forEach((actor, i) => {
+        actor.position
+          .copy(world.sauna.group.position)
+          .add(new THREE.Vector3(i ? 1.15 : -0.55, 0.42, -1.55));
+        actor.rotation.set(0, i ? -0.12 : 0.12, 0);
+        rigs[i].legs.forEach((leg) => {
+          leg.rotation.x = -1.25;
+        });
+        rigs[i].feet.forEach((foot) => {
+          foot.rotation.x = 1.25;
+        });
+        rigs[i].arms.forEach((arm, j) => {
+          arm.rotation.set(-0.65, 0, j ? 0.1 : -0.1);
+        });
+        releases.push(
+          rigs[i].appearance.override({
+            outfit: "sauna",
+            accessories: {
+              scarf: null,
+              harness: null,
+              ...(i ? { headwear: null } : {}),
+            },
+          }),
+        );
+      });
+      context.toast(
+        "Saun ♥ Settle into the warmth · B adds water to the stones · X to step outside",
+      );
     } else {
       actors.forEach((actor, i) => {
         actor.position
@@ -206,6 +243,57 @@ export function createWinterActivities(context, world) {
       progress,
     });
   }
+  function poseSaunaPour(dt) {
+    if (pourElapsed === null) return;
+    const before = pourElapsed;
+    pourElapsed += dt;
+    if (before < 1.3 && pourElapsed >= 1.3) world.sauna.pourWater();
+    const actor = actors[0],
+      rig = rigs[0];
+    const seat = world.sauna.group.position
+      .clone()
+      .add(new THREE.Vector3(-0.55, 0.42, -1.55));
+    const byStove = world.sauna.group.position
+      .clone()
+      .add(new THREE.Vector3(-2.05, 0, 0.85));
+    const going = THREE.MathUtils.smoothstep(pourElapsed, 0.15, 1);
+    const returning = THREE.MathUtils.smoothstep(pourElapsed, 2.2, 3.3);
+    actor.position.copy(seat).lerp(byStove, going * (1 - returning));
+    const walking = (pourElapsed < 1 || pourElapsed > 2.2) && pourElapsed < 3.3;
+    const bend =
+      THREE.MathUtils.smoothstep(pourElapsed, 1, 1.3) *
+      (1 - THREE.MathUtils.smoothstep(pourElapsed, 1.9, 2.2));
+    actor.rotation.set(
+      0,
+      returning > 0
+        ? Math.atan2(seat.x - byStove.x, seat.z - byStove.z)
+        : walking
+          ? Math.atan2(byStove.x - seat.x, byStove.z - seat.z)
+          : -2.72,
+      0,
+    );
+    rig.body.rotation.x = bend * 0.18;
+    rig.legs.forEach((leg, j) => {
+      leg.rotation.x =
+        -1.25 * (1 - going * (1 - returning)) +
+        (walking ? Math.sin(pourElapsed * 10 + j * Math.PI) * 0.3 : 0);
+    });
+    rig.feet.forEach((foot) => {
+      foot.rotation.x = 1.25 * (1 - going * (1 - returning));
+    });
+    rig.rightArm.rotation.x = -0.5 - bend * 1.05;
+    world.sauna.ladle.rotation.x = -bend * 0.85;
+    if (pourElapsed >= 3.4) {
+      actor.position.copy(seat);
+      actor.rotation.set(0, 0.12, 0);
+      rig.body.rotation.x = 0;
+      rig.arms.forEach((arm, j) => {
+        arm.rotation.set(-0.65, 0, j ? 0.1 : -0.1);
+      });
+      world.sauna.returnLadle();
+      pourElapsed = null;
+    }
+  }
   return {
     start,
     stop,
@@ -233,6 +321,7 @@ export function createWinterActivities(context, world) {
       return building ? SNOWMAN_STEPS[world.snowmanStage] : null;
     },
     get photoTarget() {
+      if (kind === "sauna") return world.sauna.target.clone();
       if (kind === "skate")
         return actors[0].position
           .clone()
@@ -260,6 +349,20 @@ export function createWinterActivities(context, world) {
           rig.leftArm.rotation.x =
             -0.9 - Math.max(0, Math.sin(elapsed * 0.6 + i * 0.3)) * 0.3;
         });
+      } else if (kind === "sauna") {
+        poseSaunaPour(dt);
+        world.sauna.update(dt);
+        rigs.forEach((rig, i) => {
+          rig.body.position.y = Math.sin(elapsed * 1.3 + i * 0.3) * 0.012;
+          rig.head.rotation.y = Math.sin(elapsed * 0.4 + i) * 0.08;
+          rig.eyes.setClosed(Math.sin(elapsed * 0.55 + i * 0.15) > 0.7);
+        });
+        if (elapsed >= 6 && !memories.has("sauna")) {
+          memories.add("sauna");
+          context.toast(
+            "Warmth for two ♥ A sauna memory to keep. Stay as long as you like.",
+          );
+        }
       } else if (building) {
         stepElapsed += dt;
         while (stepElapsed >= SNOWMAN_STEP_SECONDS) {
@@ -279,6 +382,16 @@ export function createWinterActivities(context, world) {
     reset() {
       stop(false);
       memories.clear();
+    },
+    pourWater() {
+      if (kind !== "sauna" || pourElapsed !== null) return false;
+      pourElapsed = 0;
+      world.sauna.holdLadle(rigs[0].rightHand);
+      context.toast("A ladle of water ♥ A little steam from the hot stones");
+      return true;
+    },
+    get pouring() {
+      return pourElapsed !== null;
     },
   };
 }
