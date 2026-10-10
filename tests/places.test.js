@@ -95,7 +95,10 @@ test("a registered place supports entry, movement, actions, a room, return, and 
   assert.equal(game.characters.hero.position.y, 2);
   assert.equal(game.characters.companion.character.position.y, 2);
   assert.equal(element("#region").firstChild.textContent, "Lantern Grove");
-  assert.equal(element("#placeAction").textContent, "Collect keepsake · X");
+  assert.equal(
+    element("#placeAction").attributes["aria-label"],
+    "Collect keepsake · X",
+  );
   assert.equal(element("#placeAction").hidden, false);
   assert.equal(element("#benchAction").hidden, true);
   assert.equal(game.readProgress().location, "Lantern Grove");

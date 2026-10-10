@@ -39,10 +39,15 @@ test("activity return icons keep their pointer target between frames and update 
   expect(pointerTarget).toBe(pressedTarget);
   expect(attributes["aria-label"]).toBe("Return to garden · X");
   expect(button.title).toBe("Return to garden · X");
-  renderActionButton(button, "Explore tide pool · X");
-  expect(markup).toBe("Explore tide pool · X");
-  expect(pointerTarget).toBeNull();
+  renderActionButton(button, "Explore tide pool · X", "pool");
+  expect(markup).toContain('<circle cx="10" cy="9" r="6"');
+  expect(attributes["aria-label"]).toBe("Explore tide pool · X");
+  expect(pointerTarget).not.toBe(pressedTarget);
+  const poolTarget = pointerTarget;
+  for (let frame = 0; frame < 120; frame++)
+    renderActionButton(button, "Explore tide pool · X", "pool");
+  expect(pointerTarget).toBe(poolTarget);
   renderActionButton(button, "Back to beach walk · X", "return");
   expect(pointerTarget).not.toBe(pressedTarget);
-  expect(writes).toBe(2);
+  expect(writes).toBe(3);
 });

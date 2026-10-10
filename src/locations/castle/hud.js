@@ -10,7 +10,15 @@ export function createCastleHud(context) {
         {
           id: "castleAction",
           key: "KeyX",
-          icon: bedRest.resting ? "return" : undefined,
+          icon: bedRest.resting
+            ? "return"
+            : {
+                bed: "bench",
+                book: "book",
+                tea: "tea",
+                piano: "piano",
+                chest: "chest",
+              }[action?.kind],
           label: action?.label ?? "Explore the castle · X",
           visible: Boolean(action),
           disabled: state.castleActivityCooldown > 0,

@@ -30,6 +30,7 @@ export function createGardenHud(context) {
         {
           key: "KeyX",
           label: "Visit Sunset Beach · X",
+          icon: "gate",
           visible: nearBeachGate && !benchMoment.seated,
           run: () => context.transitions.go("seaside"),
         },
@@ -37,6 +38,7 @@ export function createGardenHud(context) {
           id: "benchAction",
           key: "KeyB",
           label: "Sit & hug · B",
+          icon: "bench",
           visible: !benchMoment.seated && benchMoment.nearby(),
           run: () => benchMoment.sit(),
         },

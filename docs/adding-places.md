@@ -106,4 +106,4 @@ Run `npm test` and `npm run test:build`. Add focused place tests using `createTe
 
 The larger gameplay regression scenario remains as coverage for existing journeys between destinations. Models continue to use the GLB workflow documented in the README.
 
-HUD actions can set `icon: "return"` for the shared return arrow. Keep a descriptive `label` with the shortcut; it becomes the accessible name and tooltip.
+HUD actions use compact icons. Set `icon: "return"` for the shared return arrow, or choose an activity icon from `src/ui/action-icons.js` (for example `pool`, `castle`, `collect`, or `tea`). Actions without a specific icon show a sparkle. Keep a descriptive `label` with the shortcut; it becomes the accessible name and tooltip.

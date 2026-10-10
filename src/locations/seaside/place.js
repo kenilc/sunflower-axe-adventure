@@ -142,22 +142,27 @@ export function createSeasidePlace(context) {
         castle = world.sandcastle,
         nearCastle = castle.nearby(hero.position) && !nearby;
       let label = "Collect · X",
+        icon = "collect",
         hint =
           "Rock pools: west · Sandcastle: middle · Towels: east · Garden path: south",
         run = collect;
       if (rest.seated) {
+        icon = "return";
         label = "Stand up · X";
         hint = "Stay awhile and watch the waves · X to stand up";
         run = () => rest.stand();
       } else if (activity.active) {
+        icon = "return";
         label = "Back to beach walk · X";
         hint = `${activity.label}${activity.secondsLeft === null ? "" : ` · ${activity.secondsLeft}s`} · X to stop`;
         run = () => activity.cancel();
       } else if (nearTowels) {
+        icon = "sunset";
         label = "Sit & watch sunset · X";
         hint = "Sit together on the towels · X";
         run = () => rest.sit();
       } else if (nearGate) {
+        icon = "return";
         label = "Return to garden · X";
         hint = "Walk through the shell arch to the garden, or press X";
         run = () => context.transitions.go("garden");
@@ -165,6 +170,7 @@ export function createSeasidePlace(context) {
         label = `Collect ${nearby.name} · X`;
         hint = `${nearby.name} nearby · X to collect`;
       } else if (nearCastle) {
+        icon = "castle";
         label =
           castle.stage < 3
             ? `${CASTLE_STAGES[castle.stage]} · X`
@@ -175,6 +181,7 @@ export function createSeasidePlace(context) {
             : "Our sandcastle is finished · X to admire · B to rebuild";
         run = () => activity.start("castle", castle);
       } else if (pool) {
+        icon = "pool";
         label = "Explore tide pool · X";
         hint = "Look closely at the little sea creatures · X";
         run = () => activity.start("pool", pool);
@@ -210,7 +217,7 @@ export function createSeasidePlace(context) {
                 ? "beachActivityStop"
                 : "placeAction",
             key: "KeyX",
-            icon: busy() || (nearGate && !nearTowels) ? "return" : undefined,
+            icon,
             label,
             visible:
               busy() ||
@@ -225,6 +232,7 @@ export function createSeasidePlace(context) {
             id: "sandcastleReset",
             key: "KeyB",
             label: "Rebuild castle · B",
+            icon: "rebuild",
             visible: !busy() && nearCastle && castle.stage === 3,
             run: () => {
               castle.reset();

@@ -15,6 +15,18 @@ export function createVillageHud(context) {
         {
           id: "villageAction",
           key: "KeyX",
+          icon: sheepMoment.active
+            ? "sheep"
+            : alpineCart.riding
+              ? "cart"
+              : {
+                  shop: "shop",
+                  sheep: "sheep",
+                  lookout: "cart",
+                  bakery: "bakery",
+                  outfit: "outfit",
+                  flowers: "flowers",
+                }[action?.kind],
           label: action?.label ?? "Explore the village · X",
           visible: Boolean(action),
           disabled:

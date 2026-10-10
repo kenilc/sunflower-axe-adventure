@@ -225,7 +225,9 @@ test("shell arches keep their triggers aligned, offer X at both ends, and respec
     .copy(beach.entranceGate.group.position)
     .add({ x: 0, y: 0, z: -3 });
   game.update();
-  expect(element("#placeAction").textContent).toBe("Visit Sunset Beach · X");
+  expect(element("#placeAction").attributes["aria-label"]).toBe(
+    "Visit Sunset Beach · X",
+  );
   element("#guide").open = true;
   game.controls.interact();
   expect(game.passageTransition.active).toBe(false);
@@ -388,7 +390,9 @@ test("towels seat both friends, keep the last walking save, and restore walking 
   const legPositions = game.characters.rig.legs.map((leg) =>
     leg.position.clone(),
   );
-  expect(element("#placeAction").textContent).toBe("Sit & watch sunset · X");
+  expect(element("#placeAction").attributes["aria-label"]).toBe(
+    "Sit & watch sunset · X",
+  );
   game.controls.interact();
   expect(place.rest.seated).toBe(true);
   expect(companion.rig.held.visible).toBe(false);
@@ -515,7 +519,9 @@ test("sandcastles build together in three stages, pause and cancel safely, and c
   }
   expect(game.readProgress().placeProgress.sandcastleStage).toBe(3);
   frames(game, 1);
-  expect(element("#placeAction").textContent).toBe("Admire our castle · X");
+  expect(element("#placeAction").attributes["aria-label"]).toBe(
+    "Admire our castle · X",
+  );
   element("#sandcastleReset").onclick();
   expect(castle.stage).toBe(0);
   game.controls.interact();
@@ -560,7 +566,9 @@ test("tide pools are approachable, inspectable, animated, and restore the walkin
     ).toBe(true);
     game.characters.hero.position.copy(approach);
     frames(game, 1);
-    expect(element("#placeAction").textContent).toBe("Explore tide pool · X");
+    expect(element("#placeAction").attributes["aria-label"]).toBe(
+      "Explore tide pool · X",
+    );
     game.controls.interact();
     expect(place.activity.active).toBe(true);
     game.controls.interact();

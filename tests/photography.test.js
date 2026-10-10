@@ -465,9 +465,7 @@ test("activity photos pause every ride and pose, save captions, and resume the o
       element("#funfairExit").onclick();
       frames(1);
       expect(funfairActivities.playing).toBe(false);
-      expect(element("#funfairAction").textContent).not.toContain(
-        "#returnIcon",
-      );
+      expect(element("#funfairAction").innerHTML).not.toContain("#returnIcon");
     }
   }
   expect(photoAlbum.photos).toHaveLength(cases.length);

@@ -8,7 +8,11 @@ export function createFunfairHud(context) {
         {
           id: "funfairAction",
           key: "KeyX",
-          icon: activity.riding ? "return" : undefined,
+          icon: activity.riding
+            ? "return"
+            : { ferris: "ferris", carousel: "carousel", toss: "ring" }[
+                action?.kind
+              ],
           label: activity.aiming
             ? "Throw ring · X"
             : (action?.label ?? "Explore the funfair · X"),

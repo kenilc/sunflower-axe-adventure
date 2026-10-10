@@ -370,6 +370,9 @@ body.is-moving #toast {
   left: 50%;
   transform: translateX(-50%);
   z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 #benchControls button {
   background: #f4dc93;
@@ -380,16 +383,6 @@ body.is-moving #toast {
 }
 #benchControls button[hidden] {
   display: none !important;
-}
-#benchControls:has(#sandcastleReset:not([hidden])) {
-  display: flex;
-  gap: 8px;
-  width: min(460px, calc(100vw - 32px));
-  justify-content: center;
-}
-#benchControls:has(#sandcastleReset:not([hidden])) button:not([hidden]) {
-  flex: 1;
-  padding: 12px;
 }
 @media (max-width: 700px) {
   #benchControls {
@@ -1208,11 +1201,11 @@ body.photo-mode #toast {
   }
 }
 
-body:has(#benchControls button.return-button:not([hidden])) #toast {
+body:has(#benchControls button.action-button:not([hidden])) #toast {
   bottom: 80px;
 }
 @media (max-width: 700px) {
-  body:has(#benchControls button.return-button:not([hidden])) #toast {
+  body:has(#benchControls button.action-button:not([hidden])) #toast {
     bottom: 260px;
   }
 }
@@ -1225,7 +1218,7 @@ body:has(#benchControls button.return-button:not([hidden])) #toast {
   overflow: hidden;
 }
 button.return-button,
-#benchControls button.return-button {
+#benchControls button.action-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1235,7 +1228,8 @@ button.return-button,
   min-width: 46px;
   padding: 10px;
 }
-.return-button svg {
+.return-button svg,
+.action-button svg {
   flex-shrink: 0;
   width: 24px;
   height: 24px;
