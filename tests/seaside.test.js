@@ -1,3 +1,5 @@
+import * as THREE from "three";
+import { LOCATION_SAVE_KEY } from "../src/game/location-save.js";
 import { afterEach, expect, test, vi } from "vitest";
 import { createTestGame } from "./helpers/game.js";
 import {
@@ -250,4 +252,200 @@ test("shell arches keep their triggers aligned, offer X at both ends, and respec
   frames(game);
   expect(game.state.area).toBe("garden");
   expect(hero.position.toArray()).toEqual([23, 0, 21]);
+});
+
+test("surf and gulls animate during exploration and freeze in paused views", async () => {
+  const { game, element } = await createTestGame();
+  game.transitions.open("seaside");
+  const beach = game.places.get("seaside").terrain;
+  const { waves, birds, shoreBirds } = beach.ambience;
+  const snapshot = () => ({
+    foam: Array.from(waves[0].foam.geometry.attributes.position.array),
+    flight: birds[0].bird.position.toArray(),
+    wings: birds.map(({ wings }) => wings[0].rotation.z),
+    shore: shoreBirds[0].bird.position.toArray(),
+  });
+  const before = snapshot();
+  frames(game, 25);
+  const moving = snapshot();
+  expect(moving.foam).not.toEqual(before.foam);
+  expect(moving.flight).not.toEqual(before.flight);
+  expect(moving.wings).not.toEqual(before.wings);
+  expect(moving.shore).not.toEqual(before.shore);
+  expect(moving.foam.every(Number.isFinite)).toBe(true);
+  element("#guide").open = true;
+  frames(game, 20);
+  expect(snapshot()).toEqual(moving);
+  element("#guide").open = false;
+  game.controls.openKeepsakes();
+  frames(game, 20);
+  expect(snapshot()).toEqual(moving);
+  game.activities.collection.close();
+  game.activities.photography.enter();
+  frames(game, 20);
+  expect(snapshot()).toEqual(moving);
+  game.activities.photography.exit();
+  frames(game, 10);
+  expect(snapshot().flight).not.toEqual(moving.flight);
+  const p = game.characters.hero.position;
+  expect(beach.contains(p.x, p.z)).toBe(true);
+});
+
+test("beach clothing preserves identities and restores other outfits on departure, reload, travel and restart", async () => {
+  const storage = memoryStorage();
+  const { game, element, handlers } = await createTestGame({ storage });
+  const rigs = [game.characters.rig, game.characters.companion.rig];
+  const originalFootMaterials = rigs.map((rig) => rig.leftFoot.material);
+  game.transitions.open("seaside");
+  frames(game);
+  for (const rig of rigs) {
+    expect(rig.appearance.state.outfit).toBe("beach");
+    expect(rig.body.getObjectByName("beach-shirt").visible).toBe(true);
+    expect(rig.leftLeg.getObjectByName("beach-sandal").visible).toBe(true);
+    expect(rig.leftFoot.visible).toBe(false);
+  }
+  expect(rigs[0].head.getObjectByName("flower-petal-0").visible).toBe(true);
+  expect(rigs[1].head.getObjectByName("companion-hair-fringe-0").visible).toBe(
+    true,
+  );
+  expect(
+    rigs[1].head.children
+      .filter((node) => node.userData.clothingSlot === "headwear")
+      .every((node) => !node.visible),
+  ).toBe(true);
+  handlers.get("pagehide")();
+  const { game: resumed } = await createTestGame({ storage });
+  expect(resumed.state.area).toBe("seaside");
+  expect(resumed.characters.rig.appearance.state.outfit).toBe("beach");
+  expect(game.controls.travelTo("garden")).toBe(true);
+  frames(game);
+  rigs.forEach((rig, i) => {
+    expect(rig.appearance.state.outfit).toBe("winter");
+    expect(rig.body.getObjectByName("beach-shirt").visible).toBe(false);
+    expect(rig.leftFoot.visible).toBe(true);
+    expect(rig.leftFoot.material).toBe(originalFootMaterials[i]);
+  });
+  expect(game.controls.fastTravel("seaside")).toBe(true);
+  frames(game);
+  expect(rigs[0].appearance.state.outfit).toBe("beach");
+  // Another place's outfit takes over after restoring the beach overrides.
+  game.transitions.restore("festival");
+  expect(rigs[0].appearance.state.outfit).toBe("summer");
+  game.transitions.restore("seaside");
+  expect(rigs[0].appearance.state.outfit).toBe("beach");
+  element("#restart").onclick();
+  rigs.forEach((rig) => {
+    expect(rig.appearance.state.outfit).toBe("winter");
+    expect(rig.body.getObjectByName("beach-shirt").visible).toBe(false);
+  });
+});
+
+test("sea, sand and surf extend beyond the camera's view along both ends of the coast", async () => {
+  const { game } = await createTestGame();
+  game.transitions.open("seaside");
+  const beach = game.places.get("seaside").terrain;
+  beach.group.updateWorldMatrix(true, true);
+  for (const x of [-400, 400]) {
+    const ray = new THREE.Raycaster(
+      new THREE.Vector3(x, 20, -100),
+      new THREE.Vector3(0, -1, 0),
+    );
+    expect(ray.intersectObject(beach.sea).length).toBeGreaterThan(0);
+    ray.ray.origin.z = 5;
+    expect(ray.intersectObject(beach.sand).length).toBeGreaterThan(0);
+    ray.ray.origin.z = -22;
+    expect(ray.intersectObject(beach.wetSand).length).toBeGreaterThan(0);
+  }
+  const foam = beach.ambience.waves[0].foam.geometry.attributes.position;
+  expect(foam.getX(0)).toBeLessThan(-400);
+  expect(foam.getX(foam.count - 1)).toBeGreaterThan(400);
+  expect(beach.contains(400, 0)).toBe(false);
+});
+
+test("towels seat both friends, keep the last walking save, and restore walking and held items", async () => {
+  const storage = memoryStorage();
+  const { game, element, handlers } = await createTestGame({ storage });
+  game.transitions.open("seaside");
+  const place = game.places.get("seaside"),
+    spot = place.terrain.sunsetSpot;
+  const hero = game.characters.hero,
+    companion = game.characters.companion;
+  hero.position.copy(spot.group.position).add(new THREE.Vector3(0, 0, 2.5));
+  companion.reset(hero.position, place.terrain.blockers, place.terrain);
+  companion.rig.items.equip("ice-cream");
+  frames(game, 3);
+  handlers.get("pagehide")();
+  const checkpoint = JSON.parse(storage.getItem(LOCATION_SAVE_KEY));
+  const walking = hero.position.clone();
+  const legPositions = game.characters.rig.legs.map((leg) =>
+    leg.position.clone(),
+  );
+  expect(element("#placeAction").textContent).toBe("Sit & watch sunset · X");
+  game.controls.interact();
+  expect(place.rest.seated).toBe(true);
+  expect(companion.rig.held.visible).toBe(false);
+  expect(game.readProgress().placeProgress.resting).toBe(true);
+  const seated = hero.position.clone();
+  const wave = Array.from(
+    place.terrain.ambience.waves[1].foam.geometry.attributes.position.array,
+  );
+  game.input.keys.KeyW = true;
+  frames(game, 25);
+  expect(hero.position.equals(seated)).toBe(true);
+  expect(companion.character.position.x - hero.position.x).toBeCloseTo(1.6);
+  expect(
+    Array.from(
+      place.terrain.ambience.waves[1].foam.geometry.attributes.position.array,
+    ),
+  ).not.toEqual(wave);
+  expect(element("#sunsetStand").textContent).toBe("Stand up · X");
+  expect(element("#stick").hidden).toBe(true);
+  expect(game.controls.openMap()).toBe(false);
+  expect(game.controls.openKeepsakes()).toBe(false);
+  expect(game.activities.photography.enter()).toBe(false);
+  expect(game.controls.travelTo("garden")).toBe(false);
+  expect(game.controls.fastTravel("garden")).toBe(false);
+  vi.spyOn(performance, "now").mockReturnValue(60_000);
+  game.update();
+  expect(element("#toast").style.opacity).toBe(0);
+  const bodyY = game.characters.rig.body.position.y;
+  element("#guide").open = true;
+  frames(game, 10);
+  expect(game.characters.rig.body.position.y).toBe(bodyY);
+  game.controls.interact();
+  expect(place.rest.seated).toBe(true);
+  element("#guide").open = false;
+  handlers.get("pagehide")();
+  expect(JSON.parse(storage.getItem(LOCATION_SAVE_KEY))).toEqual(checkpoint);
+  game.controls.interact();
+  expect(place.rest.seated).toBe(false);
+  expect(hero.position.equals(walking)).toBe(true);
+  game.characters.rig.legs.forEach((leg, i) =>
+    expect(leg.position.equals(legPositions[i])).toBe(true),
+  );
+  expect(companion.rig.held.visible).toBe(true);
+  expect(companion.rig.items.current).toBe("ice-cream");
+  expect(game.input.keys.KeyW).toBe(false);
+  const { game: resumed } = await createTestGame({ storage });
+  expect(resumed.places.get("seaside").rest.seated).toBe(false);
+  expect(resumed.characters.hero.position.y).toBe(0);
+  expect(resumed.characters.hero.position.equals(walking)).toBe(true);
+});
+
+test("sunset activity links and restarting restore the seated pose without leaving overrides", async () => {
+  const { game, element } = await createTestGame();
+  const originalY = game.characters.rig.leftLeg.position.y;
+  game.transitions.open("seaside", { activity: "sunset" });
+  const place = game.places.get("seaside");
+  frames(game, 20);
+  expect(place.rest.seated).toBe(true);
+  expect(place.terrain.sunsetSpot.umbrella.name).toBe("sunset-parasol");
+  expect(game.characters.rig.appearance.state.outfit).toBe("beach");
+  element("#restart").onclick();
+  expect(place.rest.seated).toBe(false);
+  expect(game.state.area).toBe("garden");
+  expect(game.characters.hero.position.toArray()).toEqual([0, 0, 7]);
+  expect(game.characters.rig.leftLeg.position.y).toBe(originalY);
+  expect(game.characters.rig.appearance.state.outfit).toBe("winter");
+  expect(game.characters.rig.items.canThrow).toBe(true);
 });

@@ -675,6 +675,7 @@ export function createGame({ createRenderer, models } = {}) {
     camera,
     capture: createPhotoCapture({ renderer, scene }),
     canEnter: () =>
+      locations.active.canSaveLocation?.() !== false &&
       !collection?.open &&
       !travelMap?.open &&
       !$("#guide").open &&
@@ -828,6 +829,7 @@ export function createGame({ createRenderer, models } = {}) {
   const clock = new THREE.Clock();
   const desired = new THREE.Vector3();
   function frame() {
+    if (performance.now() > state.toastUntil) $("#toast").style.opacity = 0;
     let dt = Math.min(clock.getDelta(), 0.04),
       time = clock.elapsedTime;
     const transitioning = passageTransition.active;
@@ -1034,6 +1036,7 @@ export function createGame({ createRenderer, models } = {}) {
   const loop = createGameLoop(frame);
   function canSaveLocation() {
     return (
+      locations.active.canSaveLocation?.() !== false &&
       !passageTransition.active &&
       !photoMode.active &&
       !photography.viewing &&

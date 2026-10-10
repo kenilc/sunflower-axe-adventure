@@ -1205,3 +1205,12 @@ body.photo-mode #toast {
     transition: none;
   }
 }
+
+body:has(#sunsetStand:not([hidden])) #toast {
+  bottom: 80px;
+}
+@media (max-width: 700px) {
+  body:has(#sunsetStand:not([hidden])) #toast {
+    bottom: 260px;
+  }
+}

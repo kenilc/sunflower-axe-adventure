@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { createSunsetSpot } from "./sunset-rest.js";
+import { createBeachAmbience } from "./ambience.js";
 import { createSeasideGate } from "./gate.js";
 import { BEACH_FINDS } from "../../systems/keepsakes.js";
 
@@ -8,14 +10,17 @@ export function createSeaside({ scene, garden, helpers, keepsakes }) {
   group.name = "sunset-seaside";
   scene.add(group);
   const blockers = [];
+  let elapsed = 0;
   const heightAt = () => 0;
   const contains = (x, z) => Math.abs(x) <= 29 && z >= -18 && z <= 24;
+  // Continue the coast past the camera's far plane in every supported view.
+  // Scenery is wider than the walking terrain so orbiting never reveals edges.
   const sand = mesh(
-    new THREE.BoxGeometry(76, 0.6, 50, 50, 1, 1),
+    new THREE.BoxGeometry(1400, 0.6, 900, 280, 1, 1),
     "#e6c296",
     0,
     -0.3,
-    7,
+    432,
     group,
   );
   const sandVertices = sand.geometry.attributes.position;
@@ -27,7 +32,9 @@ export function createSeaside({ scene, garden, helpers, keepsakes }) {
       );
   }
   sand.geometry.computeVertexNormals();
-  box(100, 0.02, 9, "#bc9e86", 0, -0.04, -21, group);
+  sand.name = "continuous-beach-sand";
+  const wetSand = box(1400, 0.02, 12, "#bc9e86", 0, -0.04, -21, group);
+  wetSand.name = "continuous-wet-sand";
 
   // A sky dome keeps the sunset visible while orbiting or taking photos.
   const sky = new THREE.Mesh(
@@ -59,37 +66,21 @@ export function createSeaside({ scene, garden, helpers, keepsakes }) {
   );
   sun.castShadow = false;
   const sea = mesh(
-    new THREE.PlaneGeometry(480, 230, 80, 50),
+    new THREE.PlaneGeometry(1400, 1400, 64, 64),
     new THREE.MeshStandardMaterial({
-      color: "#7a9fa9",
+      color: "#5b9dab",
       roughness: 0.36,
-      metalness: 0.18,
+      metalness: 0.05,
     }),
     0,
     -0.12,
-    -136,
+    -500,
     group,
   );
+  sea.name = "continuous-sea";
   sea.rotation.x = -Math.PI / 2;
   sea.castShadow = false;
-  const foam = [];
-  for (let i = 0; i < 5; i++) {
-    const line = mesh(
-      new THREE.PlaneGeometry(100, 0.12 + i * 0.04),
-      new THREE.MeshBasicMaterial({
-        color: "#fff0df",
-        transparent: true,
-        opacity: 0.42,
-        depthWrite: false,
-      }),
-      0,
-      0.01,
-      -21 - i * 3.8,
-      group,
-    );
-    line.rotation.x = -Math.PI / 2;
-    foam.push(line);
-  }
+  const ambience = createBeachAmbience({ parent: group, helpers });
   const reflections = [];
   for (let i = 0; i < 36; i++) {
     const strip = mesh(
@@ -144,6 +135,9 @@ export function createSeaside({ scene, garden, helpers, keepsakes }) {
   driftwood.rotation.y = 0.4;
   blockers.push({ x: 18, z: 17, r: 2.6 });
 
+  const sunsetSpot = createSunsetSpot({ parent: group, helpers });
+  blockers.push(sunsetSpot.blocker);
+
   const entranceGate = createSeasideGate({
     parent: garden,
     helpers,
@@ -180,18 +174,6 @@ export function createSeaside({ scene, garden, helpers, keepsakes }) {
     headland.scale.set(1.5, 0.5, 1);
     headland.position.y = -radius * 0.38;
     headland.castShadow = false;
-  }
-  const gulls = [];
-  for (let i = 0; i < 5; i++) {
-    const bird = new THREE.Group();
-    bird.position.set(-34 + i * 17, 18 + Math.sin(i * 2) * 4, -85 - i * 8);
-    group.add(bird);
-    for (const side of [-1, 1]) {
-      const wing = box(0.9, 0.055, 0.18, "#70677e", side * 0.43, 0, 0, bird);
-      wing.rotation.z = side * 0.25;
-      wing.castShadow = false;
-    }
-    gulls.push(bird);
   }
   for (let i = 0; i < 65; i++) {
     const x = Math.sin(i * 7.3) * 28,
@@ -294,6 +276,11 @@ export function createSeaside({ scene, garden, helpers, keepsakes }) {
       if (group.visible) returnGate.animate(time);
     },
     blockers,
+    ambience,
+    sunsetSpot,
+    sea,
+    sand,
+    wetSand,
     finds,
     heightAt,
     contains,
@@ -309,14 +296,10 @@ export function createSeaside({ scene, garden, helpers, keepsakes }) {
             ) < 1.65,
         );
     },
-    animate(time) {
-      gulls.forEach((bird, i) => {
-        bird.position.x = -34 + i * 17 + Math.sin(time * 0.06 + i) * 6;
-        bird.children.forEach((wing, j) => {
-          wing.rotation.z =
-            (j === 0 ? -1 : 1) * (0.15 + Math.sin(time * 2 + i) * 0.18);
-        });
-      });
+    animate(dt) {
+      ambience.update(dt);
+      elapsed += dt;
+      const time = elapsed;
       const positions = sea.geometry.attributes.position;
       for (let i = 0; i < positions.count; i++)
         positions.setZ(
@@ -326,10 +309,6 @@ export function createSeaside({ scene, garden, helpers, keepsakes }) {
             0.1,
         );
       positions.needsUpdate = true;
-      foam.forEach((line, i) => {
-        line.position.z = -21 - i * 3.8 + Math.sin(time * 0.6 + i) * 0.8;
-        line.material.opacity = 0.22 + Math.sin(time * 0.6 + i) * 0.12;
-      });
       reflections.forEach((line, i) => {
         line.material.opacity = 0.22 + Math.sin(time * 1.4 + i * 2) * 0.13;
       });

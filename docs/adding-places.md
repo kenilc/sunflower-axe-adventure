@@ -98,6 +98,8 @@ For a room, set `kind: "room"` and `parent` to its containing place. Attach a se
 
 Transport-controlled terrain uses `kind: "context"` and a parent's `resolve()` callback. Existing lagoon and summit definitions use this because their activities control arrival and scenery. New ordinary places generally use the default `kind: "area"`.
 
+A place can supply `canSaveLocation()` to return `false` during a temporary seated pose. The coordinator keeps the previous walking checkpoint and blocks photography, the map, and Keepsakes until the activity finishes. Pair it with `canLeave()` and restore all character transforms in `exit()` and `reset()`.
+
 ## Validation
 
 Run `npm test` and `npm run test:build`. Add focused place tests using `createTestGame()` from `tests/helpers/game.js`. Include entry and return, collision/boundary behavior, action dispatch, pause, persistent progress, and restart during an activity or fade.
