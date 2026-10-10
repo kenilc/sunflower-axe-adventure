@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 import * as THREE from "three";
 import { createTestGame } from "./helpers/game.js";
+import { expectSolidScenery } from "./helpers/scenery.js";
 import { LOCATION_SAVE_KEY } from "../src/game/location-save.js";
 import { SNOWMAN_STEP_SECONDS } from "../src/locations/winter/snowman-building.js";
 
@@ -77,6 +78,60 @@ test("winter houses fade only for the heroine, including in photo mode", async (
   heroine.position.set(-25, 0, 3);
   frames(game, 30);
   expect(wall.material.opacity).toBeLessThan(0.09);
+  game.activities.photography.exit();
+});
+
+test("a snowball blocking her stays solid while building and photographing, then exploration fading resumes", async () => {
+  const { game } = await createTestGame();
+  game.transitions.open("winter", { activity: "snowman" });
+  const place = game.places.get("winter"),
+    hero = game.characters.hero,
+    camera = game.rendering.camera;
+  frames(game, 100);
+  const ball =
+    place.world.snowman.getObjectByName("snowman-snowball-0").children[0];
+  const center = ball.getWorldPosition(new THREE.Vector3());
+  const target = hero.position.clone().setY(center.y);
+  const offset = center.clone().sub(target);
+  place.getPhotoPreset = () => ({
+    lockActors: true,
+    target,
+    yaw: Math.atan2(offset.x, offset.z),
+    pitch: 0,
+    distance: 6,
+  });
+  expect(game.activities.photography.enter()).toBe(true);
+  frames(game, 30);
+  // Verify this camera actually sees the snowball in front of her.
+  ball.updateWorldMatrix(true, true);
+  const ray = new THREE.Raycaster(
+    camera.position,
+    target.clone().sub(camera.position).normalize(),
+    0,
+    camera.position.distanceTo(target),
+  );
+  expect(ray.intersectObject(ball).length).toBeGreaterThan(0);
+  expect(ball.material.opacity).toBe(1);
+  expect(ball.material.transparent).toBe(false);
+  game.activities.photography.exit();
+  frames(game, 5);
+  expect(ball.material.opacity).toBe(1);
+  place.activity.stop(false);
+  place.world.buildSnowman();
+  const built = ball.getWorldPosition(new THREE.Vector3());
+  hero.position
+    .copy(built)
+    .add(new THREE.Vector3(0, 0, -3))
+    .setY(0);
+  place.getPhotoPreset = () => ({
+    target: built,
+    yaw: 0,
+    pitch: 0,
+    distance: 6,
+  });
+  expect(game.activities.photography.enter()).toBe(true);
+  frames(game, 30);
+  expect(ball.material.opacity).toBeLessThan(0.09);
   game.activities.photography.exit();
 });
 
@@ -281,6 +336,7 @@ test("all winter moments pause for photos, preserve held items and restore walki
     handlers.get("keydown")(key("KeyX"));
     frames(game, 2);
     expect(place.activity.kind).toBe(kind);
+    expectSolidScenery(game.rendering.scene, kind);
     expect(game.controls.openMap()).toBe(false);
     expect(game.controls.travelTo("garden")).toBe(false);
     expect(game.activities.photography.enter()).toBe(true);
@@ -289,6 +345,7 @@ test("all winter moments pause for photos, preserve held items and restore walki
       time = place.activity.elapsed;
     frames(game, 180);
     expect(poses(game)).toEqual(pose);
+    expectSolidScenery(game.rendering.scene, `${kind} photo`);
     expect(place.activity.elapsed).toBe(time);
     expect(game.activities.photography.takePhoto()).toBe(true);
     expect(game.activities.photoAlbum.photos[0].location).toContain("Lumeküla");

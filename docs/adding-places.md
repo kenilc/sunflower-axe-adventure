@@ -71,6 +71,8 @@ Import the factory in `src/locations/register-places.js`, then add `places.regis
 
 `?area=grove` opens registered root places through their parent route. An optional `activity` query is passed to entry adapters. The generic `settings.spawn` is used for direct entries.
 
+Opaque scenery is indexed automatically for heroine sightline fading, including nested objects and moving structures. Characters are excluded, and scenery that hides only the companion stays opaque. This also runs in exploration photo mode and registered rooms. Games and activities (including their photos) immediately restore and retain the original opacity, depth writing and shadows. Specialized controllers must pass `context.shouldFadeScenery()` as the visibility update's fourth argument; the shared coverage uses the same policy. Activity state is identified by the existing activity photo label or a place's `canSaveLocation()` activity guard. Existing landscape controllers retain their forest and terrain handling; the shared coverage skips meshes they already own. Do not hide walls or buildings based on camera angle or proximity. Transparency used for water, glass, smoke and particles keeps its existing appearance.
+
 Walking positions and camera views save automatically for registered areas and rooms. Reload restores the parent route before placing the player on the saved terrain. A `kind: "context"` place must provide `restore()` to restore its transport state and scenery without replaying the journey (as the lagoon and summit do). Saves contain location and view only; per-place collectibles and activity progress remain session state.
 
 ## Contract

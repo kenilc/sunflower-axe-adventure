@@ -628,9 +628,9 @@ export function createAlpineNature({
   // Hide only trees crossing the camera-to-character sightlines. Using zero
   // scale also removes their shadows, without thousands of material clones.
   const hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
-  function updateVisibility(camera, characters) {
+  function updateVisibility(camera, characters, enabled = true) {
     details.updateVisibility();
-    const targets = characters.flatMap((character) =>
+    const targets = (enabled ? characters : []).flatMap((character) =>
       [0.7, 1.6, 2.5].map((height) =>
         character.position.clone().add(new THREE.Vector3(0, height, 0)),
       ),

@@ -144,7 +144,12 @@ export function createWinterPlace(context) {
     },
     afterCamera(dt) {
       if (context.locations.area === "winter")
-        world.visibility.update(context.camera, [context.hero], dt);
+        world.visibility.update(
+          context.camera,
+          [context.hero],
+          dt,
+          context.shouldFadeScenery(),
+        );
     },
     getHud() {
       const nearby = world.nearby(context.hero.position);

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { LOCATION_SAVE_KEY } from "../src/game/location-save.js";
 import { afterEach, expect, test, vi } from "vitest";
 import { createTestGame } from "./helpers/game.js";
+import { expectSolidScenery } from "./helpers/scenery.js";
 import { createBeachAmbience } from "../src/locations/seaside/ambience.js";
 import { createMeshFactory } from "../src/rendering/mesh-factory.js";
 import { createPhotoAlbum } from "../src/systems/photo-album.js";
@@ -770,6 +771,7 @@ test.each(["sunset", "sandcastle", "tidepool"])(
     const checkpoint = storage.getItem(LOCATION_SAVE_KEY);
     game.controls.interact();
     frames(game, 15);
+    expectSolidScenery(game.rendering.scene, kind);
     const posedNodes = [
       hero,
       game.characters.companion.character,
@@ -819,6 +821,7 @@ test.each(["sunset", "sandcastle", "tidepool"])(
     mode.zoomByScale(0.9);
     game.input.keys.KeyW = true;
     frames(game, 160);
+    expectSolidScenery(game.rendering.scene, `${kind} photo`);
     expect(place.activity.secondsLeft).toBe(remaining);
     posedNodes.forEach((node, i) => {
       expect(node.position.equals(pose[i].position)).toBe(true);

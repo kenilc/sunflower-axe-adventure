@@ -307,7 +307,12 @@ export function createVillagePlace(context) {
       });
 
       if (locations.current === "village")
-        village.updateVisibility(camera, [hero], dt);
+        village.updateVisibility(
+          camera,
+          [hero],
+          dt,
+          context.shouldFadeScenery(),
+        );
     },
     progressLabel: () => state.activeVillageShop?.name ?? "edelweiss village",
 

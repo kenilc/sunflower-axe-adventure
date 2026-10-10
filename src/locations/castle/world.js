@@ -5,7 +5,6 @@ export function createCastleRoom({ mesh, box, cyl, ball }) {
   group.name = "castle-great-room";
   group.visible = false;
   const blockers = [],
-    walls = [],
     stars = [],
     flames = [],
     treasureBoxes = [];
@@ -49,14 +48,14 @@ export function createCastleRoom({ mesh, box, cyl, ball }) {
         z,
         group,
       );
-  // A cutaway room, like the cave: camera-facing walls disappear.
+  // Room walls fade only when they cross the heroine's sightline.
   function wall(x, z, w, d) {
     const g = new THREE.Group();
+    g.name = `castle-room-wall-${x}-${z}`;
     g.position.set(x, 0, z);
     group.add(g);
     box(w, 6.5, d, cream, 0, 3.25, 0, g);
     box(w + 0.05, 0.3, d + 0.05, pink, 0, 5.9, 0, g);
-    walls.push(g);
   }
   wall(-12, 0, 0.5, 28);
   wall(12, 0, 0.5, 28);
@@ -563,17 +562,7 @@ export function createCastleRoom({ mesh, box, cyl, ball }) {
         message: "✦ A wishing star! Your castle treasure hunt is complete.",
       };
     },
-    updateVisibility(camera) {
-      walls.forEach(
-        (w) =>
-          (w.visible =
-            w.position.x * camera.position.x +
-              w.position.z * camera.position.z <
-            100),
-      );
-    },
     update(time, camera, dt) {
-      this.updateVisibility(camera);
       stars.forEach((s, i) => {
         s.g.rotation.y = time;
         s.g.position.y = 1 + Math.sin(time * 2 + i) * 0.15;

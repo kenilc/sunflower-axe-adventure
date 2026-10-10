@@ -903,9 +903,9 @@ export function createAlpineVillage({ mesh, box, cyl, ball }) {
     nature,
     ravine,
     ravineBanks,
-    updateVisibility(camera, characters, dt) {
-      rockVisibility.update(camera, characters, dt);
-      nature.updateVisibility(camera, characters);
+    updateVisibility(camera, characters, dt, enabled = true) {
+      rockVisibility.update(camera, characters, dt, enabled);
+      nature.updateVisibility(camera, characters, enabled);
     },
     trailInfo(p) {
       const sample = trailSample(p.x, p.z);

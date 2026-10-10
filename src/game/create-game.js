@@ -53,6 +53,7 @@ import { bindKeepsakes } from "../ui/keepsakes.js";
 import { createJourney } from "./journey.js";
 import { bindTravelMap } from "../ui/travel-map.js";
 import { createTreeVisibility } from "../rendering/tree-visibility.js";
+import { createSceneryVisibility } from "../rendering/scenery-visibility.js";
 import { registerAdventureProgress } from "../integrations/adventure-progress.js";
 
 export function createGame({ createRenderer, models } = {}) {
@@ -396,6 +397,7 @@ export function createGame({ createRenderer, models } = {}) {
   });
   const keepsakes = createKeepsakes();
   const placeContext = {
+    shouldFadeScenery,
     keepsakes,
     places,
     changePassage,
@@ -482,6 +484,24 @@ export function createGame({ createRenderer, models } = {}) {
     summerOutfits,
   };
   registerPlaces(places, placeContext);
+  const sceneryVisibility = new Map();
+  function sceneryFor(place) {
+    if (!sceneryVisibility.has(place.id))
+      sceneryVisibility.set(
+        place.id,
+        place.group
+          ? createSceneryVisibility({
+              group: place.group,
+              actors: [hero, companion.character],
+            })
+          : null,
+      );
+    return sceneryVisibility.get(place.id);
+  }
+  places.all().forEach(sceneryFor);
+  const transportVisibility = [boatTrip.boat, cableCar.group].map((group) =>
+    createSceneryVisibility({ group, actors: [hero, companion.character] }),
+  );
   const transitions = createPlaceTransitions({
     places,
     locations,
@@ -669,6 +689,11 @@ export function createGame({ createRenderer, models } = {}) {
     village,
     getLocation: () => locations.current,
   });
+  function shouldFadeScenery() {
+    return (
+      !activityPhoto.label() && locations.active.canSaveLocation?.() !== false
+    );
+  }
   const photoMode = createPhotoMode({
     camera,
     actors: [hero, companion.character],
@@ -1008,7 +1033,8 @@ export function createGame({ createRenderer, models } = {}) {
       );
     }
     hearts.update(paused ? 0 : dt, camera);
-    gateVisibility.update(camera, [hero], dt);
+    const fadeScenery = shouldFadeScenery();
+    gateVisibility.update(camera, [hero], dt, fadeScenery);
     if (photoMode.active) {
       if (
         !["garden", "village", "riverside", "castle"].includes(
@@ -1017,16 +1043,24 @@ export function createGame({ createRenderer, models } = {}) {
       )
         activePlace.afterCamera?.(dt, time);
       if (locations.area === "garden")
-        treeVisibility.update(camera, [hero], dt);
+        treeVisibility.update(camera, [hero], dt, fadeScenery);
       if (locations.area === "village")
-        village.updateVisibility(camera, [hero], dt);
+        village.updateVisibility(camera, [hero], dt, fadeScenery);
       if (locations.area === "riverside") {
-        riverside.updateVisibility(camera, [hero], dt);
-        cableCar.updateVisibility(camera, [hero], dt);
+        riverside.updateVisibility(camera, [hero], dt, fadeScenery);
+        cableCar.updateVisibility(camera, [hero], dt, fadeScenery);
       }
-      if (locations.current === "castle") castleRoom.updateVisibility(camera);
     } else if (!photography.viewing) {
       for (const place of places.all()) place.afterCamera?.(dt, time);
+    }
+    if (!photography.viewing) {
+      sceneryFor(activePlace)?.update(camera, hero, dt, fadeScenery);
+      if (rootPlace !== activePlace)
+        sceneryFor(rootPlace)?.update(camera, hero, dt, fadeScenery);
+      if (locations.area === "riverside")
+        transportVisibility.forEach((visibility) =>
+          visibility.update(camera, hero, dt, fadeScenery),
+        );
     }
     sun.position.set(
       hero.position.x - 18,

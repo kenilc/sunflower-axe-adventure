@@ -112,7 +112,7 @@ export function createGardenPlace(context) {
     },
     afterCamera(dt) {
       if (context.locations.area === "garden")
-        treeVisibility.update(camera, [hero], dt);
+        treeVisibility.update(camera, [hero], dt, context.shouldFadeScenery());
     },
     reset() {
       state.score = state.collected = 0;

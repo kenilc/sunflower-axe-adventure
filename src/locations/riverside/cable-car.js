@@ -303,8 +303,9 @@ export function createCableCar({
       showScenery();
       onArrival(true);
     },
-    updateVisibility(camera, characters, dt) {
-      if (atSummit && !riding) castle.updateVisibility(camera, characters, dt);
+    updateVisibility(camera, characters, dt, enabled = true) {
+      if (!enabled || (atSummit && !riding))
+        castle.updateVisibility(camera, characters, dt, enabled);
     },
     setEnabled(value) {
       enabled = value;

@@ -5,8 +5,7 @@ export function createCave() {
   interior.visible = false;
   const entrance = new THREE.Group();
   entrance.position.set(0, 0, -43);
-  const walls = [],
-    sparkles = [],
+  const sparkles = [],
     flames = [],
     blockers = [];
   let seed = 731;
@@ -92,19 +91,19 @@ export function createCave() {
   }
   torch(-2.6, 2.2, 1.1, entrance);
   torch(2.6, 2.2, 1.1, entrance);
-  // The chamber is rendered as a cutaway so camera rotation never hides the hero.
+  // Chamber walls use the same heroine sightline fading as outdoor scenery.
   add(new THREE.CylinderGeometry(18, 19, 0.8, 64), earth, 0, -0.42, 0);
   for (let i = 0; i < 24; i++) {
     const a = (i / 24) * Math.PI * 2,
       x = Math.sin(a) * 18,
       z = Math.cos(a) * 18;
     const g = new THREE.Group();
+    g.name = `cave-chamber-wall-${i}`;
     g.position.set(x, 0, z);
     interior.add(g);
     boulder(0, 3, 0, 3.5, 5 + random() * 2, 2.3, g);
     const top = add(new THREE.ConeGeometry(0.7, 2.6, 6), stone, 0, 6, 0, g);
     top.rotation.z = Math.PI;
-    walls.push(g);
   }
   // Low steps mark the return passage at the south side of the chamber.
   box(
@@ -307,11 +306,7 @@ export function createCave() {
         p.z *= 16 / length;
       }
     },
-    update(time, camera) {
-      for (const g of walls)
-        g.visible =
-          g.position.x * camera.position.x + g.position.z * camera.position.z <
-          100;
+    update(time) {
       sparkles.forEach((g, i) => {
         g.scale.setScalar(
           0.2 + Math.pow(Math.max(0, Math.sin(time * 2 + i * 2.3)), 8) * 1.2,

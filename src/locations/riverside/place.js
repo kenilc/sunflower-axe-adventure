@@ -254,11 +254,21 @@ export function createRiversidePlace(context) {
     animate(dt, time) {
       if (locations.state.insideCastle) return;
       riverside.update(time);
-      cableCar.updateVisibility(camera, [hero], dt);
+      cableCar.updateVisibility(
+        camera,
+        [hero],
+        dt,
+        context.shouldFadeScenery(),
+      );
     },
     afterCamera(dt) {
       if (locations.area === "riverside" && !locations.state.insideCastle)
-        riverside.updateVisibility(camera, [hero], dt);
+        riverside.updateVisibility(
+          camera,
+          [hero],
+          dt,
+          context.shouldFadeScenery(),
+        );
     },
     progressLabel: () => (cableCar.riding ? "cable car" : "riverside"),
 

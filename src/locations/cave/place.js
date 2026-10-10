@@ -1,7 +1,7 @@
 import { resolveObstacleCollisions } from "../../systems/collision.js";
 
 export function createCavePlace(context) {
-  const { cave, camera, changePassage, hero } = context;
+  const { cave, changePassage, hero } = context;
   return {
     id: "cave",
     soundscape: "cave",
@@ -11,7 +11,7 @@ export function createCavePlace(context) {
     terrain: cave,
     legacyFlag: "insideCave",
     progressLabel: "treasure cave",
-    lateAnimate: (time) => cave.update(time, camera),
+    lateAnimate: (time) => cave.update(time),
     activateEnter: () => changePassage(true),
     activateExit: () => changePassage(false),
     constrainMovement(position, previous) {

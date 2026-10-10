@@ -7,6 +7,7 @@ import {
 } from "../src/systems/photo-album.js";
 import { createPhotoMode } from "../src/rendering/photo-mode.js";
 import { createTestGame } from "./helpers/game.js";
+import { expectSolidScenery } from "./helpers/scenery.js";
 
 afterEach(() => vi.unstubAllGlobals());
 function memoryStorage() {
@@ -384,6 +385,7 @@ test("activity photos pause every ride and pose, save captions, and resume the o
     activity.setup();
     frames();
     if (activity.active) expect(activity.active(), activity.name).toBe(true);
+    expectSolidScenery(game.rendering.scene, activity.name);
     if (activity.returnId) {
       const button = element(`#${activity.returnId}`);
       expect(button.hidden, activity.name).toBe(false);
@@ -418,6 +420,7 @@ test("activity photos pause every ride and pose, save captions, and resume the o
     const photographedView = camera.position.clone();
     frames(240);
     expect(transforms(objects), activity.name).toEqual(pose);
+    expectSolidScenery(game.rendering.scene, `${activity.name} photo`);
     expect(camera.position.equals(photographedView)).toBe(true);
     expect(funfairActivities.aim).toBe(aim);
     expect(alpineCart.progress).toBe(progress);
