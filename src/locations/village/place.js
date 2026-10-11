@@ -34,6 +34,20 @@ export function createVillagePlace(context) {
       : "Visit the three shops, meet the sheep, and follow the west trail to the summit cart.";
   }
 
+  function mountainPanorama() {
+    // Open the view only from the meadow while facing the mountain, away
+    // from nearby shops and sheep. The trail keeps a closer walking camera.
+    const interest = Math.min(
+      ...village.shops.map((s) => hero.position.distanceTo(s.doorway)),
+      ...village.sheep.map((s) => hero.position.distanceTo(s.group.position)),
+    );
+    return (
+      THREE.MathUtils.smoothstep(hero.position.z + 100, 70, 110) *
+      THREE.MathUtils.smoothstep(Math.cos(state.yaw), 0.3, 0.85) *
+      THREE.MathUtils.smoothstep(interest, 3, 10)
+    );
+  }
+
   function useVillagePassage(enter, activity = null) {
     if (
       enter === locations.state.insideVillage ||
@@ -79,7 +93,7 @@ export function createVillagePlace(context) {
     );
     if (enter) {
       state.yaw = 0;
-      state.pitch = THREE.MathUtils.degToRad(28);
+      state.pitch = THREE.MathUtils.degToRad(6);
       state.zoom = 30;
       camera.fov = 55;
     } else if (state.outsideView) {
@@ -363,8 +377,15 @@ export function createVillagePlace(context) {
     activateExit: () => changeVillagePassage(false),
     interact: interactVillage,
     objective: villageObjective,
-    cameraTarget: () =>
-      state.activeVillageShop ? 1 : hero.position.y > 0.5 ? 5 : 2.5,
+    cameraTarget() {
+      if (state.activeVillageShop) return 1;
+      // Pair the higher panorama aim with more distance, and limit it when
+      // zooming in so both players keep a margin below their feet.
+      return Math.min(
+        THREE.MathUtils.lerp(1.8, 10, mountainPanorama()),
+        this.cameraDistance(state.zoom) * 0.22,
+      );
+    },
     cameraDistance(zoom) {
       const interest = Math.min(
         ...village.shops.map((s) => hero.position.distanceTo(s.doorway)),
@@ -384,7 +405,7 @@ export function createVillagePlace(context) {
         zoom *
         (hero.position.y > 0.5
           ? THREE.MathUtils.lerp(1.12, 0.92, panorama)
-          : close)
+          : close * THREE.MathUtils.lerp(1, 1.6, mountainPanorama()))
       );
     },
     maxZoom: 52,

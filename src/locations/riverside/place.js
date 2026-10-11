@@ -288,7 +288,18 @@ export function createRiversidePlace(context) {
     canEnter: ({ from }) => from === "garden",
     activateExit: () => changePassage(false, true),
     objective: riverObjective,
-    cameraTarget: () => (boatTrip.rowing ? 1 : 9),
+    cameraTarget() {
+      if (boatTrip.rowing) return 1;
+      // Give the summit room from the distant banks, but keep walking framed
+      // around the characters when approaching the waterfall or facing away.
+      const panorama =
+        THREE.MathUtils.smoothstep(104 - hero.position.z, 60, 110) *
+        THREE.MathUtils.smoothstep(-Math.cos(state.yaw), 0.3, 0.85);
+      return Math.min(
+        THREE.MathUtils.lerp(2, 5.5, panorama),
+        state.zoom * 0.22,
+      );
+    },
     reset: () => {
       riverside.reset();
       cableCar.reset();

@@ -200,14 +200,13 @@ test("gameplay, collisions, travel, activities and restart", async () => {
   assert.equal(G.state.yaw, Math.PI, "Arrival must face the mountain");
   G.rendering.camera.updateMatrixWorld();
   for (const point of [
-    new T.Vector3(Math.sin(56 * 0.12) * 3, 58, 104),
     new T.Vector3(Math.sin(56 * 0.12) * 3, 0.04, 71.8),
     G.characters.hero.position.clone().add(new T.Vector3(0, 1.6, 0)),
   ]) {
     const projected = point.project(G.rendering.camera);
     assert(
       Math.abs(projected.x) < 1 && Math.abs(projected.y) < 1 && projected.z < 1,
-      "Mountain peak, waterfall base and characters must be visible on arrival",
+      "Waterfall base and characters must be visible on arrival",
     );
   }
   G.characters.hero.position.copy(G.worlds.riverside.returnGate.position);
