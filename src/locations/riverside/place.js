@@ -26,7 +26,6 @@ export function createRiversidePlace(context) {
     state,
     changeCastlePassage,
     riverside,
-    cave,
     benchMoment,
     garden,
     companion,
@@ -39,6 +38,8 @@ export function createRiversidePlace(context) {
     beep,
     burst,
   } = context;
+  // The cave registers after this place, so look it up when needed.
+  const caveWorld = () => context.places.get("cave").terrain;
   function boardBoat() {
     if (
       locations.state.insideCastle ||
@@ -100,6 +101,7 @@ export function createRiversidePlace(context) {
     const leavingRiver = locations.state.insideRiver;
     cableCar.reset();
     boatTrip.reset();
+    const cave = caveWorld();
     const terrain = river ? riverside : cave;
     benchMoment.stand();
     hearts.clear();

@@ -1,8 +1,20 @@
 import { resolveObstacleCollisions } from "../../systems/collision.js";
+import { createCave } from "./world.js";
 import { CAVE_ENVIRONMENT } from "../riverside/place.js";
 
 export function createCavePlace(context) {
-  const { cave, changePassage, hero } = context;
+  const { hero, garden, scene, box, pathMat } = context;
+  const cave = createCave();
+  garden.add(cave.entrance);
+  scene.add(cave.interior);
+  context.addGardenBlockers(
+    { x: -4, z: -43, r: 2.5, minClearance: 0.8 },
+    { x: 4, z: -43, r: 2.5, minClearance: 0.8 },
+  );
+  garden.add(box(4, 0.04, 10, pathMat, 0, 0.025, -39));
+  // The riverside place runs the shared garden passage for both places.
+  const changePassage = (enter) =>
+    context.places.get("riverside").controls.changePassage(enter);
   return {
     id: "cave",
     soundscape: "cave",

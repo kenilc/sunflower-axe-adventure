@@ -21,7 +21,6 @@ import { createCableCar } from "../locations/riverside/cable-car.js";
 import { createBoatTrip } from "../locations/riverside/boat-trip.js";
 import * as THREE from "three";
 import { createRiverside } from "../locations/riverside/world.js";
-import { createCave } from "../locations/cave/world.js";
 import { createCompanion } from "../characters/companion.js";
 import { createCompanionReactions } from "../characters/reactions.js";
 import { createSheepMoment } from "../locations/village/sheep-moment.js";
@@ -125,15 +124,6 @@ export function createGame({ createRenderer, models } = {}) {
     arms,
     eyes,
   } = createHero({ scene, model: models.hero, axeModel: models.axe });
-  const cave = createCave();
-  garden.add(cave.entrance);
-  scene.add(cave.interior);
-  blockers.push(
-    { x: -4, z: -43, r: 2.5, minClearance: 0.8 },
-    { x: 4, z: -43, r: 2.5, minClearance: 0.8 },
-  );
-  const cavePath = box(4, 0.04, 10, pathMat, 0, 0.025, -39);
-  garden.add(cavePath);
   const riverside = createRiverside({ mesh, box, cyl, ball });
   garden.add(riverside.entrance);
   scene.add(riverside.group);
@@ -287,6 +277,12 @@ export function createGame({ createRenderer, models } = {}) {
     ...blockers,
     ...gemPositions.map(([x, z]) => ({ x, z, r: 0.8 })),
   ];
+  // Gate posts a place adds to the garden block both the heroine and her
+  // companion.
+  function addGardenBlockers(...entries) {
+    blockers.push(...entries);
+    companionObstacles.push(...entries);
+  }
   const benchMoment = createBenchMoment({
     bench: lakeside.bench,
     hero,
@@ -401,7 +397,8 @@ export function createGame({ createRenderer, models } = {}) {
     shouldFadeScenery,
     keepsakes,
     places,
-    changePassage,
+    addGardenBlockers,
+    pathMat,
     models,
     rand,
     mesh,
@@ -480,7 +477,6 @@ export function createGame({ createRenderer, models } = {}) {
     burst,
     changeCastlePassage,
     riverside,
-    cave,
     festivalMoment,
     festival,
     summerOutfits,
@@ -580,9 +576,6 @@ export function createGame({ createRenderer, models } = {}) {
   $("#castleAction").onclick = interactCastle;
   function usePassage(...args) {
     return places.get("riverside").controls.usePassage(...args);
-  }
-  function changePassage(...args) {
-    return places.get("riverside").controls.changePassage(...args);
   }
 
   function useFestivalPassage(...args) {

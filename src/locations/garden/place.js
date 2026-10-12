@@ -52,7 +52,7 @@ export function createGardenPlace(context) {
         ["village", context.village],
         ["funfair", context.funfair],
         ["riverside", context.riverside],
-        ["cave", context.cave],
+        ["cave", context.places.get("cave").terrain],
       ])
         if (world.isEntrance(hero.position)) return { id };
       return null;
