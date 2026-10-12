@@ -79,6 +79,8 @@ export function bindPhotography({
     document.body.classList.toggle("photo-mode", true);
     $("#cameraAction").setAttribute("aria-pressed", "true");
     $("#photoStatus").textContent = "";
+    // A focused HUD button would swallow Enter/Space instead of taking a photo.
+    document.activeElement?.blur?.();
     return true;
   }
   function savePhoto(image, location) {
@@ -217,9 +219,10 @@ export function bindPhotography({
     keydown(event) {
       if (albumDialog.open || $("#guide").open)
         return mode.active || albumDialog.open;
-      const editing = ["INPUT", "SELECT", "BUTTON", "A", "TEXTAREA"].includes(
-        event.target?.tagName,
-      );
+      const typing = ["INPUT", "SELECT", "TEXTAREA"].includes(
+          event.target?.tagName,
+        ),
+        editing = typing || ["BUTTON", "A"].includes(event.target?.tagName);
       if (event.code === "Escape" && mode.active) {
         event.preventDefault();
         exit();
@@ -271,7 +274,8 @@ export function bindPhotography({
         if (!event.repeat) reset();
         return true;
       }
-      if (editing || $("#guide").open) return mode.active;
+      // A focused button (e.g. after closing a dialog) must not block M and L.
+      if (typing) return mode.active;
       if (!event.repeat && event.code === "KeyM") {
         mode.active ? exit() : enter();
         return true;
@@ -281,6 +285,7 @@ export function bindPhotography({
         return true;
       }
       if (!mode.active) return false;
+      if (editing) return true;
       if (["Enter", "Space"].includes(event.code)) {
         event.preventDefault();
         if (!event.repeat) takePhoto();

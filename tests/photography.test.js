@@ -154,6 +154,13 @@ test("camera and album pause gameplay, capture current framing, survive restart,
   expect(hero.position.equals(origin)).toBe(true);
   expect(companion.position.equals(companionOrigin)).toBe(true);
   expect(game.input.keys.KeyW).toBe(false);
+  // Closing a dialog leaves focus on its HUD button; M must still toggle.
+  key("KeyM", { tagName: "BUTTON" });
+  expect(photoMode.active).toBe(true);
+  key("KeyM", { tagName: "INPUT" });
+  expect(photoMode.active).toBe(true);
+  key("KeyM", { tagName: "BUTTON" });
+  expect(photoMode.active).toBe(false);
   expect(photography.openAlbum()).toBe(true);
   game.input.keys.KeyD = true;
   tick();
