@@ -110,6 +110,8 @@ export function createGardenPlace(context) {
       ring.rotation.y = time * 0.25;
       ring.rotation.z = 0.2;
     },
+    photoVisibility: (camera, actors, dt, enabled) =>
+      treeVisibility.update(camera, actors, dt, enabled),
     afterCamera(dt) {
       if (context.locations.area === "garden")
         treeVisibility.update(camera, [hero], dt, context.shouldFadeScenery());

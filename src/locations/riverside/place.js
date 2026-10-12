@@ -392,6 +392,12 @@ export function createRiversidePlace(context) {
       cableCar.atSummit ? "summit" : boatTrip.atLagoon ? "lagoon" : null,
     group: riverside.group,
     terrain: riverside,
+    fadingGates: [riverside.entrance, riverside.returnGate],
+    fadingExtras: [boatTrip.boat, cableCar.group],
+    photoVisibility(camera, actors, dt, enabled) {
+      riverside.updateVisibility(camera, actors, dt, enabled);
+      cableCar.updateVisibility(camera, actors, dt, enabled);
+    },
     parts: { boatTrip, cableCar },
     activateEnter: () => changePassage(true, true),
     canEnter: ({ from }) => from === "garden",

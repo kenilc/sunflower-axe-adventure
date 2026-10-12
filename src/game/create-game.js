@@ -5,7 +5,6 @@ import * as THREE from "three";
 import { createCompanion } from "../characters/companion.js";
 import { createCompanionReactions } from "../characters/reactions.js";
 import { createHearts } from "../systems/hearts.js";
-import { resolveObstacleCollisions } from "../systems/collision.js";
 import { createSceneTransition } from "./scene-transition.js";
 import { createBenchMoment } from "../locations/garden/lakeside.js";
 import { createRendering } from "../rendering/renderer.js";
@@ -20,11 +19,12 @@ import { createGameLoop } from "./game-loop.js";
 import { createLocationSave } from "./location-save.js";
 import { createKeepsakes } from "../systems/keepsakes.js";
 import { createJourney } from "./journey.js";
-import { createTreeVisibility } from "../rendering/tree-visibility.js";
-import { createSceneryVisibility } from "../rendering/scenery-visibility.js";
 import { registerAdventureProgress } from "../integrations/adventure-progress.js";
 import { createProgressReader } from "./progress.js";
 import { createGameApi } from "./game-api.js";
+import { createFollowCamera } from "./follow-camera.js";
+import { createPlayerMovement } from "./player-movement.js";
+import { createSceneryFading } from "../rendering/scenery-fading.js";
 import { createFeedback } from "../ui/feedback.js";
 import { bindGameUi } from "../ui/bind-ui.js";
 
@@ -127,6 +127,9 @@ export function createGame({ createRenderer, models } = {}) {
     $("#sceneTransition").style.opacity = String(opacity);
   });
   const keepsakes = createKeepsakes();
+  const followCamera = createFollowCamera({ camera, hero, state, locations });
+  const resetCamera = followCamera.reset;
+  const cameraTargetHeight = followCamera.targetHeight;
   const placeContext = {
     renderer,
     get photography() {
@@ -206,75 +209,19 @@ export function createGame({ createRenderer, models } = {}) {
   const village = places.get("village").terrain;
   const { boatTrip, cableCar } = places.get("riverside").parts;
   const riverside = places.get("riverside").terrain;
-  // Tall gate tops stay prominent on approach, but fade if they hide the heroine.
-  const gateVisibility = createTreeVisibility({ obstructedOpacity: 0.12 });
-  for (const gate of [
-    village.entrance,
-    village.returnGate,
-    funfair.entrance,
-    funfair.returnGate,
-    riverside.entrance,
-    riverside.returnGate,
-    festival.entrance,
-    festival.group.getObjectByName("festival-lantern-gate"),
-  ]) {
-    const canopy = new THREE.Group();
-    canopy.name = "gate-canopy";
-    gate.add(canopy);
-    for (const child of [...gate.children])
-      if (child.isMesh && child.position.y >= 4.5) canopy.add(child);
-    gateVisibility.add(canopy);
-  }
-  const sceneryVisibility = new Map();
-  function sceneryFor(place) {
-    if (!sceneryVisibility.has(place.id))
-      sceneryVisibility.set(
-        place.id,
-        place.group
-          ? createSceneryVisibility({
-              group: place.group,
-              actors: [hero, companion.character],
-            })
-          : null,
-      );
-    return sceneryVisibility.get(place.id);
-  }
-  places.all().forEach(sceneryFor);
-  const transportVisibility = [boatTrip.boat, cableCar.group].map((group) =>
-    createSceneryVisibility({ group, actors: [hero, companion.character] }),
-  );
+  const sceneryFading = createSceneryFading({ places, hero, companion });
   const transitions = createPlaceTransitions({
     places,
     locations,
     fade: passageTransition,
     context: placeContext,
   });
-  function resetCamera() {
-    const distance =
-      locations.active.cameraDistance?.(state.zoom) ?? state.zoom;
-    camera.position
-      .set(
-        Math.sin(state.yaw) * Math.cos(state.pitch) * distance,
-        1 + Math.sin(state.pitch) * distance,
-        Math.cos(state.yaw) * Math.cos(state.pitch) * distance,
-      )
-      .add(hero.position);
-    camera.lookAt(
-      hero.position.x,
-      hero.position.y + cameraTargetHeight(),
-      hero.position.z,
-    );
-    camera.updateProjectionMatrix();
-  }
   function clearRestInput() {
     cameraDrag.reset();
     Object.keys(keys).forEach((key) => (keys[key] = false));
     joy.set(0, 0);
     state.isMoving = false;
     hearts.clear();
-  }
-  function cameraTargetHeight() {
-    return locations.active.cameraTarget();
   }
   const keys = {};
 
@@ -409,8 +356,24 @@ export function createGame({ createRenderer, models } = {}) {
     journey.reset();
     locationSave.flush();
   }
+  const walk = createPlayerMovement({
+    hero,
+    body,
+    legs,
+    arms,
+    companion,
+    hearts,
+    benchMoment,
+    keys,
+    joy,
+    state,
+    effects,
+    companionReactions,
+    places,
+    locations,
+    getTransitions: () => transitions,
+  });
   const clock = new THREE.Clock();
-  const desired = new THREE.Vector3();
   function frame() {
     if (performance.now() > state.toastUntil) $("#toast").style.opacity = 0;
     let dt = Math.min(clock.getDelta(), 0.04),
@@ -438,14 +401,7 @@ export function createGame({ createRenderer, models } = {}) {
     if (!paused) {
       benchMoment.update(dt);
       state.passageCooldown = Math.max(0, state.passageCooldown - dt);
-      if (!cameraLocked()) {
-        state.yaw += ((keys.KeyQ ? 1 : 0) - (keys.KeyE ? 1 : 0)) * dt * 1.4;
-        state.pitch = THREE.MathUtils.clamp(
-          state.pitch + ((keys.KeyR ? 1 : 0) - (keys.KeyF ? 1 : 0)) * dt * 0.65,
-          THREE.MathUtils.degToRad(6),
-          THREE.MathUtils.degToRad(70),
-        );
-      }
+      if (!cameraLocked()) followCamera.rotateFromKeys(dt, keys);
       const rootPlace = places.get(locations.area);
       const activePlace = locations.active;
       const rootLocked = rootPlace.update?.(dt, time);
@@ -455,94 +411,7 @@ export function createGame({ createRenderer, models } = {}) {
         activePlace.moveInstead?.(dt) ||
         (activePlace !== rootPlace && rootPlace.moveInstead?.(dt));
       if (rootLocked || activeLocked || overridden) state.isMoving = false;
-      else {
-        let dx =
-            (keys.KeyD || keys.ArrowRight ? 1 : 0) -
-            (keys.KeyA || keys.ArrowLeft ? 1 : 0) +
-            joy.x,
-          dz =
-            (keys.KeyS || keys.ArrowDown ? 1 : 0) -
-            (keys.KeyW || keys.ArrowUp ? 1 : 0) +
-            joy.y;
-        let movement = new THREE.Vector3(dx, 0, dz);
-        if (benchMoment.seated) movement.set(0, 0, 0);
-        if (movement.length() > 1) movement.normalize();
-        movement.applyAxisAngle(new THREE.Vector3(0, 1, 0), state.yaw);
-        const speed = keys.ShiftLeft || keys.ShiftRight ? 7.8 : 4.7;
-        const old = hero.position.clone();
-        hero.position.addScaledVector(movement, dt * speed);
-        const place = locations.active;
-        const movementObstacles = benchMoment.seated
-          ? []
-          : (place.terrain.blockers ?? []);
-        resolveObstacleCollisions(hero.position, old, movementObstacles);
-        if (place.constrainMovement)
-          place.constrainMovement(hero.position, old, {
-            seated: benchMoment.seated,
-          });
-        else {
-          place.terrain.constrain?.(hero.position, old);
-          if (!place.terrain.contains(hero.position.x, hero.position.z))
-            hero.position.copy(old);
-          hero.position.y = place.terrain.heightAt(
-            hero.position.x,
-            hero.position.z,
-          );
-        }
-        if (!benchMoment.seated) {
-          place.beforeCompanion?.(old);
-          const playerBump = companion.blocksPlayer(hero.position, old);
-          const companionBump = companion.update(
-            dt,
-            place.companionObstacles ?? place.terrain.blockers ?? [],
-            hero.position,
-            place.companionTerrain ?? place.terrain,
-          );
-          hearts.contact(
-            playerBump || companionBump,
-            hero.position,
-            companion.character.position,
-          );
-        }
-        state.isMoving = movement.length() > 0.05;
-        if (!benchMoment.seated && state.isMoving) {
-          state.walk += dt * speed * 2;
-          body.position.y = Math.abs(Math.sin(state.walk)) * 0.055;
-          legs[0].rotation.x = Math.sin(state.walk) * 0.5;
-          legs[1].rotation.x = -Math.sin(state.walk) * 0.5;
-          const facing = hero.position.clone().sub(old).setY(0);
-          // Restored quaternions can have equivalent nonzero X/Z Euler angles.
-          // Set the whole upright rotation so the model faces its travel path.
-          if (facing.lengthSq() > 0.000001)
-            hero.rotation.set(0, Math.atan2(facing.x, facing.z), 0);
-        } else if (!benchMoment.seated) {
-          legs.forEach((l) => (l.rotation.x *= 0.8));
-          body.position.y = Math.sin(time * 2) * 0.018;
-        }
-        if (!benchMoment.seated) {
-          arms[1].rotation.x =
-            state.throwAnim > 0
-              ? -Math.sin((state.throwAnim / 0.3) * Math.PI) * 2
-              : Math.sin(state.walk) * 0.12;
-          arms[0].rotation.x = -legs[0].rotation.x * 0.5;
-        }
-        effects.updateProjectiles(
-          dt,
-          locations.active.targets ?? [],
-          locations.active.onTargetHit,
-        );
-        if (activePlace === rootPlace || activePlace.kind === "context")
-          rootPlace.afterMovement?.(dt, time);
-        if (activePlace !== rootPlace) activePlace.afterMovement?.(dt, time);
-        if (!benchMoment.seated)
-          companionReactions.update(dt, locations.current, hero.position);
-        if (state.passageCooldown === 0) {
-          const gate =
-            locations.active.getGate?.() ??
-            places.incomingGate(locations.current, hero.position);
-          if (gate) transitions.go(gate.id, gate.options);
-        }
-      }
+      else walk(dt, time, rootPlace, activePlace);
     }
     updateHud({ isMoving: state.isMoving, paused, dt });
     if (!photoMode.active && !photography.viewing)
@@ -561,52 +430,18 @@ export function createGame({ createRenderer, models } = {}) {
         (activePlace.updateCamera?.(dt) ||
           (activePlace !== rootPlace && rootPlace.updateCamera?.(dt))))
     ) {
-    } else if (!photography.viewing) {
-      const distance = activePlace.cameraDistance?.(state.zoom) ?? state.zoom;
-      desired
-        .set(
-          Math.sin(state.yaw) * Math.cos(state.pitch) * distance,
-          1 + Math.sin(state.pitch) * distance,
-          Math.cos(state.yaw) * Math.cos(state.pitch) * distance,
-        )
-        .add(hero.position);
-      camera.position.lerp(desired, 1 - Math.exp(-dt * 5));
-      camera.lookAt(
-        hero.position.x,
-        hero.position.y + cameraTargetHeight(),
-        hero.position.z,
-      );
-    }
+    } else if (!photography.viewing) followCamera.update(dt);
     hearts.update(paused ? 0 : dt, camera);
-    const fadeScenery = shouldFadeScenery();
-    gateVisibility.update(camera, [hero], dt, fadeScenery);
-    if (photoMode.active) {
-      if (
-        !["garden", "village", "riverside", "castle"].includes(
-          locations.current,
-        )
-      )
-        activePlace.afterCamera?.(dt, time);
-      if (locations.area === "garden")
-        treeVisibility.update(camera, [hero], dt, fadeScenery);
-      if (locations.area === "village")
-        village.updateVisibility(camera, [hero], dt, fadeScenery);
-      if (locations.area === "riverside") {
-        riverside.updateVisibility(camera, [hero], dt, fadeScenery);
-        cableCar.updateVisibility(camera, [hero], dt, fadeScenery);
-      }
-    } else if (!photography.viewing) {
-      for (const place of places.all()) place.afterCamera?.(dt, time);
-    }
-    if (!photography.viewing) {
-      sceneryFor(activePlace)?.update(camera, hero, dt, fadeScenery);
-      if (rootPlace !== activePlace)
-        sceneryFor(rootPlace)?.update(camera, hero, dt, fadeScenery);
-      if (locations.area === "riverside")
-        transportVisibility.forEach((visibility) =>
-          visibility.update(camera, hero, dt, fadeScenery),
-        );
-    }
+    sceneryFading.update({
+      camera,
+      dt,
+      time,
+      enabled: shouldFadeScenery(),
+      photographing: photoMode.active,
+      viewingAlbum: photography.viewing,
+      rootPlace,
+      activePlace,
+    });
     environment.followTarget(hero.position);
     if (!photoMode.active && !photography.viewing)
       for (const place of places.all()) place.lateAnimate?.(time);

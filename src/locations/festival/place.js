@@ -175,6 +175,10 @@ export function createFestivalPlace(context) {
     parent: "funfair",
     group: festival.group,
     terrain: festival,
+    fadingGates: [
+      festival.entrance,
+      festival.group.getObjectByName("festival-lantern-gate"),
+    ],
     parts: { festivalMoment, summerOutfits },
     activateEnter(options = {}) {
       changeFestivalPassage(true);

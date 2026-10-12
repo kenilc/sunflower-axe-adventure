@@ -195,6 +195,7 @@ export function createFunfairPlace(context) {
     parent: "garden",
     group: funfair.group,
     terrain: funfair,
+    fadingGates: [funfair.entrance, funfair.returnGate],
     parts: { funfairActivities },
     activateEnter(options = {}) {
       changeFunfairPassage(true);

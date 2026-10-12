@@ -446,6 +446,9 @@ export function createVillagePlace(context) {
       state.activeVillageShop ? `shop:${state.activeVillageShop.kind}` : null,
     group: village.group,
     terrain: village,
+    fadingGates: [village.entrance, village.returnGate],
+    photoVisibility: (camera, actors, dt, enabled) =>
+      village.updateVisibility(camera, actors, dt, enabled),
     parts: { sheepMoment, alpineOutfits, alpineCart, hikingTethers },
     activateEnter(options = {}) {
       changeVillagePassage(true);
