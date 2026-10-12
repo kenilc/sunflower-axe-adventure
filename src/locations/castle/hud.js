@@ -1,5 +1,10 @@
-export function createCastleHud(context) {
-  const { bedRest, castleRoom, hero, state } = context;
+export function createCastleHud({
+  bedRest,
+  castleRoom,
+  hero,
+  state,
+  interact,
+}) {
   return () => {
     const action = bedRest.resting
       ? { label: "Get up · X" }
@@ -22,7 +27,7 @@ export function createCastleHud(context) {
           label: action?.label ?? "Explore the castle · X",
           visible: Boolean(action),
           disabled: state.castleActivityCooldown > 0,
-          run: () => context.interactCastle(),
+          run: () => interact(),
         },
       ],
       hint: bedRest.resting

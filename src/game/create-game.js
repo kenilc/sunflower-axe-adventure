@@ -6,8 +6,6 @@ import {
   createAlpineVillage,
   createAlpineOutfits,
 } from "../locations/village/world.js";
-import { createBedRest } from "../locations/castle/bed-rest.js";
-import { createCastleRoom } from "../locations/castle/world.js";
 import { createCableCar } from "../locations/riverside/cable-car.js";
 import { createBoatTrip } from "../locations/riverside/boat-trip.js";
 import * as THREE from "three";
@@ -20,10 +18,6 @@ import { resolveObstacleCollisions } from "../systems/collision.js";
 import { createSceneTransition } from "./scene-transition.js";
 import { createBenchMoment } from "../locations/garden/lakeside.js";
 import { createRendering } from "../rendering/renderer.js";
-import {
-  CASTLE_ENVIRONMENT,
-  CASTLE_NIGHT_ENVIRONMENT,
-} from "../locations/castle/place.js";
 import {
   LAGOON_ENVIRONMENT,
   RIVERSIDE_ENVIRONMENT,
@@ -124,8 +118,6 @@ export function createGame({ createRenderer, models } = {}) {
   scene.add(village.group);
   village.shops.forEach((shop) => scene.add(shop.room.group));
   blockers.push({ x: -2.5, z: 33, r: 0.3 }, { x: 2.5, z: 33, r: 0.3 });
-  const castleRoom = createCastleRoom({ mesh, box, cyl, ball });
-  scene.add(castleRoom.group);
   const companion = createCompanion({ model: models.companion });
   garden.add(companion.character);
   const companionReactions = createCompanionReactions({ companion, toast });
@@ -150,19 +142,6 @@ export function createGame({ createRenderer, models } = {}) {
     onMemory() {
       $("#villageStamps").textContent = village.stamps.size;
       $("#objective").textContent = villageObjective();
-    },
-  });
-  const bedRest = createBedRest({
-    bed: castleRoom.bed,
-    terrain: castleRoom,
-    hero,
-    heroRig,
-    companion,
-    toast,
-    onRestChange(sleeping) {
-      environment.apply(
-        sleeping ? CASTLE_NIGHT_ENVIRONMENT : CASTLE_ENVIRONMENT,
-      );
     },
   });
   const alpineOutfits = createAlpineOutfits({
@@ -356,7 +335,6 @@ export function createGame({ createRenderer, models } = {}) {
     boardBoat,
     boardCableCar,
     interactVillage,
-    interactCastle,
     changeVillageShop,
     heroRig,
     get transitions() {
@@ -399,8 +377,6 @@ export function createGame({ createRenderer, models } = {}) {
     get joy() {
       return joy;
     },
-    bedRest,
-    castleRoom,
     boatTrip,
     sun,
     environment,
@@ -408,7 +384,6 @@ export function createGame({ createRenderer, models } = {}) {
       return clock;
     },
     burst,
-    changeCastlePassage,
     riverside,
   };
   registerPlaces(places, placeContext);
@@ -416,6 +391,7 @@ export function createGame({ createRenderer, models } = {}) {
   const funfair = places.get("funfair").terrain;
   const { festivalMoment, summerOutfits } = places.get("festival").parts;
   const festival = places.get("festival").terrain;
+  const { castleRoom, bedRest } = places.get("castle").parts;
   // Tall gate tops stay prominent on approach, but fade if they hide the heroine.
   const gateVisibility = createTreeVisibility({ obstructedOpacity: 0.12 });
   for (const gate of [
@@ -495,16 +471,6 @@ export function createGame({ createRenderer, models } = {}) {
     return places.get("village").controls.interactVillage(...args);
   }
   $("#villageAction").onclick = interactVillage;
-  function useCastlePassage(...args) {
-    return places.get("castle").controls.useCastlePassage(...args);
-  }
-  function changeCastlePassage(...args) {
-    return places.get("castle").controls.changeCastlePassage(...args);
-  }
-
-  function interactCastle(...args) {
-    return places.get("castle").controls.interactCastle(...args);
-  }
   function clearRestInput() {
     cameraDrag.reset();
     Object.keys(keys).forEach((key) => (keys[key] = false));
@@ -512,7 +478,6 @@ export function createGame({ createRenderer, models } = {}) {
     state.isMoving = false;
     hearts.clear();
   }
-  $("#castleAction").onclick = interactCastle;
   function usePassage(...args) {
     return places.get("riverside").controls.usePassage(...args);
   }
@@ -1000,9 +965,6 @@ export function createGame({ createRenderer, models } = {}) {
     travelMap: ui.travelMap,
     invokeShortcut,
     usePassage,
-    useCastlePassage,
-    changeCastlePassage,
-    interactCastle,
     useVillagePassage,
     useVillageShop,
     interactVillage,

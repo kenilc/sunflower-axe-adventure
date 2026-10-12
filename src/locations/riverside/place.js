@@ -24,7 +24,6 @@ export function createRiversidePlace(context) {
     hearts,
     effects,
     state,
-    changeCastlePassage,
     riverside,
     benchMoment,
     garden,
@@ -97,7 +96,8 @@ export function createRiversidePlace(context) {
       (river ? locations.state.insideRiver : locations.state.insideCave)
     )
       return;
-    if (locations.state.insideCastle) changeCastlePassage(false);
+    if (locations.state.insideCastle)
+      context.places.get("castle").controls.changeCastlePassage(false);
     const leavingRiver = locations.state.insideRiver;
     cableCar.reset();
     boatTrip.reset();

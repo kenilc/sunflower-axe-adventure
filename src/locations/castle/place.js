@@ -1,5 +1,7 @@
 import { createCastleHud } from "./hud.js";
 import * as THREE from "three";
+import { createBedRest } from "./bed-rest.js";
+import { createCastleRoom } from "./world.js";
 import { LAGOON_ENVIRONMENT } from "../riverside/place.js";
 
 export const CASTLE_ENVIRONMENT = {
@@ -22,11 +24,9 @@ export function createCastlePlace(context) {
     cableCar,
     passageTransition,
     state,
-    bedRest,
     hearts,
     effects,
     $,
-    castleRoom,
     boatTrip,
     companion,
     hero,
@@ -35,7 +35,26 @@ export function createCastlePlace(context) {
     clearRestInput,
     beep,
     burst,
+    heroRig,
+    scene,
+    environment,
   } = context;
+  const { mesh, box, cyl, ball } = context.helpers;
+  const castleRoom = createCastleRoom({ mesh, box, cyl, ball });
+  scene.add(castleRoom.group);
+  const bedRest = createBedRest({
+    bed: castleRoom.bed,
+    terrain: castleRoom,
+    hero,
+    heroRig,
+    companion,
+    toast,
+    onRestChange(sleeping) {
+      environment.apply(
+        sleeping ? CASTLE_NIGHT_ENVIRONMENT : CASTLE_ENVIRONMENT,
+      );
+    },
+  });
   function useCastlePassage(enter) {
     if (enter === locations.state.insideCastle) return false;
     return context.transitions.go(enter ? "castle" : "summit");
@@ -156,6 +175,7 @@ export function createCastlePlace(context) {
       beep(1047, 0.5);
     }
   }
+  $("#castleAction").onclick = interactCastle;
   return {
     moveInstead(dt) {
       if (!bedRest.resting) return false;
@@ -184,7 +204,13 @@ export function createCastlePlace(context) {
       state.castleMusicSession++;
     },
     id: "castle",
-    getHud: createCastleHud(context),
+    getHud: createCastleHud({
+      bedRest,
+      castleRoom,
+      hero,
+      state,
+      interact: interactCastle,
+    }),
     getGate: () => (castleRoom.isExit(hero.position) ? { id: "summit" } : null),
     legacyFlag: "insideCastle",
     settings: { environment: CASTLE_ENVIRONMENT },
@@ -192,6 +218,7 @@ export function createCastlePlace(context) {
     kind: "room",
     group: castleRoom.group,
     terrain: castleRoom,
+    parts: { castleRoom, bedRest },
     activateEnter: () => changeCastlePassage(true),
     canEnter: ({ from }) => from === "summit" && !cableCar.riding,
     canLeave: () => !cableCar.riding,
