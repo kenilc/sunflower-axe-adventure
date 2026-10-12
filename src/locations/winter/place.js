@@ -65,13 +65,16 @@ export function createWinterPlace(context) {
       spawn: [0, 0, 18],
       heading: Math.PI,
       camera: { yaw: 0, pitch: 0.42, zoom: 28, fov: 50 },
+      // A cool, low winter sun and less fill give the snow some shape.
       environment: {
         background: "#8faac5",
         fogDensity: 0.005,
-        sunIntensity: 1.65,
-        fillIntensity: 2.2,
-        fillColor: "#d4e7ff",
-        groundColor: "#899bad",
+        sunIntensity: 2.3,
+        sunColor: "#e4ecff",
+        sunOffset: [-28, 15, 8],
+        fillIntensity: 1.6,
+        fillColor: "#c9dcf5",
+        groundColor: "#6f8299",
       },
       instructions:
         "<kbd>W A S D</kbd> walk <kbd>X</kbd> snowman / skate / cocoa / sauna <kbd>M</kbd> photo",
