@@ -21,13 +21,11 @@ export const CASTLE_NIGHT_ENVIRONMENT = {
 export function createCastlePlace(context) {
   const {
     locations,
-    cableCar,
     passageTransition,
     state,
     hearts,
     effects,
     $,
-    boatTrip,
     companion,
     hero,
     camera,
@@ -55,6 +53,8 @@ export function createCastlePlace(context) {
       );
     },
   });
+  // The riverside registers after the castle; use its transport when needed.
+  const riversideParts = () => context.places.get("riverside").parts;
   function useCastlePassage(enter) {
     if (enter === locations.state.insideCastle) return false;
     return context.transitions.go(enter ? "castle" : "summit");
@@ -62,6 +62,7 @@ export function createCastlePlace(context) {
 
   function changeCastlePassage(enter) {
     if (enter === locations.state.insideCastle) return;
+    const { cableCar, boatTrip } = riversideParts();
     bedRest.stand(false);
     locations.setRoom(enter ? "castle" : null);
     state.castleActivityCooldown = 0;
@@ -220,8 +221,9 @@ export function createCastlePlace(context) {
     terrain: castleRoom,
     parts: { castleRoom, bedRest },
     activateEnter: () => changeCastlePassage(true),
-    canEnter: ({ from }) => from === "summit" && !cableCar.riding,
-    canLeave: () => !cableCar.riding,
+    canEnter: ({ from }) =>
+      from === "summit" && !riversideParts().cableCar.riding,
+    canLeave: () => !riversideParts().cableCar.riding,
     activateExit: () => changeCastlePassage(false),
     interact: interactCastle,
     cameraTarget: () => 1,

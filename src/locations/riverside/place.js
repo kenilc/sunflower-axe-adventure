@@ -1,5 +1,8 @@
 import { createRiversideHud } from "./hud.js";
 import * as THREE from "three";
+import { createCableCar } from "./cable-car.js";
+import { createBoatTrip } from "./boat-trip.js";
+import { createRiverside } from "./world.js";
 
 export const RIVERSIDE_ENVIRONMENT = {
   background: "#b6d9ce",
@@ -19,12 +22,9 @@ export function createRiversidePlace(context) {
     locations,
     $,
     passageTransition,
-    cableCar,
-    boatTrip,
     hearts,
     effects,
     state,
-    riverside,
     benchMoment,
     garden,
     companion,
@@ -36,7 +36,101 @@ export function createRiversidePlace(context) {
     toast,
     beep,
     burst,
+    heroRig,
+    scene,
+    environment,
   } = context;
+  const { mesh, box, cyl, ball } = context.helpers;
+  const riverside = createRiverside({ mesh, box, cyl, ball });
+  garden.add(riverside.entrance);
+  scene.add(riverside.group);
+  context.addGardenBlockers(
+    { x: -32, z: -2, r: 0.45 },
+    { x: -32, z: 2, r: 0.45 },
+  );
+  const boatTrip = createBoatTrip({
+    mesh,
+    box,
+    cyl,
+    ball,
+    scene,
+    riverside,
+    hero,
+    heroRig,
+    companion,
+    toast,
+    onSceneChange(atLagoon) {
+      hearts.clear();
+      $(".quest .eyebrow").textContent = atLagoon
+        ? "THE LOTUS LAGOON"
+        : "THE RAINBOW RIVERSIDE";
+      $(".quest h1").innerHTML = atLagoon
+        ? "A boat for two.<br />A sunflower paradise."
+        : "A gentle river.<br />A rainbow of treasures.";
+      $("#objective").textContent = atLagoon
+        ? boatTrip.lagoon.collected === 240
+          ? "Your lagoon collection is complete! Enjoy the sunflowers together."
+          : "Wander through 900 sunflowers and collect 240 colourful gems and stones."
+        : riverObjective();
+      $("#riverCounts").hidden = atLagoon;
+      $("#lagoonCounts").hidden = !atLagoon;
+      environment.apply(atLagoon ? LAGOON_ENVIRONMENT : RIVERSIDE_ENVIRONMENT);
+      cableCar.setEnabled(atLagoon);
+      if (atLagoon) {
+        state.yaw = 0;
+        state.pitch = THREE.MathUtils.degToRad(16);
+        state.zoom = 20;
+      }
+      camera.position
+        .set(
+          Math.sin(state.yaw) * Math.cos(state.pitch) * state.zoom,
+          1 + Math.sin(state.pitch) * state.zoom,
+          Math.cos(state.yaw) * Math.cos(state.pitch) * state.zoom,
+        )
+        .add(hero.position);
+      camera.lookAt(
+        hero.position.x,
+        hero.position.y + cameraTargetHeight(),
+        hero.position.z,
+      );
+    },
+  });
+  const cableCar = createCableCar({
+    scene,
+    riverside,
+    lagoon: boatTrip.lagoon,
+    hero,
+    heroRig,
+    companion,
+    mesh,
+    box,
+    cyl,
+    toast,
+    onArrival(atSummit) {
+      hearts.clear();
+      state.yaw = 0;
+      state.pitch = THREE.MathUtils.degToRad(atSummit ? 30 : 16);
+      state.zoom = atSummit ? 22 : 20;
+      $(".quest .eyebrow").textContent = atSummit
+        ? "THE SUMMIT CASTLE"
+        : "THE LOTUS LAGOON";
+      $(".quest h1").innerHTML = atSummit
+        ? "A castle in the clouds.<br />A cozy room for two."
+        : "A boat for two.<br />A sunflower paradise.";
+      $("#objective").textContent = atSummit
+        ? "Walk through the open castle arch. Return cable car: beside the castle."
+        : boatTrip.lagoon.collected === 240
+          ? "Your lagoon collection is complete! Enjoy the flowers and the mountain cable car."
+          : "Explore the flowers and gemstones. Cable car: north end of the central island.";
+      camera.position
+        .set(
+          Math.sin(state.yaw) * Math.cos(state.pitch) * state.zoom,
+          1 + Math.sin(state.pitch) * state.zoom,
+          Math.cos(state.yaw) * Math.cos(state.pitch) * state.zoom,
+        )
+        .add(hero.position);
+    },
+  });
   // The cave registers after this place, so look it up when needed.
   const caveWorld = () => context.places.get("cave").terrain;
   function boardBoat() {
@@ -197,6 +291,8 @@ export function createRiversidePlace(context) {
       ? "All riverside treasures collected! Enjoy the ducks and the gentle river."
       : "Find hidden gem clusters near the picnic, boat, gazebo, and rainbow waterfall.";
   }
+  $("#cableAction").onclick = boardCableCar;
+  $("#boatAction").onclick = boardBoat;
   return {
     moveInstead(dt) {
       if (cableCar.riding) {
@@ -277,7 +373,14 @@ export function createRiversidePlace(context) {
     progressLabel: () => (cableCar.riding ? "cable car" : "riverside"),
 
     id: "riverside",
-    getHud: createRiversideHud(context),
+    getHud: createRiversideHud({
+      boatTrip,
+      cableCar,
+      riverside,
+      hero,
+      boardBoat,
+      boardCableCar,
+    }),
     getGate: () =>
       !boatTrip.atLagoon && riverside.isExit(hero.position)
         ? { id: "garden" }
@@ -289,6 +392,7 @@ export function createRiversidePlace(context) {
       cableCar.atSummit ? "summit" : boatTrip.atLagoon ? "lagoon" : null,
     group: riverside.group,
     terrain: riverside,
+    parts: { boatTrip, cableCar },
     activateEnter: () => changePassage(true, true),
     canEnter: ({ from }) => from === "garden",
     activateExit: () => changePassage(false, true),

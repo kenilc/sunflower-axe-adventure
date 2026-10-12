@@ -51,7 +51,7 @@ export function createGardenPlace(context) {
       for (const [id, world] of [
         ["village", context.places.get("village").terrain],
         ["funfair", context.places.get("funfair").terrain],
-        ["riverside", context.riverside],
+        ["riverside", context.places.get("riverside").terrain],
         ["cave", context.places.get("cave").terrain],
       ])
         if (world.isEntrance(hero.position)) return { id };

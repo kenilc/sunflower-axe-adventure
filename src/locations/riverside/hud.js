@@ -1,5 +1,11 @@
-export function createRiversideHud(context) {
-  const { boatTrip: boat, cableCar: cable, riverside, hero } = context;
+export function createRiversideHud({
+  boatTrip: boat,
+  cableCar: cable,
+  riverside,
+  hero,
+  boardBoat,
+  boardCableCar,
+}) {
   return () => {
     const gateX = riverside.returnGate.position.x - hero.position.x,
       gateZ = riverside.returnGate.position.z - hero.position.z;
@@ -20,7 +26,7 @@ export function createRiversideHud(context) {
           visible:
             !cable.riding && !cable.atSummit && (boat.rowing || boat.nearby()),
           disabled: boat.rowing,
-          run: () => context.boardBoat(),
+          run: () => boardBoat(),
         },
         {
           id: "cableAction",
@@ -34,7 +40,7 @@ export function createRiversideHud(context) {
           visible:
             boat.atLagoon && !boat.rowing && (cable.riding || cable.nearby()),
           disabled: cable.riding,
-          run: () => context.boardCableCar(),
+          run: () => boardCableCar(),
         },
       ],
       hint: cable.riding

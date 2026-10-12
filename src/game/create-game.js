@@ -1,10 +1,7 @@
 import { registerPlaces } from "../locations/register-places.js";
 import { createPlaceTransitions } from "./place-transitions.js";
 import { createPlaceRegistry } from "./place-registry.js";
-import { createCableCar } from "../locations/riverside/cable-car.js";
-import { createBoatTrip } from "../locations/riverside/boat-trip.js";
 import * as THREE from "three";
-import { createRiverside } from "../locations/riverside/world.js";
 import { createCompanion } from "../characters/companion.js";
 import { createCompanionReactions } from "../characters/reactions.js";
 import { createHearts } from "../systems/hearts.js";
@@ -12,10 +9,6 @@ import { resolveObstacleCollisions } from "../systems/collision.js";
 import { createSceneTransition } from "./scene-transition.js";
 import { createBenchMoment } from "../locations/garden/lakeside.js";
 import { createRendering } from "../rendering/renderer.js";
-import {
-  LAGOON_ENVIRONMENT,
-  RIVERSIDE_ENVIRONMENT,
-} from "../locations/riverside/place.js";
 import { createActivityPhoto } from "../rendering/activity-photo.js";
 import { createMeshFactory } from "../rendering/mesh-factory.js";
 import { createEffects } from "../systems/effects.js";
@@ -102,10 +95,6 @@ export function createGame({ createRenderer, models } = {}) {
     arms,
     eyes,
   } = createHero({ scene, model: models.hero, axeModel: models.axe });
-  const riverside = createRiverside({ mesh, box, cyl, ball });
-  garden.add(riverside.entrance);
-  scene.add(riverside.group);
-  blockers.push({ x: -32, z: -2, r: 0.45 }, { x: -32, z: 2, r: 0.45 });
   const companion = createCompanion({ model: models.companion });
   garden.add(companion.character);
   const companionReactions = createCompanionReactions({ companion, toast });
@@ -127,97 +116,6 @@ export function createGame({ createRenderer, models } = {}) {
     hearts,
     toast,
   });
-  const boatTrip = createBoatTrip({
-    mesh,
-    box,
-    cyl,
-    ball,
-    scene,
-    riverside,
-    hero,
-    heroRig,
-    companion,
-    toast,
-    onSceneChange(atLagoon) {
-      hearts.clear();
-      $(".quest .eyebrow").textContent = atLagoon
-        ? "THE LOTUS LAGOON"
-        : "THE RAINBOW RIVERSIDE";
-      $(".quest h1").innerHTML = atLagoon
-        ? "A boat for two.<br />A sunflower paradise."
-        : "A gentle river.<br />A rainbow of treasures.";
-      $("#objective").textContent = atLagoon
-        ? boatTrip.lagoon.collected === 240
-          ? "Your lagoon collection is complete! Enjoy the sunflowers together."
-          : "Wander through 900 sunflowers and collect 240 colourful gems and stones."
-        : riverObjective();
-      $("#riverCounts").hidden = atLagoon;
-      $("#lagoonCounts").hidden = !atLagoon;
-      environment.apply(atLagoon ? LAGOON_ENVIRONMENT : RIVERSIDE_ENVIRONMENT);
-      cableCar.setEnabled(atLagoon);
-      if (atLagoon) {
-        state.yaw = 0;
-        state.pitch = THREE.MathUtils.degToRad(16);
-        state.zoom = 20;
-      }
-      camera.position
-        .set(
-          Math.sin(state.yaw) * Math.cos(state.pitch) * state.zoom,
-          1 + Math.sin(state.pitch) * state.zoom,
-          Math.cos(state.yaw) * Math.cos(state.pitch) * state.zoom,
-        )
-        .add(hero.position);
-      camera.lookAt(
-        hero.position.x,
-        hero.position.y + cameraTargetHeight(),
-        hero.position.z,
-      );
-    },
-  });
-  const cableCar = createCableCar({
-    scene,
-    riverside,
-    lagoon: boatTrip.lagoon,
-    hero,
-    heroRig,
-    companion,
-    mesh,
-    box,
-    cyl,
-    toast,
-    onArrival(atSummit) {
-      hearts.clear();
-      state.yaw = 0;
-      state.pitch = THREE.MathUtils.degToRad(atSummit ? 30 : 16);
-      state.zoom = atSummit ? 22 : 20;
-      $(".quest .eyebrow").textContent = atSummit
-        ? "THE SUMMIT CASTLE"
-        : "THE LOTUS LAGOON";
-      $(".quest h1").innerHTML = atSummit
-        ? "A castle in the clouds.<br />A cozy room for two."
-        : "A boat for two.<br />A sunflower paradise.";
-      $("#objective").textContent = atSummit
-        ? "Walk through the open castle arch. Return cable car: beside the castle."
-        : boatTrip.lagoon.collected === 240
-          ? "Your lagoon collection is complete! Enjoy the flowers and the mountain cable car."
-          : "Explore the flowers and gemstones. Cable car: north end of the central island.";
-      camera.position
-        .set(
-          Math.sin(state.yaw) * Math.cos(state.pitch) * state.zoom,
-          1 + Math.sin(state.pitch) * state.zoom,
-          Math.cos(state.yaw) * Math.cos(state.pitch) * state.zoom,
-        )
-        .add(hero.position);
-    },
-  });
-  function boardCableCar(...args) {
-    return places.get("riverside").controls.boardCableCar(...args);
-  }
-
-  function boardBoat(...args) {
-    return places.get("riverside").controls.boardBoat(...args);
-  }
-
   $("#benchAction").onclick = () => {
     if (locations.area === "garden" && !passageTransition.active)
       benchMoment.sit();
@@ -255,8 +153,6 @@ export function createGame({ createRenderer, models } = {}) {
     ring,
     helpers: { mesh, box, ball, cyl },
     fire,
-    boardBoat,
-    boardCableCar,
     heroRig,
     get transitions() {
       return transitions;
@@ -283,7 +179,6 @@ export function createGame({ createRenderer, models } = {}) {
     toast,
     beep,
     cameraTargetHeight,
-    cableCar,
     get cameraDrag() {
       return cameraDrag;
     },
@@ -293,14 +188,12 @@ export function createGame({ createRenderer, models } = {}) {
     get joy() {
       return joy;
     },
-    boatTrip,
     sun,
     environment,
     get clock() {
       return clock;
     },
     burst,
-    riverside,
   };
   registerPlaces(places, placeContext);
   const { funfairActivities } = places.get("funfair").parts;
@@ -311,6 +204,8 @@ export function createGame({ createRenderer, models } = {}) {
   const { sheepMoment, alpineOutfits, alpineCart } =
     places.get("village").parts;
   const village = places.get("village").terrain;
+  const { boatTrip, cableCar } = places.get("riverside").parts;
+  const riverside = places.get("riverside").terrain;
   // Tall gate tops stay prominent on approach, but fade if they hide the heroine.
   const gateVisibility = createTreeVisibility({ obstructedOpacity: 0.12 });
   for (const gate of [
@@ -378,15 +273,8 @@ export function createGame({ createRenderer, models } = {}) {
     state.isMoving = false;
     hearts.clear();
   }
-  function usePassage(...args) {
-    return places.get("riverside").controls.usePassage(...args);
-  }
-
   function cameraTargetHeight() {
     return locations.active.cameraTarget();
-  }
-  function riverObjective(...args) {
-    return places.get("riverside").controls.riverObjective(...args);
   }
   const keys = {};
 
@@ -424,8 +312,6 @@ export function createGame({ createRenderer, models } = {}) {
     axes.push({ g: a, dir, life: 1.65 });
     beep(220, 0.15);
   }
-  $("#cableAction").onclick = boardCableCar;
-  $("#boatAction").onclick = boardBoat;
   function cameraLocked() {
     return Boolean(
       locations.active.cameraLocked?.() ||
@@ -864,9 +750,6 @@ export function createGame({ createRenderer, models } = {}) {
     journey,
     travelMap: ui.travelMap,
     invokeShortcut,
-    usePassage,
-    boardCableCar,
-    boardBoat,
     fire,
     toast,
     locations,
