@@ -1,5 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 import * as THREE from "three";
+import { FADED_OPACITY } from "../src/rendering/tree-visibility.js";
 import { createTestGame } from "./helpers/game.js";
 import { expectSolidScenery } from "./helpers/scenery.js";
 import { LOCATION_SAVE_KEY } from "../src/game/location-save.js";
@@ -66,7 +67,7 @@ test("winter houses fade only for the heroine, including in photo mode", async (
   expect(wall.material.opacity).toBe(1);
   heroine.position.set(-25, 0, 3);
   place.afterCamera(1);
-  expect(wall.material.opacity).toBeLessThan(0.09);
+  expect(wall.material.opacity).toBeLessThan(FADED_OPACITY + 0.01);
   heroine.position.set(-19, 0, 14);
   place.afterCamera(1);
   expect(wall.material.opacity).toBe(1);
@@ -79,11 +80,11 @@ test("winter houses fade only for the heroine, including in photo mode", async (
   expect(wall.material.opacity).toBe(1);
   heroine.position.set(-25, 0, 3);
   frames(game, 30);
-  expect(wall.material.opacity).toBeLessThan(0.09);
+  expect(wall.material.opacity).toBeLessThan(FADED_OPACITY + 0.01);
   game.activities.photography.exit();
 });
 
-test("a snowball blocking her stays solid while building and photographing, then exploration fading resumes", async () => {
+test("a snowball blocking her stays solid while building and photographing, and so does a finished snowman that leaves her head showing", async () => {
   const { game } = await createTestGame();
   game.transitions.open("winter", { activity: "snowman" });
   const place = game.places.get("winter"),
@@ -121,19 +122,22 @@ test("a snowball blocking her stays solid while building and photographing, then
   place.activity.stop(false);
   place.world.buildSnowman();
   const built = ball.getWorldPosition(new THREE.Vector3());
+  // Right behind the finished snowman, it hides her legs and body but not her
+  // head, which is too little to fade it.
   hero.position
     .copy(built)
-    .add(new THREE.Vector3(0, 0, -3))
+    .add(new THREE.Vector3(0, 0, -1.5))
     .setY(0);
   place.getPhotoPreset = () => ({
-    target: built,
+    lockActors: true,
+    target: hero.position.clone().setY(1.6),
     yaw: 0,
     pitch: 0,
     distance: 6,
   });
   expect(game.activities.photography.enter()).toBe(true);
   frames(game, 30);
-  expect(ball.material.opacity).toBeLessThan(0.09);
+  expect(ball.material.opacity).toBe(1);
   game.activities.photography.exit();
 });
 

@@ -14,9 +14,7 @@ export function createSummitCastle({
   castle.position.copy(center).add(new THREE.Vector3(1.7, 0, -2));
   castle.scale.setScalar(1.65);
   parent.add(castle);
-  const visibility = createTreeVisibility({
-    obstructedOpacity: 0.08,
-  });
+  const visibility = createTreeVisibility();
   const shells = [];
   const stone = "#e7d8c9",
     trim = "#f5e8cb",

@@ -1,5 +1,6 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
+import { FADED_OPACITY } from "../src/rendering/tree-visibility.js";
 test("riverside scenery and transport", async () => {
   const T = await import("three");
   const riverModule = await import("../src/locations/riverside/world.js");
@@ -109,7 +110,8 @@ test("riverside scenery and transport", async () => {
   river.updateVisibility(camera, [hero], 1);
   assert(
     tree.children.every(
-      (m) => m.material.opacity < 0.09 && !m.material.depthWrite,
+      (m) =>
+        m.material.opacity < FADED_OPACITY + 0.01 && !m.material.depthWrite,
     ),
     "Trees must fade even when the camera is inside their canopy",
   );
@@ -126,7 +128,7 @@ test("riverside scenery and transport", async () => {
   camera.lookAt(hero.position.clone().add(new T.Vector3(0, 1.6, 0)));
   river.updateVisibility(camera, [hero], 1);
   assert(
-    tree.children.every((m) => m.material.opacity < 0.09),
+    tree.children.every((m) => m.material.opacity < FADED_OPACITY + 0.01),
     "Trees between the camera and hero must fade",
   );
   assert.equal(river.landmarks.length, 4);
@@ -158,7 +160,7 @@ test("riverside scenery and transport", async () => {
   camera.lookAt(16, 1, 26);
   river.updateVisibility(camera, [hero], 1);
   assert(
-    gazebo.children.every((m) => m.material.opacity === 0),
+    gazebo.children.every((m) => m.material.opacity < FADED_OPACITY + 0.01),
     "Gazebo must fade when its roof encloses the camera",
   );
   assert.equal(river.treasures.length, 18);

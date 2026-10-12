@@ -10,9 +10,24 @@ function visible(object, root) {
   return true;
 }
 
+// How solid faded scenery stays: enough to keep its shape, while she shows through.
+export const FADED_OPACITY = 0.3;
+// Rays are cast to a 3 × 3 grid over her silhouette (legs, chest, head across
+// her width). Scenery fades only when it hides most of her (about 70%: 7 of
+// the 9 rays) or her whole head (all three rays at head height). Posts and
+// frames that leave a column of her showing stay solid. A change must hold
+// briefly before it takes effect, so passing moments near the threshold,
+// such as the camera easing into place, neither flicker nor stick.
+const FADE_RAYS = 7,
+  HEAD_RAYS = 3,
+  SWITCH_SECONDS = 0.2;
+const HEIGHTS = [0.7, 1.6, 2.5];
+
 // Fade scenery only along the supplied character sightlines. Gameplay supplies
 // the heroine; the companion may pass behind opaque scenery.
-export function createTreeVisibility({ obstructedOpacity = 0.08 } = {}) {
+export function createTreeVisibility({
+  obstructedOpacity = FADED_OPACITY,
+} = {}) {
   const trees = [];
   const raycaster = new THREE.Raycaster();
   const point = new THREE.Vector3();
@@ -49,13 +64,15 @@ export function createTreeVisibility({ obstructedOpacity = 0.08 } = {}) {
       ),
       materials: null,
       opacity: 1,
+      obstructed: false,
+      switching: 0,
     });
   }
   function update(camera, characters, dt, enabled = true) {
     rays.length = 0;
     cameraRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
-    for (const character of enabled ? characters : []) {
-      for (const height of [0.7, 1.6, 2.5]) {
+    (enabled ? characters : []).forEach((character, owner) => {
+      for (const height of HEIGHTS) {
         for (const offset of [-0.4, 0, 0.4]) {
           point.copy(character.position);
           point.y += height;
@@ -68,10 +85,12 @@ export function createTreeVisibility({ obstructedOpacity = 0.08 } = {}) {
               target: point.clone(),
               direction: direction.clone().normalize(),
               distance,
+              owner,
+              head: height === HEIGHTS.at(-1),
             });
         }
       }
-    }
+    });
     for (const tree of trees) {
       if (tree.dynamic) {
         tree.group.updateWorldMatrix(true, true);
@@ -84,7 +103,10 @@ export function createTreeVisibility({ obstructedOpacity = 0.08 } = {}) {
         }
       }
       const meshes = tree.meshes.filter((mesh) => visible(mesh, tree.group));
-      let obstructing = false;
+      // Count the blocked rays for each character.
+      const blocked = new Map(),
+        head = new Map();
+      let fades = false;
       for (const ray of meshes.length ? rays : []) {
         raycaster.set(camera.position, ray.direction);
         raycaster.near = 0;
@@ -99,11 +121,25 @@ export function createTreeVisibility({ obstructedOpacity = 0.08 } = {}) {
           raycaster.set(ray.target, reverse.copy(ray.direction).negate());
           raycaster.intersectObjects(meshes, false, hits);
         }
-        if (hits.length) {
-          obstructing = true;
+        if (!hits.length) continue;
+        const count = (blocked.get(ray.owner) ?? 0) + 1,
+          heads = (head.get(ray.owner) ?? 0) + (ray.head ? 1 : 0);
+        blocked.set(ray.owner, count);
+        head.set(ray.owner, heads);
+        if (count >= FADE_RAYS || heads >= HEAD_RAYS) {
+          fades = true;
           break;
         }
       }
+      if (!enabled) {
+        tree.obstructed = false;
+        tree.switching = 0;
+      } else if (fades === tree.obstructed) tree.switching = 0;
+      else if ((tree.switching += dt) >= SWITCH_SECONDS) {
+        tree.obstructed = fades;
+        tree.switching = 0;
+      }
+      const obstructing = tree.obstructed;
       const target = obstructing ? obstructedOpacity : 1;
       tree.opacity = enabled
         ? THREE.MathUtils.lerp(tree.opacity, target, 1 - Math.exp(-dt * 12))

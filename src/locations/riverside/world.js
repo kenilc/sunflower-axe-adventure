@@ -5,9 +5,7 @@ import { createTreeVisibility } from "../../rendering/tree-visibility.js";
 export function createRiverside({ mesh, box, cyl, ball }) {
   const group = new THREE.Group();
   group.visible = false;
-  const sceneryVisibility = createTreeVisibility({
-    obstructedOpacity: 0,
-  });
+  const sceneryVisibility = createTreeVisibility();
   const blockers = [];
   const entrance = new THREE.Group();
   entrance.position.set(-32, 0, 0);

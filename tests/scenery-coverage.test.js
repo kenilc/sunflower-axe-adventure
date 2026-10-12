@@ -1,5 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 import * as THREE from "three";
+import { FADED_OPACITY } from "../src/rendering/tree-visibility.js";
 import { createTestGame } from "./helpers/game.js";
 import { createSceneryVisibility } from "../src/rendering/scenery-visibility.js";
 
@@ -33,7 +34,9 @@ test("shared scenery coverage handles nested moving objects and never fades eith
   heroine.position.set(0, 0, -4);
   camera.lookAt(0, 1.6, -4);
   visibility.update(camera, heroine, 1);
-  expect(mesh.material.every((value) => value.opacity < 0.09)).toBe(true);
+  expect(
+    mesh.material.every((value) => value.opacity < FADED_OPACITY + 0.01),
+  ).toBe(true);
   expect(actorMesh.material.opacity).toBe(1);
   expect(material.opacity).toBe(1);
   object.position.x = 6;
@@ -57,9 +60,10 @@ test("cave, castle, shops, village, festival and funfair all protect only her si
     ["shop:outfit", null],
     ["shop:flowers", null],
     ["festival", "festival-street-house"],
-    ["funfair", "ring-toss-booth"],
+    // Between its counter and canopy the booth leaves her showing.
+    ["funfair", "ring-toss-booth", false],
   ];
-  for (const [id, name] of cases) {
+  for (const [id, name, hides = true] of cases) {
     expect(game.transitions.restore(id), id).toBe(true);
     const place = game.places.get(id);
     const object = name
@@ -117,11 +121,11 @@ test("cave, castle, shops, village, festival and funfair all protect only her si
     expect(
       meshes.some((mesh) =>
         (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).some(
-          (material) => material.opacity < 0.2,
+          (material) => material.opacity < FADED_OPACITY + 0.01,
         ),
       ),
       `${id}: she is behind it`,
-    ).toBe(true);
+    ).toBe(hides);
     hero.position.copy(clear);
     frames();
     expect(
