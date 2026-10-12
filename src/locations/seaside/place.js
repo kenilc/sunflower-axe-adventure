@@ -91,13 +91,16 @@ export function createSeasidePlace(context) {
       spawn: [0, 0, 15],
       heading: Math.PI,
       camera: { yaw: 0, pitch: 0.27, zoom: 23, fov: 50 },
+      // A low orange-pink sun over the sea casts long shadows up the sand.
       environment: {
         background: "#ffd5a1",
         fogDensity: 0.006,
-        sunIntensity: 2.1,
-        fillIntensity: 2.3,
-        fillColor: "#ffe0cc",
-        groundColor: "#958395",
+        sunIntensity: 2.6,
+        sunColor: "#ffb07c",
+        sunOffset: [-8, 10, -34],
+        fillIntensity: 1.9,
+        fillColor: "#ffd9cc",
+        groundColor: "#8a7290",
       },
     },
     enter({ options = {} } = {}) {
