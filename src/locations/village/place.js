@@ -1,17 +1,19 @@
 import { createVillageHud } from "./hud.js";
 import * as THREE from "three";
+import { createAlpineCart } from "./alpine-cart.js";
+import { createAlpineVillage, createAlpineOutfits } from "./world.js";
+import { createSheepMoment } from "./sheep-moment.js";
+import { createPhotoCapture } from "../../rendering/photo-capture.js";
 
 export const VILLAGE_ENVIRONMENT = { background: "#c4dfdf", fogDensity: 0.003 };
 
 export function createVillagePlace(context) {
   const {
-    village,
     locations,
     passageTransition,
     hero,
     companion,
     companionReactions,
-    sheepMoment,
     resetCamera,
     clearRestInput,
     benchMoment,
@@ -19,17 +21,93 @@ export function createVillagePlace(context) {
     state,
     camera,
     $,
-    alpineCart,
     garden,
-    alpineOutfits,
-    hikingTethers,
     companionObstacles,
     gardenTerrain,
     scene,
     effects,
     toast,
     beep,
+    heroRig,
   } = context;
+  const { mesh, box, cyl, ball } = context.helpers;
+  const village = createAlpineVillage({ mesh, box, cyl, ball });
+  garden.add(village.entrance);
+  scene.add(village.group);
+  village.shops.forEach((shop) => scene.add(shop.room.group));
+  context.addGardenBlockers(
+    { x: -2.5, z: 33, r: 0.3 },
+    { x: 2.5, z: 33, r: 0.3 },
+  );
+  const sheepMoment = createSheepMoment({
+    village,
+    hero,
+    heroRig,
+    companion,
+    camera,
+    capturePhoto: createPhotoCapture({ renderer: context.renderer, scene }),
+    savePhoto: (image) =>
+      context.photography.savePhoto(image, "Edelweiss Village · Sheep meadow"),
+    mesh,
+    box,
+    cyl,
+    $,
+    toast,
+    beep,
+    hearts,
+    clearInput: clearRestInput,
+    reactions: companionReactions,
+    onMemory() {
+      $("#villageStamps").textContent = village.stamps.size;
+      $("#objective").textContent = villageObjective();
+    },
+  });
+  const alpineOutfits = createAlpineOutfits({
+    heroRig,
+    companion,
+    mesh,
+    box,
+    cyl,
+    ball,
+  });
+  const alpineCart = createAlpineCart({
+    village,
+    hero,
+    heroRig,
+    companion,
+    camera,
+    mesh,
+    box,
+    cyl,
+    accessories: [alpineOutfits.bouquet],
+    onClear: resetCamera,
+    onFinish() {
+      $(".instructions").innerHTML =
+        "<kbd>W A S D</kbd> walk / hike <kbd>X</kbd> shops / sheep / summit cart <kbd>DRAG / Q E</kbd> rotate";
+      clearRestInput();
+      village.stamps.add("lookout");
+      $("#villageStamps").textContent = village.stamps.size;
+      $("#objective").textContent = villageObjective();
+      resetCamera();
+      toast("What a ride! ♥ A little flower-and-star magic clears the path.");
+      hearts.contact(true, hero.position, companion.character.position);
+    },
+  });
+  alpineCart.reset();
+  const hikingTethers = [hero, companion.character].map(() => {
+    const geometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(),
+      new THREE.Vector3(),
+    ]);
+    const rope = new THREE.Line(
+      geometry,
+      new THREE.LineBasicMaterial({ color: "#e9b86d" }),
+    );
+    rope.name = "via-ferrata-safety-tether";
+    rope.visible = false;
+    village.group.add(rope);
+    return rope;
+  });
   function villageObjective() {
     return village.stamps.size === 5
       ? "A lovely alpine day: pastries, scarves, flowers, sheep and a mountain cart ride."
@@ -241,6 +319,7 @@ export function createVillagePlace(context) {
     $("#villageStamps").textContent = village.stamps.size;
     $("#objective").textContent = villageObjective();
   }
+  $("#villageAction").onclick = interactVillage;
   return {
     update(dt, time) {
       if (locations.current !== "village") return false;
@@ -340,7 +419,14 @@ export function createVillagePlace(context) {
     id: "village",
     cameraLocked: () =>
       alpineCart.riding || sheepMoment.active || sheepMoment.viewing,
-    getHud: createVillageHud(context),
+    getHud: createVillageHud({
+      state,
+      village,
+      alpineCart,
+      hero,
+      sheepMoment,
+      interact: interactVillage,
+    }),
     getGate: () =>
       !state.activeVillageShop && village.isExit(hero.position)
         ? { id: "garden" }
@@ -360,6 +446,7 @@ export function createVillagePlace(context) {
       state.activeVillageShop ? `shop:${state.activeVillageShop.kind}` : null,
     group: village.group,
     terrain: village,
+    parts: { sheepMoment, alpineOutfits, alpineCart, hikingTethers },
     activateEnter(options = {}) {
       changeVillagePassage(true);
       const activity = options.activity;

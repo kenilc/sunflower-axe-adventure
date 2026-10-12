@@ -1,18 +1,12 @@
 import { registerPlaces } from "../locations/register-places.js";
 import { createPlaceTransitions } from "./place-transitions.js";
 import { createPlaceRegistry } from "./place-registry.js";
-import { createAlpineCart } from "../locations/village/alpine-cart.js";
-import {
-  createAlpineVillage,
-  createAlpineOutfits,
-} from "../locations/village/world.js";
 import { createCableCar } from "../locations/riverside/cable-car.js";
 import { createBoatTrip } from "../locations/riverside/boat-trip.js";
 import * as THREE from "three";
 import { createRiverside } from "../locations/riverside/world.js";
 import { createCompanion } from "../characters/companion.js";
 import { createCompanionReactions } from "../characters/reactions.js";
-import { createSheepMoment } from "../locations/village/sheep-moment.js";
 import { createHearts } from "../systems/hearts.js";
 import { resolveObstacleCollisions } from "../systems/collision.js";
 import { createSceneTransition } from "./scene-transition.js";
@@ -38,7 +32,6 @@ import { createSceneryVisibility } from "../rendering/scenery-visibility.js";
 import { registerAdventureProgress } from "../integrations/adventure-progress.js";
 import { createProgressReader } from "./progress.js";
 import { createGameApi } from "./game-api.js";
-import { createPhotoCapture } from "../rendering/photo-capture.js";
 import { createFeedback } from "../ui/feedback.js";
 import { bindGameUi } from "../ui/bind-ui.js";
 
@@ -113,83 +106,9 @@ export function createGame({ createRenderer, models } = {}) {
   garden.add(riverside.entrance);
   scene.add(riverside.group);
   blockers.push({ x: -32, z: -2, r: 0.45 }, { x: -32, z: 2, r: 0.45 });
-  const village = createAlpineVillage({ mesh, box, cyl, ball });
-  garden.add(village.entrance);
-  scene.add(village.group);
-  village.shops.forEach((shop) => scene.add(shop.room.group));
-  blockers.push({ x: -2.5, z: 33, r: 0.3 }, { x: 2.5, z: 33, r: 0.3 });
   const companion = createCompanion({ model: models.companion });
   garden.add(companion.character);
   const companionReactions = createCompanionReactions({ companion, toast });
-  const sheepMoment = createSheepMoment({
-    village,
-    hero,
-    heroRig,
-    companion,
-    camera,
-    capturePhoto: createPhotoCapture({ renderer, scene }),
-    savePhoto: (image) =>
-      photography.savePhoto(image, "Edelweiss Village · Sheep meadow"),
-    mesh,
-    box,
-    cyl,
-    $,
-    toast,
-    beep,
-    hearts,
-    clearInput: clearRestInput,
-    reactions: companionReactions,
-    onMemory() {
-      $("#villageStamps").textContent = village.stamps.size;
-      $("#objective").textContent = villageObjective();
-    },
-  });
-  const alpineOutfits = createAlpineOutfits({
-    heroRig,
-    companion,
-    mesh,
-    box,
-    cyl,
-    ball,
-  });
-  const alpineCart = createAlpineCart({
-    village,
-    hero,
-    heroRig,
-    companion,
-    camera,
-    mesh,
-    box,
-    cyl,
-    accessories: [alpineOutfits.bouquet],
-    onClear: resetCamera,
-    onFinish() {
-      $(".instructions").innerHTML =
-        "<kbd>W A S D</kbd> walk / hike <kbd>X</kbd> shops / sheep / summit cart <kbd>DRAG / Q E</kbd> rotate";
-      clearRestInput();
-      village.stamps.add("lookout");
-      $("#villageStamps").textContent = village.stamps.size;
-      $("#objective").textContent = villageObjective();
-      resetCamera();
-      toast("What a ride! ♥ A little flower-and-star magic clears the path.");
-      hearts.contact(true, hero.position, companion.character.position);
-    },
-  });
-  alpineCart.reset();
-  const hikingTethers = [hero, companion.character].map(() => {
-    const geometry = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(),
-      new THREE.Vector3(),
-    ]);
-    const rope = new THREE.Line(
-      geometry,
-      new THREE.LineBasicMaterial({ color: "#e9b86d" }),
-    );
-    rope.name = "via-ferrata-safety-tether";
-    rope.visible = false;
-    village.group.add(rope);
-    return rope;
-  });
   const companionObstacles = [
     ...blockers,
     ...gemPositions.map(([x, z]) => ({ x, z, r: 0.8 })),
@@ -311,6 +230,10 @@ export function createGame({ createRenderer, models } = {}) {
   });
   const keepsakes = createKeepsakes();
   const placeContext = {
+    renderer,
+    get photography() {
+      return photography;
+    },
     shouldFadeScenery,
     keepsakes,
     places,
@@ -334,19 +257,15 @@ export function createGame({ createRenderer, models } = {}) {
     fire,
     boardBoat,
     boardCableCar,
-    interactVillage,
-    changeVillageShop,
     heroRig,
     get transitions() {
       return transitions;
     },
-    village,
     locations,
     passageTransition,
     hero,
     companion,
     companionReactions,
-    sheepMoment,
     resetCamera,
     clearRestInput,
     benchMoment,
@@ -356,10 +275,7 @@ export function createGame({ createRenderer, models } = {}) {
     get $() {
       return $;
     },
-    alpineCart,
     garden,
-    alpineOutfits,
-    hikingTethers,
     companionObstacles,
     gardenTerrain,
     scene,
@@ -392,6 +308,9 @@ export function createGame({ createRenderer, models } = {}) {
   const { festivalMoment, summerOutfits } = places.get("festival").parts;
   const festival = places.get("festival").terrain;
   const { castleRoom, bedRest } = places.get("castle").parts;
+  const { sheepMoment, alpineOutfits, alpineCart } =
+    places.get("village").parts;
+  const village = places.get("village").terrain;
   // Tall gate tops stay prominent on approach, but fade if they hide the heroine.
   const gateVisibility = createTreeVisibility({ obstructedOpacity: 0.12 });
   for (const gate of [
@@ -435,12 +354,6 @@ export function createGame({ createRenderer, models } = {}) {
     fade: passageTransition,
     context: placeContext,
   });
-  function villageObjective(...args) {
-    return places.get("village").controls.villageObjective(...args);
-  }
-  function useVillagePassage(...args) {
-    return places.get("village").controls.useVillagePassage(...args);
-  }
   function resetCamera() {
     const distance =
       locations.active.cameraDistance?.(state.zoom) ?? state.zoom;
@@ -458,19 +371,6 @@ export function createGame({ createRenderer, models } = {}) {
     );
     camera.updateProjectionMatrix();
   }
-  function changeVillagePassage(...args) {
-    return places.get("village").controls.changeVillagePassage(...args);
-  }
-  function changeVillageShop(...args) {
-    return places.get("village").controls.changeVillageShop(...args);
-  }
-  function useVillageShop(...args) {
-    return places.get("village").controls.useVillageShop(...args);
-  }
-  function interactVillage(...args) {
-    return places.get("village").controls.interactVillage(...args);
-  }
-  $("#villageAction").onclick = interactVillage;
   function clearRestInput() {
     cameraDrag.reset();
     Object.keys(keys).forEach((key) => (keys[key] = false));
@@ -965,9 +865,6 @@ export function createGame({ createRenderer, models } = {}) {
     travelMap: ui.travelMap,
     invokeShortcut,
     usePassage,
-    useVillagePassage,
-    useVillageShop,
-    interactVillage,
     boardCableCar,
     boardBoat,
     fire,

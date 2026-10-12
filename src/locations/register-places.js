@@ -9,16 +9,12 @@ import { createGardenPlace } from "./garden/place.js";
 import { createWinterPlace } from "./winter/place.js";
 
 export function registerPlaces(places, context) {
-  const {
-    hero,
-    boatTrip,
-    cableCar,
-    village,
-    alpineCart,
-    changeVillageShop,
-    interactVillage,
-  } = context;
+  const { hero, boatTrip, cableCar } = context;
   places.register(createVillagePlace(context));
+  const villagePlace = places.get("village");
+  const village = villagePlace.terrain;
+  const { alpineCart } = villagePlace.parts;
+  const { changeVillageShop, interactVillage } = villagePlace.controls;
   places.register(createFunfairPlace(context));
   places.register(createCastlePlace(context));
   places.register(createRiversidePlace(context));

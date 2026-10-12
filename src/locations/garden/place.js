@@ -49,7 +49,7 @@ export function createGardenPlace(context) {
     },
     getGate() {
       for (const [id, world] of [
-        ["village", context.village],
+        ["village", context.places.get("village").terrain],
         ["funfair", context.places.get("funfair").terrain],
         ["riverside", context.riverside],
         ["cave", context.places.get("cave").terrain],

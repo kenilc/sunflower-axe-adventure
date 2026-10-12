@@ -23,7 +23,6 @@ export function createFestivalPlace(context) {
     clearRestInput,
     hearts,
     state,
-    alpineOutfits,
     companion,
     hero,
     environment,
@@ -35,6 +34,7 @@ export function createFestivalPlace(context) {
   } = context;
   const { mesh, box, cyl, ball } = context.helpers;
   // The funfair registers first; the festival lives behind its north gate.
+  const { alpineOutfits } = context.places.get("village").parts;
   const { funfairActivities } = context.places.get("funfair").parts;
   const funfair = context.places.get("funfair").terrain;
   const festival = createNightFestival({ mesh, box, cyl, ball });

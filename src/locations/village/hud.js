@@ -1,5 +1,11 @@
-export function createVillageHud(context) {
-  const { state, village, alpineCart, hero, sheepMoment } = context;
+export function createVillageHud({
+  state,
+  village,
+  alpineCart,
+  hero,
+  sheepMoment,
+  interact,
+}) {
   return () => {
     const action = sheepMoment.active
       ? { label: "A woolly photo moment ♥" }
@@ -33,7 +39,7 @@ export function createVillageHud(context) {
             alpineCart.riding ||
             sheepMoment.active ||
             state.villageActivityCooldown > 0,
-          run: () => context.interactVillage(),
+          run: () => interact(),
         },
       ],
       hideStick: sheepMoment.active || alpineCart.riding,
