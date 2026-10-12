@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createDioramaBase } from "../../rendering/diorama-base.js";
 
 const TAU = Math.PI * 2;
 const colors = ["#ed8ca7", "#71c9c6", "#f6cf65", "#a799d7"];
@@ -190,7 +191,13 @@ export function createFunfair({ mesh, box, cyl, ball }) {
     [9, -18],
   ].forEach(([x, z], i) => flagPole(x, z, colors[i % colors.length], i));
   for (const s of [-1, 1]) blockers.push({ x: s * 2.6, z: 29, r: 0.36 });
-  cyl(40, 41, 2, "#80a976", 0, -1.03, 0, group, 96);
+  createDioramaBase({
+    parent: group,
+    mesh,
+    radius: 40.5,
+    top: -0.03,
+    grass: "#80a976",
+  });
   cyl(8, 8, 0.08, "#efdfb9", 0, 0, 4, group, 64);
   function path(x, z, w, d) {
     box(w, 0.045, d, "#efdfb9", x, 0.015, z, group);
