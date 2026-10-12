@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createDioramaBase } from "../../rendering/diorama-base.js";
 
 export function createBoatTrip({
   mesh,
@@ -29,7 +30,13 @@ export function createBoatTrip({
     },
     heightAt: (x, z) => (Math.abs(x) < 1.5 && z > 5.5 && z < 19 ? 0.16 : 0),
   };
-  cyl(25, 25, 3, "#71976e", 0, -1.53, 0, lagoonGroup, 96);
+  createDioramaBase({
+    parent: lagoonGroup,
+    mesh,
+    size: 25,
+    top: -0.03,
+    grass: "#71976e",
+  });
   const pool = mesh(
     new THREE.CircleGeometry(17.5, 80),
     new THREE.MeshStandardMaterial({

@@ -1,5 +1,6 @@
 import { createSummitCastle } from "./summit-castle.js";
 import * as THREE from "three";
+import { createDioramaBase } from "../../rendering/diorama-base.js";
 
 export function createCableCar({
   scene,
@@ -42,8 +43,16 @@ export function createCableCar({
   const startPoint = islandDock.clone().add(new THREE.Vector3(0, 0.35, 0));
   const endPoint = summitDock.clone().add(new THREE.Vector3(0, 0.35, 0));
   // A grassy valley meets the lagoon shore below the rocky forest slope.
-  const valley = cyl(1, 1, 3.6, "#85a777", 0, -1.84, -112, group, 96);
-  valley.scale.set(68, 1, 87);
+  // Stretched to the valley's oval; the side rocks stretch only slightly.
+  const valley = createDioramaBase({
+    parent: group,
+    mesh,
+    size: 68,
+    top: -0.04,
+    grass: "#85a777",
+  });
+  valley.scale.z = 87 / 68;
+  valley.position.z = -112;
   valley.name = "cable-car-valley";
   const rockFace = new THREE.Group();
   rockFace.name = "lagoon-rocky-slope";
