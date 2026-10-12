@@ -2,7 +2,13 @@ import { createFunfairHud } from "./hud.js";
 import * as THREE from "three";
 import { createFunfair, createFunfairActivities } from "./world.js";
 
-export const FUNFAIR_ENVIRONMENT = { background: "#b9deda", fogDensity: 0.005 };
+// Slightly lower exposure and fill keep the pastels from washing out.
+export const FUNFAIR_ENVIRONMENT = {
+  background: "#b9deda",
+  fogDensity: 0.005,
+  fillIntensity: 1.6,
+  exposure: 1.0,
+};
 
 export function createFunfairPlace(context) {
   const {
