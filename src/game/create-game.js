@@ -63,6 +63,8 @@ import { bindTravelMap } from "../ui/travel-map.js";
 import { createTreeVisibility } from "../rendering/tree-visibility.js";
 import { createSceneryVisibility } from "../rendering/scenery-visibility.js";
 import { registerAdventureProgress } from "../integrations/adventure-progress.js";
+import { createProgressReader } from "./progress.js";
+import { createGameApi } from "./game-api.js";
 
 export function createGame({ createRenderer, models } = {}) {
   const places = createPlaceRegistry();
@@ -1159,149 +1161,88 @@ export function createGame({ createRenderer, models } = {}) {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") locationSave.flush();
   });
+  const readProgress = createProgressReader({
+    keepsakes,
+    journey,
+    funfairActivities,
+    village,
+    alpineCart,
+    state,
+    sheepMoment,
+    festivalMoment,
+    locations,
+    boatTrip,
+    hero,
+    $,
+  });
   registerAdventureProgress(readProgress);
-  function readProgress() {
-    return {
-      beachKeepsakes: keepsakes.items.length,
-      discoveredPlaces: journey.destinations
-        .filter((entry) => entry.unlocked)
-        .map((entry) => entry.id),
-      funfairPrizes: funfairActivities.collected,
-      funfairRide: funfairActivities.ride,
-      ringTossFirstPerson: funfairActivities.playing,
-      villageMemories: village.stamps.size,
-      villageCart: alpineCart.riding,
-      villageShop: state.activeVillageShop?.kind ?? null,
-      sheepPhotos: sheepMoment.memories.size,
-      sheepPhotoMoment: sheepMoment.active,
-      festivalFireworks: festivalMoment.active,
-      summerClothes: locations.state.insideFestival,
-      location:
-        typeof locations.active.progressLabel === "function"
-          ? locations.active.progressLabel()
-          : (locations.active.progressLabel ??
-            locations.active.name ??
-            locations.active.id),
-      placeProgress: locations.active.getProgress?.() ?? null,
-      riversideTreasures: state.riverCollected,
-      lagoonTreasures: boatTrip.lagoon.collected,
-      sunStones: state.collected,
-      targetsBroken: state.score,
-      complete: state.won,
-      position: {
-        x: Math.round(hero.position.x),
-        z: Math.round(hero.position.z),
-      },
-      objective: $("#objective").textContent,
-    };
-  }
-  return {
-    start: loop.start,
-    stop: loop.stop,
-    update: frame,
+  return createGameApi({
+    loop,
+    frame,
     readProgress,
-    rendering: {
-      scene,
-      camera,
-      renderer,
-      meshes: { mesh, box, cyl, ball },
-      clock,
-    },
-    characters: { hero, rig: heroRig, companion },
-    worlds: {
-      garden,
-      lakeside,
-      shrine,
-      targets,
-      gems,
-      blockers,
-      riverside,
-      castleRoom,
-      funfair,
-      village,
-      festival,
-    },
-    activities: {
-      photoMode,
-      photoAlbum,
-      keepsakes,
-      collection,
-      photography,
-      boatTrip,
-      cableCar,
-      bedRest,
-      funfairActivities,
-      alpineCart,
-      alpineOutfits,
-      festivalMoment,
-      summerOutfits,
-      sheepMoment,
-      companionReactions,
-    },
-    controls: {
-      resetAdventure,
-      travelTo: (id, options) => transitions.go(id, options),
-      fastTravel: (id) => journey.travel(id),
-      openMap: travelMap.openMap,
-      openKeepsakes: collection.openCollection,
-      interact: () => invokeShortcut("KeyX"),
-      usePassage,
-      useCastlePassage,
-      changeCastlePassage,
-      interactCastle,
-      useFunfairPassage,
-      interactFunfair,
-      useVillagePassage,
-      useVillageShop,
-      interactVillage,
-      changeFestivalPassage,
-      useFestivalPassage,
-      interactFestival,
-      boardCableCar,
-      boardBoat,
-      fire,
-      equipItem(id) {
-        heroRig.items.equip(id);
-        toast(
-          id === null
-            ? "Hands free for a wander"
-            : `Holding ${heroRig.items.label}`,
-        );
-      },
-    },
-    state: {
-      location: locations.state,
-      get area() {
-        return locations.area;
-      },
-      get room() {
-        return locations.room;
-      },
-      get activeLocation() {
-        return locations.current;
-      },
-      get won() {
-        return state.won;
-      },
-      get yaw() {
-        return state.yaw;
-      },
-      get pitch() {
-        return state.pitch;
-      },
-      get zoom() {
-        return state.zoom;
-      },
-      get activeVillageShop() {
-        return state.activeVillageShop;
-      },
-    },
-    input: { keys },
+    scene,
+    camera,
+    renderer,
+    mesh,
+    box,
+    cyl,
+    ball,
+    clock,
+    hero,
+    heroRig,
+    companion,
+    garden,
+    lakeside,
+    shrine,
+    targets,
+    gems,
+    blockers,
+    riverside,
+    castleRoom,
+    funfair,
+    village,
+    festival,
+    photoMode,
+    photoAlbum,
+    keepsakes,
+    collection,
+    photography,
+    boatTrip,
+    cableCar,
+    bedRest,
+    funfairActivities,
+    alpineCart,
+    alpineOutfits,
+    festivalMoment,
+    summerOutfits,
+    sheepMoment,
+    companionReactions,
+    resetAdventure,
+    transitions,
     journey,
     travelMap,
+    invokeShortcut,
+    usePassage,
+    useCastlePassage,
+    changeCastlePassage,
+    interactCastle,
+    useFunfairPassage,
+    interactFunfair,
+    useVillagePassage,
+    useVillageShop,
+    interactVillage,
+    changeFestivalPassage,
+    useFestivalPassage,
+    interactFestival,
+    boardCableCar,
+    boardBoat,
+    fire,
+    toast,
+    locations,
+    state,
+    keys,
     effects,
     places,
-    transitions,
     passageTransition,
-  };
+  });
 }
