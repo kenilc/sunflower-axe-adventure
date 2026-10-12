@@ -11,10 +11,6 @@ import {
   createAlpineVillage,
   createAlpineOutfits,
 } from "../locations/village/world.js";
-import {
-  createFunfair,
-  createFunfairActivities,
-} from "../locations/funfair/world.js";
 import { createBedRest } from "../locations/castle/bed-rest.js";
 import { createCastleRoom } from "../locations/castle/world.js";
 import { createCableCar } from "../locations/riverside/cable-car.js";
@@ -128,43 +124,17 @@ export function createGame({ createRenderer, models } = {}) {
   garden.add(riverside.entrance);
   scene.add(riverside.group);
   blockers.push({ x: -32, z: -2, r: 0.45 }, { x: -32, z: 2, r: 0.45 });
-  const funfair = createFunfair({ mesh, box, cyl, ball });
-  garden.add(funfair.entrance);
-  scene.add(funfair.group);
-  funfair.tossCamera.aspect = camera.aspect;
-  funfair.tossCamera.updateProjectionMatrix();
-  blockers.push({ x: 32, z: -2.6, r: 0.36 }, { x: 32, z: 2.6, r: 0.36 });
   const village = createAlpineVillage({ mesh, box, cyl, ball });
   garden.add(village.entrance);
   scene.add(village.group);
   village.shops.forEach((shop) => scene.add(shop.room.group));
   blockers.push({ x: -2.5, z: 33, r: 0.3 }, { x: 2.5, z: 33, r: 0.3 });
   const festival = createNightFestival({ mesh, box, cyl, ball });
-  funfair.group.add(festival.entrance);
   scene.add(festival.group);
   const castleRoom = createCastleRoom({ mesh, box, cyl, ball });
   scene.add(castleRoom.group);
   const companion = createCompanion({ model: models.companion });
   garden.add(companion.character);
-  // Tall gate tops stay prominent on approach, but fade if they hide the heroine.
-  const gateVisibility = createTreeVisibility({ obstructedOpacity: 0.12 });
-  for (const gate of [
-    village.entrance,
-    village.returnGate,
-    funfair.entrance,
-    funfair.returnGate,
-    riverside.entrance,
-    riverside.returnGate,
-    festival.entrance,
-    festival.group.getObjectByName("festival-lantern-gate"),
-  ]) {
-    const canopy = new THREE.Group();
-    canopy.name = "gate-canopy";
-    gate.add(canopy);
-    for (const child of [...gate.children])
-      if (child.isMesh && child.position.y >= 4.5) canopy.add(child);
-    gateVisibility.add(canopy);
-  }
   const companionReactions = createCompanionReactions({ companion, toast });
   const sheepMoment = createSheepMoment({
     village,
@@ -200,19 +170,6 @@ export function createGame({ createRenderer, models } = {}) {
       environment.apply(
         sleeping ? CASTLE_NIGHT_ENVIRONMENT : CASTLE_ENVIRONMENT,
       );
-    },
-  });
-  const funfairActivities = createFunfairActivities({
-    park: funfair,
-    hero,
-    heroRig,
-    companion,
-    toast,
-    onPrize(total, position) {
-      $("#funfairPrizes").textContent = total;
-      $("#objective").textContent = funfairActivities.objective();
-      burst(position, "#ffe399", 24);
-      beep(880, 0.3);
     },
   });
   const alpineOutfits = createAlpineOutfits({
@@ -418,8 +375,6 @@ export function createGame({ createRenderer, models } = {}) {
     boardBoat,
     boardCableCar,
     interactVillage,
-    interactFunfair,
-    leaveRingToss,
     interactCastle,
     interactFestival,
     changeVillageShop,
@@ -453,8 +408,6 @@ export function createGame({ createRenderer, models } = {}) {
     effects,
     toast,
     beep,
-    funfairActivities,
-    funfair,
     cameraTargetHeight,
     cableCar,
     get cameraDrag() {
@@ -482,6 +435,28 @@ export function createGame({ createRenderer, models } = {}) {
     summerOutfits,
   };
   registerPlaces(places, placeContext);
+  const { terrain: funfair, activities: funfairActivities } =
+    places.get("funfair");
+  funfair.group.add(festival.entrance);
+  // Tall gate tops stay prominent on approach, but fade if they hide the heroine.
+  const gateVisibility = createTreeVisibility({ obstructedOpacity: 0.12 });
+  for (const gate of [
+    village.entrance,
+    village.returnGate,
+    funfair.entrance,
+    funfair.returnGate,
+    riverside.entrance,
+    riverside.returnGate,
+    festival.entrance,
+    festival.group.getObjectByName("festival-lantern-gate"),
+  ]) {
+    const canopy = new THREE.Group();
+    canopy.name = "gate-canopy";
+    gate.add(canopy);
+    for (const child of [...gate.children])
+      if (child.isMesh && child.position.y >= 4.5) canopy.add(child);
+    gateVisibility.add(canopy);
+  }
   const sceneryVisibility = new Map();
   function sceneryFor(place) {
     if (!sceneryVisibility.has(place.id))
@@ -542,20 +517,6 @@ export function createGame({ createRenderer, models } = {}) {
     return places.get("village").controls.interactVillage(...args);
   }
   $("#villageAction").onclick = interactVillage;
-  function useFunfairPassage(...args) {
-    return places.get("funfair").controls.useFunfairPassage(...args);
-  }
-  function changeFunfairPassage(...args) {
-    return places.get("funfair").controls.changeFunfairPassage(...args);
-  }
-  function interactFunfair(...args) {
-    return places.get("funfair").controls.interactFunfair(...args);
-  }
-  $("#funfairAction").onclick = interactFunfair;
-  function leaveRingToss(...args) {
-    return places.get("funfair").controls.leaveRingToss(...args);
-  }
-  $("#funfairExit").onclick = leaveRingToss;
   function useCastlePassage(...args) {
     return places.get("castle").controls.useCastlePassage(...args);
   }
@@ -1074,8 +1035,6 @@ export function createGame({ createRenderer, models } = {}) {
     useCastlePassage,
     changeCastlePassage,
     interactCastle,
-    useFunfairPassage,
-    interactFunfair,
     useVillagePassage,
     useVillageShop,
     interactVillage,

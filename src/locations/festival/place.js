@@ -18,11 +18,9 @@ export function createFestivalPlace(context) {
     passageTransition,
     clearRestInput,
     hearts,
-    funfairActivities,
     state,
     alpineOutfits,
     festival,
-    funfair,
     summerOutfits,
     companion,
     hero,
@@ -30,6 +28,9 @@ export function createFestivalPlace(context) {
     $,
     toast,
   } = context;
+  // The funfair registers first; the festival lives behind its north gate.
+  const { terrain: funfair, activities: funfairActivities } =
+    context.places.get("funfair");
   function useFestivalPassage(enter) {
     if (enter === locations.state.insideFestival) return false;
     return context.transitions.go(enter ? "festival" : "funfair");

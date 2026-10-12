@@ -1,15 +1,14 @@
 import { createFunfairHud } from "./hud.js";
 import * as THREE from "three";
+import { createFunfair, createFunfairActivities } from "./world.js";
 
 export const FUNFAIR_ENVIRONMENT = { background: "#b9deda", fogDensity: 0.005 };
 
 export function createFunfairPlace(context) {
   const {
     locations,
-    funfairActivities,
     passageTransition,
     hero,
-    funfair,
     companion,
     clearRestInput,
     benchMoment,
@@ -25,7 +24,32 @@ export function createFunfairPlace(context) {
     cameraTargetHeight,
     toast,
     beep,
+    heroRig,
+    burst,
   } = context;
+  const { mesh, box, cyl, ball } = context.helpers;
+  const funfair = createFunfair({ mesh, box, cyl, ball });
+  garden.add(funfair.entrance);
+  scene.add(funfair.group);
+  funfair.tossCamera.aspect = camera.aspect;
+  funfair.tossCamera.updateProjectionMatrix();
+  context.addGardenBlockers(
+    { x: 32, z: -2.6, r: 0.36 },
+    { x: 32, z: 2.6, r: 0.36 },
+  );
+  const funfairActivities = createFunfairActivities({
+    park: funfair,
+    hero,
+    heroRig,
+    companion,
+    toast,
+    onPrize(total, position) {
+      $("#funfairPrizes").textContent = total;
+      $("#objective").textContent = funfairActivities.objective();
+      burst(position, "#ffe399", 24);
+      beep(880, 0.3);
+    },
+  });
   function useFunfairPassage(enter, activity = null) {
     if (
       enter === locations.state.insideFunfair ||
@@ -130,6 +154,8 @@ export function createFunfairPlace(context) {
       return;
     if (funfairActivities.leaveToss()) clearRestInput();
   }
+  $("#funfairAction").onclick = interactFunfair;
+  $("#funfairExit").onclick = leaveRingToss;
   return {
     update(dt, time) {
       const wasPlaying = funfairActivities.playing;
@@ -154,7 +180,7 @@ export function createFunfairPlace(context) {
     pointerAction: () =>
       funfairActivities.playing ? interactFunfair() : context.fire(),
     cameraLocked: () => funfairActivities.playing,
-    getHud: createFunfairHud(context),
+    getHud: createFunfairHud(context, funfairActivities),
     getGate() {
       if (
         !funfairActivities.riding &&
@@ -169,6 +195,7 @@ export function createFunfairPlace(context) {
     parent: "garden",
     group: funfair.group,
     terrain: funfair,
+    activities: funfairActivities,
     activateEnter(options = {}) {
       changeFunfairPassage(true);
       if (options.activity === "ring-toss") {

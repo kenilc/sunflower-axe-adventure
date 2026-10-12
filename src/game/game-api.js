@@ -50,8 +50,6 @@ export function createGameApi({
   useCastlePassage,
   changeCastlePassage,
   interactCastle,
-  useFunfairPassage,
-  interactFunfair,
   useVillagePassage,
   useVillageShop,
   interactVillage,
@@ -69,6 +67,11 @@ export function createGameApi({
   places,
   passageTransition,
 }) {
+  // Controls the tests call; each runs the named control on its place.
+  const control =
+    (id, name) =>
+    (...args) =>
+      places.get(id).controls[name](...args);
   return {
     start: loop.start,
     stop: loop.stop,
@@ -123,8 +126,8 @@ export function createGameApi({
       useCastlePassage,
       changeCastlePassage,
       interactCastle,
-      useFunfairPassage,
-      interactFunfair,
+      useFunfairPassage: control("funfair", "useFunfairPassage"),
+      interactFunfair: control("funfair", "interactFunfair"),
       useVillagePassage,
       useVillageShop,
       interactVillage,

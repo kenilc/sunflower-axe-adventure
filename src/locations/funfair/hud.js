@@ -1,5 +1,4 @@
-export function createFunfairHud(context) {
-  const { funfairActivities: activity } = context;
+export function createFunfairHud(context, activity) {
   return () => {
     const action = activity.nearby();
     return {
@@ -20,7 +19,7 @@ export function createFunfairHud(context) {
           disabled:
             activity.throwing ||
             (action?.kind === "toss" && activity.collected === 3),
-          run: () => context.interactFunfair(),
+          run: () => context.places.get("funfair").controls.interactFunfair(),
         },
         {
           id: "funfairExit",
@@ -28,7 +27,7 @@ export function createFunfairHud(context) {
           label: "Leave booth · Esc",
           icon: "return",
           visible: activity.playing,
-          run: () => context.leaveRingToss(),
+          run: () => context.places.get("funfair").controls.leaveRingToss(),
         },
       ],
       hideStick: activity.playing,
