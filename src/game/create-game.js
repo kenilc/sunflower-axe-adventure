@@ -28,7 +28,7 @@ import { createSceneryFading } from "../rendering/scenery-fading.js";
 import { createFeedback } from "../ui/feedback.js";
 import { bindGameUi } from "../ui/bind-ui.js";
 
-export function createGame({ createRenderer, models } = {}) {
+export function createGame({ createRenderer, models, random } = {}) {
   const places = createPlaceRegistry();
   const state = {
     castleOutsideView: null,
@@ -95,7 +95,7 @@ export function createGame({ createRenderer, models } = {}) {
     arms,
     eyes,
   } = createHero({ scene, model: models.hero, axeModel: models.axe });
-  const companion = createCompanion({ model: models.companion });
+  const companion = createCompanion({ model: models.companion, random });
   garden.add(companion.character);
   const companionReactions = createCompanionReactions({ companion, toast });
   const companionObstacles = [

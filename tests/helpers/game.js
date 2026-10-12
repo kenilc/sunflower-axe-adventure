@@ -1,5 +1,6 @@
 import { vi } from "vitest";
 import { readModels } from "./models.js";
+import { createRandom } from "../../src/systems/random.js";
 
 export async function createTestGame({ storage } = {}) {
   const elements = new Map();
@@ -122,6 +123,7 @@ export async function createTestGame({ storage } = {}) {
   const G = createGame({
     models,
     createRenderer: () => new browser.FakeRenderer(),
+    random: createRandom(7),
   });
   G.update();
   return { game: G, models, element, handlers, elements };

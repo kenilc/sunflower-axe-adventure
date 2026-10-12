@@ -2,7 +2,8 @@ import * as THREE from "three";
 import { instantiateModel } from "../assets/models.js";
 import { createCharacterRig } from "./rig.js";
 
-export function createCompanion({ model }) {
+// `random` lets tests make the companion's wandering repeatable.
+export function createCompanion({ model, random = Math.random }) {
   const character = instantiateModel(model);
   const rig = createCharacterRig(character);
   const { body, legs, arms } = rig;
@@ -63,7 +64,7 @@ export function createCompanion({ model }) {
   }
   function pause() {
     walking = false;
-    wait = 1 + Math.random() * 2.5;
+    wait = 1 + random() * 2.5;
   }
   function blocksPlayer(position, previous) {
     if (horizontalDistance(position, character.position) >= contactDistance)
@@ -90,8 +91,8 @@ export function createCompanion({ model }) {
       wait -= dt;
       if (wait <= 0) {
         for (let i = 0; i < 20; i++) {
-          const angle = Math.random() * Math.PI * 2;
-          const distance = 2 + Math.random() * 2.5;
+          const angle = random() * Math.PI * 2;
+          const distance = 2 + random() * 2.5;
           const x = heroPosition.x + Math.sin(angle) * distance;
           const z = heroPosition.z + Math.cos(angle) * distance;
           if (clear(x, z, obstacles, terrain)) {
