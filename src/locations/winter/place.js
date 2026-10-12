@@ -68,6 +68,7 @@ export function createWinterPlace(context) {
       // A cool, low winter sun and less fill give the snow some shape.
       environment: {
         background: "#8faac5",
+        skyTop: "#5f7fa6",
         fogDensity: 0.005,
         sunIntensity: 2.3,
         sunColor: "#e4ecff",

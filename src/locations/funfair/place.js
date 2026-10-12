@@ -5,6 +5,7 @@ import { createFunfair, createFunfairActivities } from "./world.js";
 // Slightly lower exposure and fill keep the pastels from washing out.
 export const FUNFAIR_ENVIRONMENT = {
   background: "#b9deda",
+  skyTop: "#86bfe0",
   fogDensity: 0.005,
   fillIntensity: 1.6,
   exposure: 1.0,

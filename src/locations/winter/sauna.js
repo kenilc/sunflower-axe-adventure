@@ -4,6 +4,7 @@ import { createWinterLabel } from "./gate.js";
 
 const SAUNA_ENVIRONMENT = {
   background: "#34251d",
+  skyTop: null,
   fogDensity: 0,
   sunIntensity: 0.5,
   fillIntensity: 1.6,

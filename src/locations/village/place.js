@@ -5,7 +5,11 @@ import { createAlpineVillage, createAlpineOutfits } from "./world.js";
 import { createSheepMoment } from "./sheep-moment.js";
 import { createPhotoCapture } from "../../rendering/photo-capture.js";
 
-export const VILLAGE_ENVIRONMENT = { background: "#c4dfdf", fogDensity: 0.003 };
+export const VILLAGE_ENVIRONMENT = {
+  background: "#c4dfdf",
+  skyTop: "#7fb3d8",
+  fogDensity: 0.003,
+};
 
 export function createVillagePlace(context) {
   const {

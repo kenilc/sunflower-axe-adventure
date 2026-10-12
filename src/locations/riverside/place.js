@@ -6,12 +6,18 @@ import { createRiverside } from "./world.js";
 
 export const RIVERSIDE_ENVIRONMENT = {
   background: "#b6d9ce",
+  skyTop: "#7db7d6",
   fogDensity: 0.011,
 };
 // The summit and castle grounds share the lagoon's sky.
-export const LAGOON_ENVIRONMENT = { background: "#c0ded9", fogDensity: 0.006 };
+export const LAGOON_ENVIRONMENT = {
+  background: "#c0ded9",
+  skyTop: "#88bfdc",
+  fogDensity: 0.006,
+};
 export const CAVE_ENVIRONMENT = {
   background: "#17151c",
+  skyTop: null,
   fogDensity: 0.026,
   sunIntensity: 0.45,
   fillIntensity: 0.7,

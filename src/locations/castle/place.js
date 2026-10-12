@@ -7,6 +7,7 @@ import { LAGOON_ENVIRONMENT } from "../riverside/place.js";
 // Warm, slightly lower light keeps the pale room from washing out.
 export const CASTLE_ENVIRONMENT = {
   background: "#cab5b0",
+  skyTop: null,
   fogDensity: 0.009,
   sunIntensity: 1.9,
   sunColor: "#ffdcae",

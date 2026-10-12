@@ -94,6 +94,8 @@ export function createSeasidePlace(context) {
       // A low orange-pink sun over the sea casts long shadows up the sand.
       environment: {
         background: "#ffd5a1",
+        // The beach draws its own sunset dome.
+        skyTop: null,
         fogDensity: 0.006,
         sunIntensity: 2.6,
         sunColor: "#ffb07c",

@@ -81,7 +81,8 @@ Walking positions and camera views save automatically for registered areas and r
 
 | Key                                         | Default                         | Meaning                                                                   |
 | ------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------- |
-| `background`                                | `"#96c4b0"`                     | Sky colour; the fog uses the same colour.                                 |
+| `background`                                | `"#96c4b0"`                     | Horizon colour; the fog uses the same colour.                             |
+| `skyTop`                                    | `"#5d9fc4"`                     | Colour overhead; the sky blends up to it. `null` for rooms and caves.     |
 | `fogDensity`                                | `0.018`                         | Exponential fog density. `0` turns fog off.                               |
 | `sunIntensity`, `sunColor`                  | `3.4`, `"#ffe6a7"`              | The shadow-casting sun.                                                   |
 | `sunOffset`                                 | `[-18, 30, 12]`                 | Sun position relative to the heroine. Lower `y` for long evening shadows. |
