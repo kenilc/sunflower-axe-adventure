@@ -22,15 +22,13 @@ import { createBoatTrip } from "../locations/riverside/boat-trip.js";
 import * as THREE from "three";
 import { createRiverside } from "../locations/riverside/world.js";
 import { createCave } from "../locations/cave/world.js";
-import { createGameAudio } from "../systems/audio.js";
 import { createCompanion } from "../characters/companion.js";
 import { createCompanionReactions } from "../characters/reactions.js";
 import { createSheepMoment } from "../locations/village/sheep-moment.js";
 import { createHearts } from "../systems/hearts.js";
-import { bindGameInput } from "../systems/input.js";
 import { resolveObstacleCollisions } from "../systems/collision.js";
 import { createSceneTransition } from "./scene-transition.js";
-import { createBenchMoment, inLake } from "../locations/garden/lakeside.js";
+import { createBenchMoment } from "../locations/garden/lakeside.js";
 import { createRendering } from "../rendering/renderer.js";
 import {
   CASTLE_ENVIRONMENT,
@@ -40,31 +38,25 @@ import {
   LAGOON_ENVIRONMENT,
   RIVERSIDE_ENVIRONMENT,
 } from "../locations/riverside/place.js";
-import { createPhotoView } from "../rendering/photo-view.js";
-import { bindPhotoGestures } from "../rendering/photo-gestures.js";
-import { createPhotoMode } from "../rendering/photo-mode.js";
 import { createActivityPhoto } from "../rendering/activity-photo.js";
-import { createPhotoAlbum } from "../systems/photo-album.js";
-import { bindPhotography } from "../ui/photography.js";
-import { createPhotoCapture } from "../rendering/photo-capture.js";
 import { createMeshFactory } from "../rendering/mesh-factory.js";
 import { createEffects } from "../systems/effects.js";
 import { createRandom } from "../systems/random.js";
 import { createHero } from "../characters/hero.js";
 import { createGarden } from "../locations/garden/world.js";
-import { createHud } from "../ui/hud.js";
 import { createLocationManager } from "./location-manager.js";
 import { createGameLoop } from "./game-loop.js";
 import { createLocationSave } from "./location-save.js";
 import { createKeepsakes } from "../systems/keepsakes.js";
-import { bindKeepsakes } from "../ui/keepsakes.js";
 import { createJourney } from "./journey.js";
-import { bindTravelMap } from "../ui/travel-map.js";
 import { createTreeVisibility } from "../rendering/tree-visibility.js";
 import { createSceneryVisibility } from "../rendering/scenery-visibility.js";
 import { registerAdventureProgress } from "../integrations/adventure-progress.js";
 import { createProgressReader } from "./progress.js";
 import { createGameApi } from "./game-api.js";
+import { createPhotoCapture } from "../rendering/photo-capture.js";
+import { createFeedback } from "../ui/feedback.js";
+import { bindGameUi } from "../ui/bind-ui.js";
 
 export function createGame({ createRenderer, models } = {}) {
   const places = createPlaceRegistry();
@@ -97,6 +89,11 @@ export function createGame({ createRenderer, models } = {}) {
     toastUntil: 0,
   };
   const $ = (s) => document.querySelector(s);
+  const { toast, beep, setSound } = createFeedback({
+    $,
+    state,
+    getSoundscape: () => locations.active.soundscape ?? locations.current,
+  });
   const { renderer, scene, camera, sun, environment } = createRendering({
     $,
     createRenderer,
@@ -606,47 +603,16 @@ export function createGame({ createRenderer, models } = {}) {
   }
   const keys = {};
 
-  const audio = createGameAudio(
-    () => locations.active.soundscape ?? locations.current,
-  );
-  function beep(freq, duration = 0.1) {
-    audio.effect(freq, duration);
-  }
-
-  function toast(t) {
-    $("#toast").textContent = t;
-    $("#toast").style.opacity = 1;
-    state.toastUntil = performance.now() + 3200;
-  }
-  function updateSoundButton() {
-    $("#soundLabel").textContent = state.sound ? "Sound on" : "Sound off";
-    $("#sound").setAttribute("aria-pressed", String(state.sound));
-    $("#sound").title = state.sound
-      ? "Sound on · Click to mute"
-      : "Sound off · Click to unmute";
-  }
-  async function setSound(value) {
-    state.sound = value;
-    updateSoundButton();
-    try {
-      await audio.setEnabled(state.sound);
-    } catch {
-      state.sound = false;
-      await audio.setEnabled(false);
-      updateSoundButton();
-      toast("Audio could not start. Tap Sound to try again.");
-    }
-  }
   // A muted preview URL stays quiet through reloads during development.
   void setSound(state.sound);
   function fire() {
     if (
       photoMode.active ||
       photography.viewing ||
-      collection?.open ||
+      ui.collection?.open ||
       state.cooldown > 0 ||
       $("#guide").open ||
-      travelMap?.open ||
+      ui.travelMap?.open ||
       !locations.active.canThrow ||
       !heroRig.items.canThrow ||
       benchMoment.seated ||
@@ -698,105 +664,42 @@ export function createGame({ createRenderer, models } = {}) {
       !activityPhoto.label() && locations.active.canSaveLocation?.() !== false
     );
   }
-  const photoMode = createPhotoMode({
-    camera,
-    actors: [hero, companion.character],
-    getPlace: () => locations.active,
-    getPreset: () =>
-      locations.active.getPhotoPreset?.() ?? activityPhoto.preset(),
-  });
-  const photoAlbum = createPhotoAlbum();
-  const photoView = createPhotoView({
+  const ui = bindGameUi({
+    $,
     renderer,
     camera,
-    frame: $("#photoFrame"),
-    format: $("#photoFrameFormat"),
-  });
-  let photoGestures, travelMap, collection;
-
-  const photography = bindPhotography({
-    $,
-    mode: photoMode,
-    album: photoAlbum,
-    camera,
-    capture: createPhotoCapture({ renderer, scene }),
-    canEnter: () =>
-      (Boolean(activityPhoto.label()) ||
-        (locations.active.canPhotograph?.() ??
-          locations.active.canSaveLocation?.() !== false)) &&
-      !collection?.open &&
-      !travelMap?.open &&
-      !$("#guide").open &&
-      !passageTransition.active &&
-      !sheepMoment.viewing,
-    clearInput: clearRestInput,
-    toast,
-    getLocation: () =>
-      locations.active.photoLocation?.() ??
-      activityPhoto.label() ??
-      locations.active.name ??
-      locations.active.id,
-    view: photoView,
-    resetGestures: () => photoGestures?.reset(),
-  });
-  const { joy, cameraDrag } = bindGameInput({
-    $,
-    canvas: renderer.domElement,
+    scene,
+    hero,
+    heroRig,
+    companion,
+    companionReactions,
+    locations,
+    places,
+    state,
     keys,
     passageTransition,
-    invokeShortcut,
-    handleKeydown: (event) =>
-      collection?.keydown(event) ||
-      travelMap?.keydown(event) ||
-      photography.keydown(event),
-    extraPaused: () =>
-      photoMode.active ||
-      photography.viewing ||
-      collection?.open ||
-      travelMap?.open,
-    pointerAction: () =>
-      photoMode.active ||
-      photography.viewing ||
-      collection?.open ||
-      travelMap?.open
-        ? undefined
-        : locations.active.pointerAction
-          ? locations.active.pointerAction()
-          : fire(),
-    repeatAllowed: () => !locations.active.blockPointerRepeat?.(),
-    cameraLocked: () =>
-      photoMode.active ||
-      photography.viewing ||
-      collection?.open ||
-      travelMap?.open ||
-      $("#guide").open ||
-      sheepMoment.viewing ||
-      cameraLocked(),
-    rotate(dx, dy) {
-      if (!cameraLocked()) state.yaw -= dx * 0.006;
-    },
-    zoomBy(delta) {
-      state.zoom = THREE.MathUtils.clamp(
-        state.zoom + delta * 0.012,
-        10,
-        places.get(locations.area).maxZoom ?? 26,
-      );
-    },
+    sheepMoment,
+    activityPhoto,
+    clearRestInput,
+    toast,
+    fire,
+    cameraLocked,
     toggleSound: () => setSound(!state.sound),
   });
-  photoGestures = bindPhotoGestures(renderer.domElement, {
-    mode: photoMode,
-    paused: () =>
-      photography.viewing ||
-      collection?.open ||
-      travelMap?.open ||
-      $("#guide").open ||
-      passageTransition.active,
-    changed: photography.updateControls,
-  });
+  const {
+    photoMode,
+    photoAlbum,
+    photoView,
+    photography,
+    photoGestures,
+    joy,
+    cameraDrag,
+    invokeShortcut,
+    updateHud,
+  } = ui;
   function resetAdventure() {
-    if (collection?.open) collection.close();
-    if (travelMap.open) travelMap.close();
+    if (ui.collection?.open) ui.collection.close();
+    if (ui.travelMap.open) ui.travelMap.close();
     photography.exit();
     if (photography.viewing) photography.closeAlbum();
     passageTransition.cancel();
@@ -833,41 +736,6 @@ export function createGame({ createRenderer, models } = {}) {
     journey.reset();
     locationSave.flush();
   }
-  function getHud() {
-    return locations.active.getHud?.() ?? {};
-  }
-  function invokeShortcut(code) {
-    if (
-      photoMode.active ||
-      photography.viewing ||
-      collection?.open ||
-      travelMap.open ||
-      $("#guide").open ||
-      passageTransition.active
-    )
-      return false;
-    const action = (getHud().actions ?? []).find(
-      (entry) =>
-        entry.key === code && entry.visible !== false && !entry.disabled,
-    );
-    if (!action) return false;
-    companionReactions.cancel();
-    action.run?.();
-    return true;
-  }
-  const updateHud = createHud({
-    $,
-    getPlace: () => locations.active,
-    getHud,
-    canInteract: () =>
-      !photoMode.active &&
-      !photography.viewing &&
-      !collection?.open &&
-      !travelMap.open &&
-      !$("#guide").open &&
-      !passageTransition.active,
-    canThrow: () => locations.active.canThrow && heroRig.items.canThrow,
-  });
   const clock = new THREE.Clock();
   const desired = new THREE.Vector3();
   function frame() {
@@ -879,8 +747,8 @@ export function createGame({ createRenderer, models } = {}) {
     const paused =
       photoMode.active ||
       photography.viewing ||
-      collection?.open ||
-      travelMap.open ||
+      ui.collection?.open ||
+      ui.travelMap.open ||
       $("#guide").open ||
       transitioning ||
       (sheepMoment.viewing && !sheepMoment.active);
@@ -1016,7 +884,7 @@ export function createGame({ createRenderer, models } = {}) {
     if (
       photoMode.updateCamera() ||
       (!photography.viewing &&
-        !collection?.open &&
+        !ui.collection?.open &&
         (activePlace.updateCamera?.(dt) ||
           (activePlace !== rootPlace && rootPlace.updateCamera?.(dt))))
     ) {
@@ -1101,7 +969,7 @@ export function createGame({ createRenderer, models } = {}) {
       !passageTransition.active &&
       !photoMode.active &&
       !photography.viewing &&
-      !collection?.open &&
+      !ui.collection?.open &&
       !benchMoment.seated &&
       !bedRest.resting &&
       !boatTrip.rowing &&
@@ -1121,20 +989,7 @@ export function createGame({ createRenderer, models } = {}) {
     canTravel: () => canSaveLocation() && !$("#guide").open,
     transitions,
   });
-  travelMap = bindTravelMap({
-    $,
-    journey,
-    canOpen: () => canSaveLocation() && !$("#guide").open,
-    clearInput: clearRestInput,
-    toast,
-  });
-  collection = bindKeepsakes({
-    $,
-    keepsakes,
-    canOpen: () => canSaveLocation() && !travelMap.open && !$("#guide").open,
-    clearInput: clearRestInput,
-    toast,
-  });
+  ui.bindDialogs({ journey, keepsakes, canSaveLocation });
   const locationSave = createLocationSave({
     places,
     locations,
@@ -1205,7 +1060,7 @@ export function createGame({ createRenderer, models } = {}) {
     photoMode,
     photoAlbum,
     keepsakes,
-    collection,
+    collection: ui.collection,
     photography,
     boatTrip,
     cableCar,
@@ -1220,7 +1075,7 @@ export function createGame({ createRenderer, models } = {}) {
     resetAdventure,
     transitions,
     journey,
-    travelMap,
+    travelMap: ui.travelMap,
     invokeShortcut,
     usePassage,
     useCastlePassage,
