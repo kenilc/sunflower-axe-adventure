@@ -7,13 +7,17 @@ import {
 } from "./world.js";
 import { FUNFAIR_ENVIRONMENT } from "../funfair/place.js";
 
+// Dim blue moonlight with a low fill, so the lanterns carry the light.
 export const FESTIVAL_ENVIRONMENT = {
   background: "#132e59",
   fogDensity: 0.004,
-  sunIntensity: 0.8,
-  fillIntensity: 1.8,
-  fillColor: "#b9d5ff",
-  groundColor: "#586779",
+  sunIntensity: 1.1,
+  sunColor: "#a9c2ff",
+  sunOffset: [14, 26, -16],
+  fillIntensity: 0.95,
+  fillColor: "#9fbcf0",
+  groundColor: "#2f3a4f",
+  exposure: 1.15,
 };
 
 export function createFestivalPlace(context) {
