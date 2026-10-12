@@ -2,6 +2,7 @@ import { test, vi, afterEach } from "vitest";
 import { createTestGame } from "./helpers/game.js";
 afterEach(() => vi.unstubAllGlobals());
 import assert from "node:assert/strict";
+import { CASTLE_ENVIRONMENT } from "../src/locations/castle/place.js";
 test("gameplay, collisions, travel, activities and restart", async () => {
   const { game: G, models, element, handlers } = await createTestGame();
   const { createBenchMoment } =
@@ -531,9 +532,12 @@ test("gameplay, collisions, travel, activities and restart", async () => {
   G.controls.interactCastle();
   for (let i = 0; i < 12; i++) G.update();
   assert(!G.activities.bedRest.resting && !G.input.keys.KeyW);
-  assert.equal(daylight.intensity, 1.7);
-  assert.equal(ambient.intensity, 1.6);
-  assert.equal(G.rendering.scene.background.getHexString(), "cab5b0");
+  assert.equal(daylight.intensity, CASTLE_ENVIRONMENT.sunIntensity);
+  assert.equal(ambient.intensity, CASTLE_ENVIRONMENT.fillIntensity);
+  assert.equal(
+    `#${G.rendering.scene.background.getHexString()}`,
+    CASTLE_ENVIRONMENT.background,
+  );
   assert(!room.bed.blanket.cover.visible && room.bed.blanket.spread.visible);
   assert.equal(room.bed.bedsideLight.intensity, 0);
   for (const c of [G.characters.hero, G.characters.companion.character]) {

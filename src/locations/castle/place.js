@@ -4,11 +4,16 @@ import { createBedRest } from "./bed-rest.js";
 import { createCastleRoom } from "./world.js";
 import { LAGOON_ENVIRONMENT } from "../riverside/place.js";
 
+// Warm, slightly lower light keeps the pale room from washing out.
 export const CASTLE_ENVIRONMENT = {
   background: "#cab5b0",
   fogDensity: 0.009,
-  sunIntensity: 1.7,
-  fillIntensity: 1.6,
+  sunIntensity: 1.9,
+  sunColor: "#ffdcae",
+  fillIntensity: 1.25,
+  fillColor: "#ffe8d2",
+  groundColor: "#6b4f4a",
+  exposure: 1.05,
 };
 export const CASTLE_NIGHT_ENVIRONMENT = {
   ...CASTLE_ENVIRONMENT,
@@ -16,6 +21,7 @@ export const CASTLE_NIGHT_ENVIRONMENT = {
   fogDensity: 0.018,
   sunIntensity: 0.16,
   fillIntensity: 0.28,
+  exposure: 1.2,
 };
 
 export function createCastlePlace(context) {
