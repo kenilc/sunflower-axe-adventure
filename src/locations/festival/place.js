@@ -1,5 +1,10 @@
 import { createFestivalHud } from "./hud.js";
 import * as THREE from "three";
+import {
+  createNightFestival,
+  createSummerOutfits,
+  createFestivalMoment,
+} from "./world.js";
 import { FUNFAIR_ENVIRONMENT } from "../funfair/place.js";
 
 export const FESTIVAL_ENVIRONMENT = {
@@ -14,23 +19,39 @@ export const FESTIVAL_ENVIRONMENT = {
 export function createFestivalPlace(context) {
   const {
     locations,
-    festivalMoment,
     passageTransition,
     clearRestInput,
     hearts,
     state,
     alpineOutfits,
-    festival,
-    summerOutfits,
     companion,
     hero,
     environment,
     $,
     toast,
+    heroRig,
+    camera,
+    scene,
   } = context;
+  const { mesh, box, cyl, ball } = context.helpers;
   // The funfair registers first; the festival lives behind its north gate.
-  const { terrain: funfair, activities: funfairActivities } =
-    context.places.get("funfair");
+  const { funfairActivities } = context.places.get("funfair").parts;
+  const funfair = context.places.get("funfair").terrain;
+  const festival = createNightFestival({ mesh, box, cyl, ball });
+  scene.add(festival.group);
+  funfair.group.add(festival.entrance);
+  const summerOutfits = createSummerOutfits({
+    rigs: [heroRig, companion.rig],
+    box,
+    cyl,
+  });
+  const festivalMoment = createFestivalMoment({
+    festival,
+    hero,
+    companion,
+    rigs: [heroRig, companion.rig],
+    camera,
+  });
   function useFestivalPassage(enter) {
     if (enter === locations.state.insideFestival) return false;
     return context.transitions.go(enter ? "festival" : "funfair");
@@ -117,6 +138,7 @@ export function createFestivalPlace(context) {
       toast("Together under the summer sky ♥");
     }
   }
+  $("#festivalAction").onclick = interactFestival;
   return {
     update(dt) {
       festival.update(dt);
@@ -141,13 +163,19 @@ export function createFestivalPlace(context) {
     id: "festival",
     soundscape: "festival",
     cameraLocked: () => festivalMoment.active,
-    getHud: createFestivalHud(context),
+    getHud: createFestivalHud({
+      hero,
+      festival,
+      moment: festivalMoment,
+      interact: interactFestival,
+    }),
     getGate: () => (festival.isExit(hero.position) ? { id: "funfair" } : null),
     legacyFlag: "insideFestival",
     settings: { environment: FESTIVAL_ENVIRONMENT },
     parent: "funfair",
     group: festival.group,
     terrain: festival,
+    parts: { festivalMoment, summerOutfits },
     activateEnter(options = {}) {
       changeFestivalPassage(true);
       if (options.activity === "fireworks") {

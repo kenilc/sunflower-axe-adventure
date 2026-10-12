@@ -1,5 +1,4 @@
-export function createFestivalHud(context) {
-  const { festivalMoment: moment, festival, hero } = context;
+export function createFestivalHud({ hero, festival, moment, interact }) {
   return () => ({
     actions: [
       {
@@ -10,7 +9,7 @@ export function createFestivalHud(context) {
           ? "Keep exploring · X"
           : "Watch fireworks together · X",
         visible: moment.active || festival.nearBridge(hero.position),
-        run: () => context.interactFestival(),
+        run: () => interact(),
       },
     ],
     hint: moment.active

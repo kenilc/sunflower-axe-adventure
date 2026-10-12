@@ -1,11 +1,6 @@
 import { registerPlaces } from "../locations/register-places.js";
 import { createPlaceTransitions } from "./place-transitions.js";
 import { createPlaceRegistry } from "./place-registry.js";
-import {
-  createNightFestival,
-  createSummerOutfits,
-  createFestivalMoment,
-} from "../locations/festival/world.js";
 import { createAlpineCart } from "../locations/village/alpine-cart.js";
 import {
   createAlpineVillage,
@@ -129,8 +124,6 @@ export function createGame({ createRenderer, models } = {}) {
   scene.add(village.group);
   village.shops.forEach((shop) => scene.add(shop.room.group));
   blockers.push({ x: -2.5, z: 33, r: 0.3 }, { x: 2.5, z: 33, r: 0.3 });
-  const festival = createNightFestival({ mesh, box, cyl, ball });
-  scene.add(festival.group);
   const castleRoom = createCastleRoom({ mesh, box, cyl, ball });
   scene.add(castleRoom.group);
   const companion = createCompanion({ model: models.companion });
@@ -179,18 +172,6 @@ export function createGame({ createRenderer, models } = {}) {
     box,
     cyl,
     ball,
-  });
-  const summerOutfits = createSummerOutfits({
-    rigs: [heroRig, companion.rig],
-    box,
-    cyl,
-  });
-  const festivalMoment = createFestivalMoment({
-    festival,
-    hero,
-    companion,
-    rigs: [heroRig, companion.rig],
-    camera,
   });
   const alpineCart = createAlpineCart({
     village,
@@ -376,7 +357,6 @@ export function createGame({ createRenderer, models } = {}) {
     boardCableCar,
     interactVillage,
     interactCastle,
-    interactFestival,
     changeVillageShop,
     heroRig,
     get transitions() {
@@ -430,14 +410,12 @@ export function createGame({ createRenderer, models } = {}) {
     burst,
     changeCastlePassage,
     riverside,
-    festivalMoment,
-    festival,
-    summerOutfits,
   };
   registerPlaces(places, placeContext);
-  const { terrain: funfair, activities: funfairActivities } =
-    places.get("funfair");
-  funfair.group.add(festival.entrance);
+  const { funfairActivities } = places.get("funfair").parts;
+  const funfair = places.get("funfair").terrain;
+  const { festivalMoment, summerOutfits } = places.get("festival").parts;
+  const festival = places.get("festival").terrain;
   // Tall gate tops stay prominent on approach, but fade if they hide the heroine.
   const gateVisibility = createTreeVisibility({ obstructedOpacity: 0.12 });
   for (const gate of [
@@ -539,16 +517,6 @@ export function createGame({ createRenderer, models } = {}) {
     return places.get("riverside").controls.usePassage(...args);
   }
 
-  function useFestivalPassage(...args) {
-    return places.get("festival").controls.useFestivalPassage(...args);
-  }
-  function changeFestivalPassage(...args) {
-    return places.get("festival").controls.changeFestivalPassage(...args);
-  }
-  function interactFestival(...args) {
-    return places.get("festival").controls.interactFestival(...args);
-  }
-  $("#festivalAction").onclick = interactFestival;
   function cameraTargetHeight() {
     return locations.active.cameraTarget();
   }
@@ -1038,9 +1006,6 @@ export function createGame({ createRenderer, models } = {}) {
     useVillagePassage,
     useVillageShop,
     interactVillage,
-    changeFestivalPassage,
-    useFestivalPassage,
-    interactFestival,
     boardCableCar,
     boardBoat,
     fire,

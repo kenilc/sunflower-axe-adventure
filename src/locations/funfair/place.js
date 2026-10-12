@@ -185,7 +185,7 @@ export function createFunfairPlace(context) {
       if (
         !funfairActivities.riding &&
         !funfairActivities.playing &&
-        context.festival.isEntrance(hero.position)
+        context.places.get("festival").terrain.isEntrance(hero.position)
       )
         return { id: "festival" };
       return funfair.isExit(hero.position) ? { id: "garden" } : null;
@@ -195,7 +195,7 @@ export function createFunfairPlace(context) {
     parent: "garden",
     group: funfair.group,
     terrain: funfair,
-    activities: funfairActivities,
+    parts: { funfairActivities },
     activateEnter(options = {}) {
       changeFunfairPassage(true);
       if (options.activity === "ring-toss") {
