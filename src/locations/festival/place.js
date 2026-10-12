@@ -1,5 +1,15 @@
 import { createFestivalHud } from "./hud.js";
 import * as THREE from "three";
+import { FUNFAIR_ENVIRONMENT } from "../funfair/place.js";
+
+export const FESTIVAL_ENVIRONMENT = {
+  background: "#132e59",
+  fogDensity: 0.004,
+  sunIntensity: 0.8,
+  fillIntensity: 1.8,
+  fillColor: "#b9d5ff",
+  groundColor: "#586779",
+};
 
 export function createFestivalPlace(context) {
   const {
@@ -16,8 +26,7 @@ export function createFestivalPlace(context) {
     summerOutfits,
     companion,
     hero,
-    scene,
-    sun,
+    environment,
     $,
     toast,
   } = context;
@@ -62,14 +71,7 @@ export function createFestivalPlace(context) {
         pitch: state.pitch,
         zoom: state.zoom,
       } = state.festivalView);
-    scene.background.set(enter ? "#132e59" : "#b9deda");
-    scene.fog.color.copy(scene.background);
-    scene.fog.density = enter ? 0.004 : 0.005;
-    sun.intensity = enter ? 0.8 : 3.4;
-    const fill = scene.children.find((c) => c.isHemisphereLight);
-    fill.intensity = enter ? 1.8 : 2.4;
-    fill.color.set(enter ? "#b9d5ff" : "#fff4cf");
-    fill.groundColor.set(enter ? "#586779" : "#346457");
+    environment.apply(enter ? FESTIVAL_ENVIRONMENT : FUNFAIR_ENVIRONMENT);
     $("#funfairCounts").hidden = enter;
     $(".quest .eyebrow").textContent = enter
       ? "SUMMER NIGHT IN JAPAN"
@@ -141,6 +143,7 @@ export function createFestivalPlace(context) {
     getHud: createFestivalHud(context),
     getGate: () => (festival.isExit(hero.position) ? { id: "funfair" } : null),
     legacyFlag: "insideFestival",
+    settings: { environment: FESTIVAL_ENVIRONMENT },
     parent: "funfair",
     group: festival.group,
     terrain: festival,

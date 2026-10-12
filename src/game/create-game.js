@@ -32,6 +32,14 @@ import { resolveObstacleCollisions } from "../systems/collision.js";
 import { createSceneTransition } from "./scene-transition.js";
 import { createBenchMoment, inLake } from "../locations/garden/lakeside.js";
 import { createRendering } from "../rendering/renderer.js";
+import {
+  CASTLE_ENVIRONMENT,
+  CASTLE_NIGHT_ENVIRONMENT,
+} from "../locations/castle/place.js";
+import {
+  LAGOON_ENVIRONMENT,
+  RIVERSIDE_ENVIRONMENT,
+} from "../locations/riverside/place.js";
 import { createPhotoView } from "../rendering/photo-view.js";
 import { bindPhotoGestures } from "../rendering/photo-gestures.js";
 import { createPhotoMode } from "../rendering/photo-mode.js";
@@ -87,7 +95,7 @@ export function createGame({ createRenderer, models } = {}) {
     toastUntil: 0,
   };
   const $ = (s) => document.querySelector(s);
-  const { renderer, scene, camera, sun } = createRendering({
+  const { renderer, scene, camera, sun, environment } = createRendering({
     $,
     createRenderer,
   });
@@ -200,13 +208,9 @@ export function createGame({ createRenderer, models } = {}) {
     companion,
     toast,
     onRestChange(sleeping) {
-      sun.intensity = sleeping ? 0.16 : 1.7;
-      scene.children.find((c) => c.isHemisphereLight).intensity = sleeping
-        ? 0.28
-        : 1.6;
-      scene.background.set(sleeping ? "#363440" : "#cab5b0");
-      scene.fog.color.copy(scene.background);
-      scene.fog.density = sleeping ? 0.018 : 0.009;
+      environment.apply(
+        sleeping ? CASTLE_NIGHT_ENVIRONMENT : CASTLE_ENVIRONMENT,
+      );
     },
   });
   const funfairActivities = createFunfairActivities({
@@ -318,9 +322,7 @@ export function createGame({ createRenderer, models } = {}) {
         : riverObjective();
       $("#riverCounts").hidden = atLagoon;
       $("#lagoonCounts").hidden = !atLagoon;
-      scene.background.set(atLagoon ? "#c0ded9" : "#b6d9ce");
-      scene.fog.color.copy(scene.background);
-      scene.fog.density = atLagoon ? 0.006 : 0.011;
+      environment.apply(atLagoon ? LAGOON_ENVIRONMENT : RIVERSIDE_ENVIRONMENT);
       cableCar.setEnabled(atLagoon);
       if (atLagoon) {
         state.yaw = 0;
@@ -472,6 +474,7 @@ export function createGame({ createRenderer, models } = {}) {
     castleRoom,
     boatTrip,
     sun,
+    environment,
     get clock() {
       return clock;
     },
@@ -1061,12 +1064,7 @@ export function createGame({ createRenderer, models } = {}) {
           visibility.update(camera, hero, dt, fadeScenery),
         );
     }
-    sun.position.set(
-      hero.position.x - 18,
-      hero.position.y + 30,
-      hero.position.z + 12,
-    );
-    sun.target.position.copy(hero.position);
+    environment.followTarget(hero.position);
     if (!photoMode.active && !photography.viewing)
       for (const place of places.all()) place.lateAnimate?.(time);
     const view = photoMode.active

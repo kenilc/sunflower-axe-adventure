@@ -75,6 +75,21 @@ Opaque scenery is indexed automatically for heroine sightline fading, including 
 
 Walking positions and camera views save automatically for registered areas and rooms. Reload restores the parent route before placing the player on the saved terrain. A `kind: "context"` place must provide `restore()` to restore its transport state and scenery without replaying the journey (as the lagoon and summit do). Saves contain location and view only; per-place collectibles and activity progress remain session state.
 
+## Lighting
+
+`settings.environment` sets the sky, fog and lights while the heroine is in the place. List only the values that differ from the garden defaults in `src/rendering/environment.js`; anything you leave out uses the default, so lighting never carries over from the previous place.
+
+| Key                                         | Default                         | Meaning                                                                   |
+| ------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------- |
+| `background`                                | `"#96c4b0"`                     | Sky colour; the fog uses the same colour.                                 |
+| `fogDensity`                                | `0.018`                         | Exponential fog density. `0` turns fog off.                               |
+| `sunIntensity`, `sunColor`                  | `3.4`, `"#ffe6a7"`              | The shadow-casting sun.                                                   |
+| `sunOffset`                                 | `[-18, 30, 12]`                 | Sun position relative to the heroine. Lower `y` for long evening shadows. |
+| `fillIntensity`, `fillColor`, `groundColor` | `2.4`, `"#fff4cf"`, `"#346457"` | Soft sky and ground light.                                                |
+| `exposure`                                  | `1.2`                           | Overall brightness after tone mapping.                                    |
+
+For a temporary change inside a place, such as a sauna or bedtime, save `context.environment.capture()`, call `context.environment.apply(...)`, and apply the saved copy afterwards.
+
 ## Contract
 
 | Field or hook                                           | Purpose                                                                                                                                                                                        |

@@ -1,6 +1,8 @@
 import { createVillageHud } from "./hud.js";
 import * as THREE from "three";
 
+export const VILLAGE_ENVIRONMENT = { background: "#c4dfdf", fogDensity: 0.003 };
+
 export function createVillagePlace(context) {
   const {
     village,
@@ -104,9 +106,7 @@ export function createVillagePlace(context) {
       } = state.outsideView);
       camera.fov = state.outsideView.fov ?? 43;
     }
-    scene.background.set(enter ? "#c4dfdf" : "#96c4b0");
-    scene.fog.color.copy(scene.background);
-    scene.fog.density = enter ? 0.003 : 0.018;
+    context.environment.apply(enter ? VILLAGE_ENVIRONMENT : undefined);
     $("#gardenCounts").hidden = enter;
     $("#villageCounts").hidden = !enter;
     $(".quest .eyebrow").textContent = enter
@@ -354,6 +354,7 @@ export function createVillagePlace(context) {
         village.makeRoom(companion.character, hero.position);
     },
     legacyFlag: "insideVillage",
+    settings: { environment: VILLAGE_ENVIRONMENT },
     parent: "garden",
     resolve: () =>
       state.activeVillageShop ? `shop:${state.activeVillageShop.kind}` : null,

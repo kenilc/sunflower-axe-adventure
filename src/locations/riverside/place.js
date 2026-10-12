@@ -1,6 +1,19 @@
 import { createRiversideHud } from "./hud.js";
 import * as THREE from "three";
 
+export const RIVERSIDE_ENVIRONMENT = {
+  background: "#b6d9ce",
+  fogDensity: 0.011,
+};
+// The summit and castle grounds share the lagoon's sky.
+export const LAGOON_ENVIRONMENT = { background: "#c0ded9", fogDensity: 0.006 };
+export const CAVE_ENVIRONMENT = {
+  background: "#17151c",
+  fogDensity: 0.026,
+  sunIntensity: 0.45,
+  fillIntensity: 0.7,
+};
+
 export function createRiversidePlace(context) {
   const {
     locations,
@@ -16,8 +29,6 @@ export function createRiversidePlace(context) {
     cave,
     benchMoment,
     garden,
-    scene,
-    sun,
     companion,
     hero,
     companionObstacles,
@@ -105,22 +116,13 @@ export function createRiversidePlace(context) {
     riverside.group.visible = locations.state.insideRiver;
     garden.visible = !enter;
     cave.interior.visible = locations.state.insideCave;
-    scene.background.set(
+    context.environment.apply(
       locations.state.insideCave
-        ? "#17151c"
+        ? CAVE_ENVIRONMENT
         : locations.state.insideRiver
-          ? "#b6d9ce"
-          : "#96c4b0",
+          ? RIVERSIDE_ENVIRONMENT
+          : undefined,
     );
-    scene.fog.color.copy(scene.background);
-    scene.fog.density = locations.state.insideCave
-      ? 0.026
-      : locations.state.insideRiver
-        ? 0.011
-        : 0.018;
-    sun.intensity = locations.state.insideCave ? 0.45 : 3.4;
-    const sky = scene.children.find((c) => c.isHemisphereLight);
-    sky.intensity = locations.state.insideCave ? 0.7 : 2.4;
     if (enter) {
       (river ? riverside.group : cave.interior).add(companion.character);
       if (river) hero.position.copy(riverside.arrival);
@@ -279,6 +281,7 @@ export function createRiversidePlace(context) {
         ? { id: "garden" }
         : null,
     legacyFlag: "insideRiver",
+    settings: { environment: RIVERSIDE_ENVIRONMENT },
     parent: "garden",
     resolve: () =>
       cableCar.atSummit ? "summit" : boatTrip.atLagoon ? "lagoon" : null,

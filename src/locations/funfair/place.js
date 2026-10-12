@@ -1,6 +1,8 @@
 import { createFunfairHud } from "./hud.js";
 import * as THREE from "three";
 
+export const FUNFAIR_ENVIRONMENT = { background: "#b9deda", fogDensity: 0.005 };
+
 export function createFunfairPlace(context) {
   const {
     locations,
@@ -68,9 +70,7 @@ export function createFunfairPlace(context) {
         pitch: state.pitch,
         zoom: state.zoom,
       } = state.outsideView);
-    scene.background.set(enter ? "#b9deda" : "#96c4b0");
-    scene.fog.color.copy(scene.background);
-    scene.fog.density = enter ? 0.005 : 0.018;
+    context.environment.apply(enter ? FUNFAIR_ENVIRONMENT : undefined);
     $("#gardenCounts").hidden = enter;
     $("#funfairCounts").hidden = !enter;
     $(".quest .eyebrow").textContent = enter
@@ -165,6 +165,7 @@ export function createFunfairPlace(context) {
       return funfair.isExit(hero.position) ? { id: "garden" } : null;
     },
     legacyFlag: "insideFunfair",
+    settings: { environment: FUNFAIR_ENVIRONMENT },
     parent: "garden",
     group: funfair.group,
     terrain: funfair,

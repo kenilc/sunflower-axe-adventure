@@ -1,4 +1,5 @@
 import { resolveObstacleCollisions } from "../../systems/collision.js";
+import { CAVE_ENVIRONMENT } from "../riverside/place.js";
 
 export function createCavePlace(context) {
   const { cave, changePassage, hero } = context;
@@ -10,6 +11,7 @@ export function createCavePlace(context) {
     group: cave.interior,
     terrain: cave,
     legacyFlag: "insideCave",
+    settings: { environment: CAVE_ENVIRONMENT },
     progressLabel: "treasure cave",
     lateAnimate: (time) => cave.update(time),
     activateEnter: () => changePassage(true),

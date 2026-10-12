@@ -7,8 +7,7 @@ export function createPlaceTransitions({
 }) {
   const snapshots = new Map();
   function capture() {
-    const { state, camera, hero, scene, sun, $ } = context;
-    const fill = scene.children.find((node) => node.isHemisphereLight);
+    const { state, camera, hero, environment, $ } = context;
     return {
       view: {
         yaw: state.yaw,
@@ -18,14 +17,7 @@ export function createPlaceTransitions({
       },
       position: hero.position.clone(),
       heading: hero.rotation.y,
-      environment: {
-        background: scene.background.getHex(),
-        fogDensity: scene.fog.density,
-        sunIntensity: sun.intensity,
-        fillIntensity: fill.intensity,
-        fillColor: fill.color.getHex(),
-        groundColor: fill.groundColor.getHex(),
-      },
+      environment: environment.capture(),
       instructions: $(".instructions").innerHTML,
       quest: {
         eyebrow: $(".quest .eyebrow").textContent,
@@ -35,7 +27,7 @@ export function createPlaceTransitions({
     };
   }
   function applyStandard(place, options, snapshot) {
-    const { state, camera, hero, companion, scene, sun, $ } = context;
+    const { state, camera, hero, companion, environment, $ } = context;
     locations.select(place.id);
     if (place.group) {
       place.group.visible = true;
@@ -57,21 +49,7 @@ export function createPlaceTransitions({
     for (const key of ["yaw", "pitch", "zoom"])
       if (view[key] !== undefined) state[key] = view[key];
     if (view.fov !== undefined) camera.fov = view.fov;
-    const environment = snapshot?.environment ?? settings.environment ?? {};
-    if (environment.background !== undefined)
-      scene.background.set(environment.background);
-    scene.fog.color.copy(scene.background);
-    if (environment.fogDensity !== undefined)
-      scene.fog.density = environment.fogDensity;
-    if (environment.sunIntensity !== undefined)
-      sun.intensity = environment.sunIntensity;
-    const fill = scene.children.find((node) => node.isHemisphereLight);
-    if (environment.fillIntensity !== undefined)
-      fill.intensity = environment.fillIntensity;
-    if (environment.fillColor !== undefined)
-      fill.color.set(environment.fillColor);
-    if (environment.groundColor !== undefined)
-      fill.groundColor.set(environment.groundColor);
+    environment.apply(snapshot?.environment ?? settings.environment);
     if (snapshot) {
       $(".instructions").innerHTML = snapshot.instructions;
       $(".quest .eyebrow").textContent = snapshot.quest.eyebrow;

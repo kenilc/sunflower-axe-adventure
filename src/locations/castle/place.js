@@ -1,5 +1,20 @@
 import { createCastleHud } from "./hud.js";
 import * as THREE from "three";
+import { LAGOON_ENVIRONMENT } from "../riverside/place.js";
+
+export const CASTLE_ENVIRONMENT = {
+  background: "#cab5b0",
+  fogDensity: 0.009,
+  sunIntensity: 1.7,
+  fillIntensity: 1.6,
+};
+export const CASTLE_NIGHT_ENVIRONMENT = {
+  ...CASTLE_ENVIRONMENT,
+  background: "#363440",
+  fogDensity: 0.018,
+  sunIntensity: 0.16,
+  fillIntensity: 0.28,
+};
 
 export function createCastlePlace(context) {
   const {
@@ -15,8 +30,6 @@ export function createCastlePlace(context) {
     boatTrip,
     companion,
     hero,
-    scene,
-    sun,
     camera,
     toast,
     clearRestInput,
@@ -67,13 +80,7 @@ export function createCastlePlace(context) {
         } = state.castleOutsideView);
       hero.rotation.y = 0;
     }
-    scene.background.set(enter ? "#cab5b0" : "#c0ded9");
-    scene.fog.color.copy(scene.background);
-    scene.fog.density = enter ? 0.009 : 0.006;
-    sun.intensity = enter ? 1.7 : 3.4;
-    scene.children.find((c) => c.isHemisphereLight).intensity = enter
-      ? 1.6
-      : 2.4;
+    context.environment.apply(enter ? CASTLE_ENVIRONMENT : LAGOON_ENVIRONMENT);
     camera.position
       .set(
         Math.sin(state.yaw) * Math.cos(state.pitch) * state.zoom,
@@ -180,6 +187,7 @@ export function createCastlePlace(context) {
     getHud: createCastleHud(context),
     getGate: () => (castleRoom.isExit(hero.position) ? { id: "summit" } : null),
     legacyFlag: "insideCastle",
+    settings: { environment: CASTLE_ENVIRONMENT },
     parent: "summit",
     kind: "room",
     group: castleRoom.group,

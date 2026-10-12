@@ -2,6 +2,15 @@ import * as THREE from "three";
 import { createMeshFactory } from "../../rendering/mesh-factory.js";
 import { createWinterLabel } from "./gate.js";
 
+const SAUNA_ENVIRONMENT = {
+  background: "#34251d",
+  fogDensity: 0,
+  sunIntensity: 0.5,
+  fillIntensity: 1.6,
+  fillColor: "#ffd6a0",
+  groundColor: "#795337",
+};
+
 export function createSauna({ context, parent, hut }) {
   const group = new THREE.Group();
   group.name = "sauna-interior";
@@ -147,7 +156,6 @@ export function createSauna({ context, parent, hut }) {
     return { puff, offset: i / 12 };
   });
   const actors = [context.hero, context.companion.character];
-  const fill = context.scene.children.find((node) => node.isHemisphereLight);
   let outdoors = [],
     environment = null,
     elapsed = 0,
@@ -185,21 +193,8 @@ export function createSauna({ context, parent, hut }) {
         node.visible = false;
       });
       group.visible = true;
-      environment = {
-        background: context.scene.background.clone(),
-        fog: context.scene.fog.density,
-        sun: context.sun.intensity,
-        fill: fill.intensity,
-        color: fill.color.clone(),
-        ground: fill.groundColor.clone(),
-      };
-      context.scene.background.set("#34251d");
-      context.scene.fog.color.copy(context.scene.background);
-      context.scene.fog.density = 0;
-      context.sun.intensity = 0.5;
-      fill.intensity = 1.6;
-      fill.color.set("#ffd6a0");
-      fill.groundColor.set("#795337");
+      environment = context.environment.capture();
+      context.environment.apply(SAUNA_ENVIRONMENT);
       elapsed = 0;
       boost = 0.4;
       update(0);
@@ -214,13 +209,7 @@ export function createSauna({ context, parent, hut }) {
       });
       outdoors = [];
       if (!environment) return;
-      context.scene.background.copy(environment.background);
-      context.scene.fog.color.copy(environment.background);
-      context.scene.fog.density = environment.fog;
-      context.sun.intensity = environment.sun;
-      fill.intensity = environment.fill;
-      fill.color.copy(environment.color);
-      fill.groundColor.copy(environment.ground);
+      context.environment.apply(environment);
       environment = null;
     },
     pourWater() {
