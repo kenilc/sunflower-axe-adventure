@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createDioramaBase } from "../../rendering/diorama-base.js";
 import { createTreeVisibility } from "../../rendering/tree-visibility.js";
 
 export function createRiverside({ mesh, box, cyl, ball }) {
@@ -82,9 +83,17 @@ export function createRiverside({ mesh, box, cyl, ball }) {
     Number.isFinite(z) &&
     onIsland(x, z, 0.65) &&
     (!inWater(x, z, 0.5) || onBridge(x, z));
-  const ground = cyl(1, 1, 3.6, "#79a56e", 0, -1.82, 0, group, 128);
+  // The board's grass lip ends exactly at the island rim, where the river
+  // and its waterfall leave the island.
+  const ground = createDioramaBase({
+    parent: group,
+    mesh,
+    size: islandX - 0.25,
+    top: -0.02,
+    grass: "#79a56e",
+  });
+  ground.scale.z = islandZ / islandX;
   ground.name = "riverside-island";
-  ground.scale.set(islandX, 1, islandZ);
   for (let i = 0; i < 44; i++) {
     const side = i % 2 ? 1 : -1;
     const x = side * (38 + (i % 4) * 2.4);
@@ -169,12 +178,17 @@ export function createRiverside({ mesh, box, cyl, ball }) {
     );
     geometry.setIndex(indices);
     geometry.computeVertexNormals();
+    // Fade from the lip to nothing, so the fall drops away below the board.
+    const fade = [];
+    for (let i = 0; i <= 32; i++) fade.push(1, 1, 1, 0.8, 1, 1, 1, 0);
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(fade, 4));
     const waterfall = mesh(
       geometry,
       new THREE.MeshStandardMaterial({
         color: "#79d4d8",
         transparent: true,
-        opacity: 0.8,
+        vertexColors: true,
+        depthWrite: false,
         side: THREE.DoubleSide,
         roughness: 0.3,
       }),
@@ -220,6 +234,17 @@ export function createRiverside({ mesh, box, cyl, ball }) {
   const mountain = new THREE.Group();
   mountain.name = "waterfall-mountain";
   group.add(mountain);
+  // The mountain stands on its own board; the terrace bridges the two.
+  const mountainBase = createDioramaBase({
+    parent: mountain,
+    mesh,
+    size: 56,
+    top: -0.06,
+    grass: "#79a56e",
+    seed: 17,
+  });
+  mountainBase.scale.z = 0.62;
+  mountainBase.position.set(sourceX, 0, 104);
   const mountainSurfaces = [];
   function peak(x, z, radius, height, color) {
     const rock = mesh(

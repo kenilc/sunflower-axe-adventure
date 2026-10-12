@@ -199,11 +199,18 @@ test("riverside scenery and transport", async () => {
   river.treasures[0].crystal.visible = false;
   const island = river.group.getObjectByName("riverside-island");
   assert(island, "A visible island must define the boundary");
-  const bounds = new T.Box3().setFromObject(island);
-  assert.equal(bounds.min.x, -48);
-  assert.equal(bounds.max.x, 48);
-  assert.equal(bounds.min.z, -56);
-  assert.equal(bounds.max.z, 56);
+  // The board's grass top is the walkable rim; side rocks may jut below it.
+  island.updateMatrixWorld(true);
+  const bounds = new T.Box3().setFromObject(
+    island.getObjectByName("diorama-grass"),
+  );
+  for (const [actual, expected] of [
+    [bounds.min.x, -48],
+    [bounds.max.x, 48],
+    [bounds.min.z, -56],
+    [bounds.max.z, 56],
+  ])
+    assert(Math.abs(actual - expected) < 1e-6, `${actual} ≈ ${expected}`);
   for (const [x, z] of [
     [49, 0],
     [-49, 0],
