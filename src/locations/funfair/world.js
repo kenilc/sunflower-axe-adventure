@@ -194,7 +194,7 @@ export function createFunfair({ mesh, box, cyl, ball }) {
   createDioramaBase({
     parent: group,
     mesh,
-    radius: 40.5,
+    size: 40.5,
     top: -0.03,
     grass: "#80a976",
   });

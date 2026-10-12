@@ -1,5 +1,6 @@
 import { createFestivalCrowd } from "./crowd.js";
 import * as THREE from "three";
+import { createDioramaBase } from "../../rendering/diorama-base.js";
 
 // A summer matsuri, reached through the funfair's north lantern gate.
 export function createNightFestival({ mesh, box, cyl, ball }) {
@@ -58,17 +59,18 @@ export function createNightFestival({ mesh, box, cyl, ball }) {
   gate(entrance);
   gate(returnGate);
   // Separate banks leave an actual open channel; a full ground slab hid the water.
-  box(66, 0.6, 33.3, "#405a56", 0, -0.4, 15.35, group).name =
+  // The banks reach the board's edge and stand on its soil.
+  box(66, 1.05, 34.3, "#405a56", 0, -0.625, 15.85, group).name =
     "festival-south-bank";
-  box(66, 0.6, 21.3, "#405a56", 0, -0.4, -21.35, group).name =
+  box(66, 1.05, 22.3, "#405a56", 0, -0.625, -21.85, group).name =
     "festival-north-bank";
-  box(64, 0.4, 9.4, "#173d50", 0, -0.95, -6, group).name = "festival-riverbed";
+  box(66, 0.4, 9.4, "#173d50", 0, -0.95, -6, group).name = "festival-riverbed";
   // Broad pale paths remain legible under the blue night fill light.
   box(9, 0.08, 29.8, "#c5b398", 0, 0.01, 13.6, group);
   box(9, 0.08, 17.8, "#c5b398", 0, 0.01, -19.6, group);
   for (const z of [17, -18]) box(57, 0.08, 5, "#bcaa91", 0, 0.01, z, group);
   const water = mesh(
-    new THREE.PlaneGeometry(64, 9, 32, 8),
+    new THREE.PlaneGeometry(66, 9, 33, 8),
     new THREE.MeshStandardMaterial({
       color: "#287b9e",
       emissive: "#174d70",
@@ -86,7 +88,69 @@ export function createNightFestival({ mesh, box, cyl, ball }) {
   water.name = "festival-river-water";
   water.rotation.x = -Math.PI / 2;
   for (const z of [-10.7, -1.3])
-    box(64, 0.35, 0.6, "#8b9184", 0, -0.06, z, group);
+    box(66, 0.35, 0.6, "#8b9184", 0, -0.06, z, group);
+  createDioramaBase({
+    parent: group,
+    mesh,
+    size: 33,
+    shape: "square",
+    top: -1.15,
+    grass: null,
+    soil: "#5e4a3f",
+    stone: "#717988",
+    rock: "#454957",
+  });
+  // The river spills off both ends of the board, fading as it falls.
+  const fallHeight = 9;
+  const fallGeometry = new THREE.PlaneGeometry(9, fallHeight, 1, 6);
+  const fade = [];
+  for (let i = 0; i < fallGeometry.attributes.position.count; i++) {
+    const y = fallGeometry.attributes.position.getY(i);
+    fade.push(1, 1, 1, 0.9 * (0.5 + y / fallHeight));
+  }
+  fallGeometry.setAttribute("color", new THREE.Float32BufferAttribute(fade, 4));
+  const fallMaterial = new THREE.MeshStandardMaterial({
+    color: "#3d93b8",
+    emissive: "#174d70",
+    emissiveIntensity: 0.4,
+    roughness: 0.3,
+    transparent: true,
+    vertexColors: true,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const streakMaterial = new THREE.MeshBasicMaterial({
+    color: "#cfe9f5",
+    transparent: true,
+    opacity: 0.55,
+    depthWrite: false,
+  });
+  const fallStreaks = [];
+  for (const side of [-1, 1]) {
+    const fall = mesh(
+      fallGeometry,
+      fallMaterial,
+      side * 33.05,
+      -0.14 - fallHeight / 2,
+      -6,
+      group,
+    );
+    fall.name = "festival-waterfall";
+    fall.rotation.y = Math.PI / 2;
+    fall.castShadow = false;
+    for (let i = 0; i < 14; i++) {
+      const streak = mesh(
+        new THREE.BoxGeometry(0.03, 1.2, 0.09),
+        streakMaterial,
+        side * 33.12,
+        0,
+        -10 + ((i * 7) % 14) * 0.6 + 0.1,
+        group,
+      );
+      streak.castShadow = false;
+      fallStreaks.push({ streak, phase: (i * 0.37) % 1 });
+    }
+  }
   // Continuous rows of full blossom canopies, with a clear opening at the bridge.
   const sakura = new THREE.Group();
   sakura.name = "sakura-riverbanks";
@@ -634,6 +698,11 @@ export function createNightFestival({ mesh, box, cyl, ball }) {
     ripples.forEach(({ glint, phase }) => {
       glint.scale.x = 0.8 + Math.sin(time * 2 + phase) * 0.25;
     });
+    for (const { streak, phase } of fallStreaks) {
+      const fallen = (time * 0.45 + phase) % 1;
+      streak.position.y = -0.6 - fallen * (fallHeight - 1.5);
+      streak.scale.setScalar(1 - fallen * 0.85);
+    }
   }
   function bridgeHeight(x, z) {
     return Math.abs(x) <= 2.85 && z >= -11.6 && z <= 0
