@@ -215,6 +215,8 @@ export function createSeasideGate({ parent, helpers, x, z, destination }) {
   }
   return {
     group,
+    // The posts stand just outside the walk-through trigger.
+    blockers: [-1, 1].map((side) => ({ x: x + side * 2.4, z, r: 0.3 })),
     contains(position) {
       const p = localPosition(position);
       return Math.abs(p.x) < 2 && Math.abs(p.z) < 0.95;

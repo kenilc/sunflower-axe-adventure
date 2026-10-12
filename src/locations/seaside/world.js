@@ -14,6 +14,7 @@ export function createSeaside({
   keepsakes,
   hero,
   companion,
+  addGardenBlockers,
 }) {
   const { mesh, box, ball, cyl } = helpers;
   const group = new THREE.Group();
@@ -174,6 +175,8 @@ export function createSeaside({
     z: 23,
     destination: "garden",
   });
+  addGardenBlockers(...entranceGate.blockers);
+  blockers.push(...returnGate.blockers);
 
   const distantMaterial = new THREE.MeshBasicMaterial({
     color: "#8d8097",

@@ -262,6 +262,29 @@ test("shell arches keep their triggers aligned, offer X at both ends, and respec
   expect(hero.position.toArray()).toEqual([23, 0, 21]);
 });
 
+test("shell arch posts block both friends at each end, outside the doorway", async () => {
+  const { game } = await createTestGame();
+  const garden = game.places.get("garden"),
+    seaside = game.places.get("seaside");
+  for (const [gate, lists] of [
+    [
+      seaside.terrain.entranceGate,
+      [garden.terrain.blockers, garden.companionObstacles],
+    ],
+    [seaside.terrain.returnGate, [seaside.terrain.blockers]],
+  ]) {
+    const { x, z } = gate.group.position;
+    for (const list of lists)
+      for (const side of [-1, 1]) {
+        const post = list.find(
+          (b) => Math.hypot(b.x - (x + side * 2.35), b.z - z) <= b.r,
+        );
+        expect(post).toBeTruthy();
+        expect(Math.abs(post.x - x) - post.r).toBeGreaterThan(2);
+      }
+  }
+});
+
 test("surf and gulls animate during exploration and freeze in paused views", async () => {
   const { game, element } = await createTestGame();
   game.transitions.open("seaside");
