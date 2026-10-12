@@ -43,13 +43,14 @@ Vite serves the game at http://127.0.0.1:5173 and reloads after source changes. 
 npm test
 npm run test:watch
 npm run format:check
+npm run lint
 npm run test:build
 npm run preview
 ```
 
-Preview serves the generated `dist/` directory at http://127.0.0.1:4173. `npm run build` creates production output with hashed JavaScript, CSS, and model assets. Models remain binary files throughout the pipeline.
+Preview serves the generated `dist/` directory at http://127.0.0.1:4173. `npm run build` creates production output with hashed JavaScript, CSS, and model assets. Models remain binary files throughout the pipeline. `npm run lint` only reports names that are never defined (ESLint `no-undef`), which the tests can miss on untested code paths.
 
-GitHub Pages runs the gameplay tests and production build checks before publishing `dist/`. In repository Settings → Pages, select GitHub Actions as the publishing source. Vite uses `base: "./"` so assets resolve under the repository URL and custom domains. Direct links such as `?area=festival&activity=fireworks`, `?area=funfair&activity=ring-toss`, and `?area=village&activity=lookout` remain supported.
+GitHub Pages runs the lint check, the gameplay tests and production build checks before publishing `dist/`. In repository Settings → Pages, select GitHub Actions as the publishing source. Vite uses `base: "./"` so assets resolve under the repository URL and custom domains. Direct links such as `?area=festival&activity=fireworks`, `?area=funfair&activity=ring-toss`, and `?area=village&activity=lookout` remain supported.
 
 ## Code layout
 

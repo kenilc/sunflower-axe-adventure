@@ -1,4 +1,5 @@
 {
   "{src,assets/source,scripts,tests}/**/*.{js,html,css}": "prettier --write",
-  "*.{html,json,md,js}": "prettier --write"
+  "*.{html,json,md,js}": "prettier --write",
+  "{src,assets/source,scripts,tests}/**/*.js": "eslint"
 }

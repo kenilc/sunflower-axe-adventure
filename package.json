@@ -10,6 +10,7 @@
     "preview": "vite preview --host 127.0.0.1",
     "format": "prettier --write src assets/source scripts tests docs index.html README.md vite.config.js vitest.config.js",
     "format:check": "prettier --check src assets/source scripts tests docs index.html README.md vite.config.js vitest.config.js",
+    "lint": "eslint .",
     "test:build": "npm run build && vitest run tests/build.test.js",
     "test:watch": "vitest --exclude tests/build.test.js",
     "assets:build": "node scripts/export-assets.js",
@@ -28,6 +29,8 @@
   },
   "homepage": "https://github.com/kenilc/sunflower-axe-adventure#readme",
   "devDependencies": {
+    "eslint": "^9.39.5",
+    "globals": "^17.13.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
     "prettier": "^3.9.9",
