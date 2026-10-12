@@ -2,7 +2,7 @@
 
 Create `src/locations/<name>/world.js` for scenery and terrain, and `place.js` for lifecycle, actions, HUD data, and configuration. An activity or complex HUD can live in its own file beside them.
 
-A factory receives shared services through `context`. Use `context.scene`, `context.helpers` (`mesh`, `box`, `ball`, `cyl`), `context.hero`, `context.companion`, `context.heroRig`, `context.models`, `context.toast`, and `context.transitions`. Keep place-specific progress in the factory's closure.
+A factory receives shared services through `context`. Use `context.scene`, `context.helpers` (`mesh`, `box`, `ball`, `cyl`), `context.hero`, `context.companion`, `context.heroRig`, `context.models`, `context.toast`, and `context.transitions`. Keep place-specific progress in the factory's closure. Build the place's own world and activities inside its factory. To use another place, look it up with `context.places.get(id)`; if that place registers later (see `src/locations/register-places.js`), look it up when you need it rather than when the factory runs.
 
 This small example is a complete destination; replace its geometry with your design:
 
@@ -108,6 +108,11 @@ For a temporary change inside a place, such as a sauna or bedtime, save `context
 | `reset()`                                               | Clears progress when the game is reset. Ordinary entry/exit preserves progress.                                                                                                                |
 | `canEnter`, `canLeave`                                  | Optional guards receiving route information. Parent returns are otherwise allowed; home can be reached through its parent chain.                                                               |
 | `canThrow`, `maxZoom`, `cameraTarget()`                 | Weapon and camera policy.                                                                                                                                                                      |
+| `parts`                                                 | Optional named activities and helpers other code needs, such as `{ boatTrip, cableCar }`. Read them with `context.places.get(id).parts`.                                                       |
+| `controls`                                              | Optional named functions other places or tests call, such as `{ interactVillage }`.                                                                                                            |
+| `fadingGates`                                           | Optional gate objects whose tops (meshes at 4.5 or higher) fade when they hide the heroine.                                                                                                    |
+| `fadingExtras`                                          | Optional groups outside `group`, such as vehicles, that fade while this is the current area.                                                                                                   |
+| `photoVisibility(camera,actors,dt,enabled)`             | Optional fading to run in Camera mode instead of `afterCamera()`.                                                                                                                              |
 
 An action has a `label`, `key`, `run`, optional `visible`, and optional `disabled`. The default button is `placeAction`; supply a distinct `id` for additional buttons. The shared HUD creates missing buttons. Keyboard and button dispatch use the same action data and respect pause/transition locks.
 
