@@ -1,12 +1,14 @@
 import { afterEach, expect, test, vi } from "vitest";
 import * as THREE from "three";
+import { IDBFactory, IDBObjectStore } from "fake-indexeddb";
 import {
   createPhotoAlbum,
   PHOTO_ALBUM_KEY,
   PHOTO_LIMIT,
 } from "../src/systems/photo-album.js";
+import { crc32 } from "../src/systems/zip.js";
 import { createPhotoMode } from "../src/rendering/photo-mode.js";
-import { createTestGame } from "./helpers/game.js";
+import { albumFor, createTestGame, settle } from "./helpers/game.js";
 import { expectSolidScenery } from "./helpers/scenery.js";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -15,53 +17,191 @@ function memoryStorage() {
   return {
     getItem: (key) => values.get(key) ?? null,
     setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
   };
 }
 const image = "data:image/jpeg;base64,cGhvdG8=";
+function openAlbum(database, storage = memoryStorage()) {
+  const album = createPhotoAlbum({
+    storage: () => storage,
+    database: () => database,
+  });
+  return album.ready.then(() => album);
+}
+const blockedDatabase = {
+  open() {
+    throw new Error("storage blocked");
+  },
+};
+// Reads a stored (uncompressed) zip back into { name, bytes, crc } entries.
+function readZip(zip) {
+  const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+  const end = zip.length - 22;
+  expect(view.getUint32(end, true)).toBe(0x06054b50);
+  const entries = [];
+  let at = view.getUint32(end + 16, true);
+  for (let i = 0; i < view.getUint16(end + 10, true); i++) {
+    expect(view.getUint32(at, true)).toBe(0x02014b50);
+    const nameLength = view.getUint16(at + 28, true),
+      size = view.getUint32(at + 24, true),
+      local = view.getUint32(at + 42, true);
+    expect(view.getUint32(local, true)).toBe(0x04034b50);
+    const data = local + 30 + view.getUint16(local + 26, true);
+    entries.push({
+      name: new TextDecoder().decode(
+        zip.subarray(at + 46, at + 46 + nameLength),
+      ),
+      bytes: zip.slice(data, data + size),
+      crc: view.getUint32(at + 16, true),
+    });
+    at += 46 + nameLength;
+  }
+  return entries;
+}
 
-test("album persists across instances and preserves saved photos when quota is exceeded", () => {
-  const storage = memoryStorage();
-  const album = createPhotoAlbum({ storage: () => storage });
-  const first = album.add(image, "Garden");
-  expect(createPhotoAlbum({ storage: () => storage }).photos[0]).toEqual(first);
-  const saved = storage.getItem(PHOTO_ALBUM_KEY);
-  storage.setItem = () => {
-    throw new Error("quota exceeded");
+test("album persists across instances and preserves saved photos when a write fails", async () => {
+  const database = new IDBFactory();
+  const album = await openAlbum(database);
+  const first = await album.add(image, "Garden");
+  expect((await openAlbum(database)).photos).toEqual([first]);
+  const quota = () => {
+    throw new DOMException("Quota exceeded", "QuotaExceededError");
   };
-  expect(() => album.add(image, "Cave")).toThrow();
-  expect(() => album.remove(first.id)).toThrow();
+  const add = vi
+      .spyOn(IDBObjectStore.prototype, "add")
+      .mockImplementation(quota),
+    remove = vi
+      .spyOn(IDBObjectStore.prototype, "delete")
+      .mockImplementation(quota);
+  await expect(album.add(image, "Cave")).rejects.toThrow();
+  await expect(album.remove(first.id)).rejects.toThrow();
+  add.mockRestore();
+  remove.mockRestore();
   expect(album.photos).toEqual([first]);
-  expect(storage.getItem(PHOTO_ALBUM_KEY)).toBe(saved);
+  expect((await openAlbum(database)).photos).toEqual([first]);
 });
 
-test("album deletes persist, full albums do not evict photos, and invalid or blocked storage is handled", () => {
-  const storage = memoryStorage();
-  const album = createPhotoAlbum({ storage: () => storage });
-  for (let i = 0; i < PHOTO_LIMIT; i++) album.add(image, `Place ${i}`);
-  const oldest = album.photos.at(-1);
-  expect(() => album.add(image, "Extra")).toThrow("album-full");
-  expect(album.photos.at(-1)).toEqual(oldest);
-  album.remove(oldest.id);
-  expect(createPhotoAlbum({ storage: () => storage }).photos).toHaveLength(
-    PHOTO_LIMIT - 1,
+test("album deletes persist, full albums do not evict photos, and blocked storage is handled", async () => {
+  const database = new IDBFactory();
+  const album = await openAlbum(database);
+  // Quick shutter presses are queued, so only the one past the limit fails.
+  const results = await Promise.allSettled(
+    Array.from({ length: PHOTO_LIMIT + 1 }, (_, i) =>
+      album.add(image, `Place ${i}`),
+    ),
   );
-  storage.setItem(PHOTO_ALBUM_KEY, "invalid json");
-  expect(createPhotoAlbum({ storage: () => storage }).loadError).toBe(true);
+  expect(
+    results.filter((r) => r.status === "rejected").map((r) => r.reason.message),
+  ).toEqual(["album-full"]);
+  const oldest = album.photos.at(-1);
+  expect(oldest.location).toBe("Place 0");
+  await album.remove(oldest.id);
+  expect((await openAlbum(database)).photos).toHaveLength(PHOTO_LIMIT - 1);
+  const blocked = await openAlbum(blockedDatabase);
+  expect(blocked.loadError).toBe(true);
+  await expect(blocked.add(image, "Garden")).rejects.toThrow(
+    "album-unavailable",
+  );
+});
+
+test("photos saved in localStorage move into IndexedDB once, and the old copy is removed only after the move", async () => {
+  const storage = memoryStorage();
+  const legacy = [
+    {
+      id: "b",
+      image,
+      location: "Cave",
+      createdAt: "2026-05-02T10:00:00.000Z",
+    },
+    {
+      id: "a",
+      image: "data:image/png;base64,d29vbGx5",
+      location: "Garden",
+      createdAt: "2026-05-01T10:00:00.000Z",
+    },
+  ];
   storage.setItem(
     PHOTO_ALBUM_KEY,
     JSON.stringify([
-      { ...oldest, image: "https://untrusted.example/photo" },
-      oldest,
+      ...legacy,
+      { ...legacy[0], id: "x", image: "https://untrusted.example/photo" },
     ]),
   );
-  expect(createPhotoAlbum({ storage: () => storage }).photos).toEqual([oldest]);
-  const blocked = createPhotoAlbum({
-    storage: () => {
-      throw new Error("storage blocked");
+  // Without IndexedDB the old photos stay put and can still be viewed.
+  const unavailable = await openAlbum(blockedDatabase, storage);
+  expect(unavailable.loadError).toBe(true);
+  expect(unavailable.photos).toEqual(legacy);
+  expect(storage.getItem(PHOTO_ALBUM_KEY)).not.toBeNull();
+  const database = new IDBFactory();
+  const album = await openAlbum(database, storage);
+  expect(album.loadError).toBe(false);
+  expect(album.photos).toEqual(legacy);
+  expect(storage.getItem(PHOTO_ALBUM_KEY)).toBeNull();
+  await album.remove("a");
+  // Even if the old copy could not be removed, a deleted photo stays deleted.
+  storage.setItem(PHOTO_ALBUM_KEY, JSON.stringify(legacy));
+  expect((await openAlbum(database, storage)).photos).toEqual([legacy[0]]);
+  expect(storage.getItem(PHOTO_ALBUM_KEY)).toBeNull();
+  // An unreadable old album is left alone rather than lost.
+  storage.setItem(PHOTO_ALBUM_KEY, "invalid json");
+  expect((await openAlbum(database, storage)).loadError).toBe(false);
+  expect(storage.getItem(PHOTO_ALBUM_KEY)).toBe("invalid json");
+});
+
+test("Download all saves every photo into one zip with unique names", async () => {
+  const storage = memoryStorage();
+  const photos = [
+    { id: "c", image, location: "Cave", createdAt: "2026-05-03T10:00:00.000Z" },
+    {
+      id: "b",
+      image: "data:image/jpeg;base64,c2Vjb25k",
+      location: "Cave",
+      createdAt: "2026-05-03T10:00:00.000Z",
     },
+    {
+      id: "a",
+      image: "data:image/png;base64,d29vbGx5",
+      location: "Garden",
+      createdAt: "2026-05-01T10:00:00.000Z",
+    },
+  ];
+  storage.setItem(PHOTO_ALBUM_KEY, JSON.stringify(photos));
+  const { game, element } = await createTestGame({ storage });
+  const { photography } = game.activities;
+  const createObjectURL = vi
+    .spyOn(URL, "createObjectURL")
+    .mockReturnValue("blob:album");
+  vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+  const click = vi.fn();
+  let link;
+  const createElement = document.createElement;
+  vi.spyOn(document, "createElement").mockImplementation((tag) => {
+    const created = createElement(tag);
+    if (tag === "a") Object.assign(created, { click }) && (link = created);
+    return created;
   });
-  expect(blocked.loadError).toBe(true);
-  expect(() => blocked.add(image, "Garden")).toThrow();
+  expect(photography.openAlbum()).toBe(true);
+  expect(element("#downloadAllPhotos").hidden).toBe(false);
+  element("#downloadAllPhotos").onclick();
+  expect(click).toHaveBeenCalledTimes(1);
+  expect(link.href).toBe("blob:album");
+  expect(link.download).toMatch(/^sunflower-photos-\d{4}-\d{2}-\d{2}\.zip$/);
+  const blob = createObjectURL.mock.calls[0][0];
+  expect(blob.type).toBe("application/zip");
+  const entries = readZip(new Uint8Array(await blob.arrayBuffer()));
+  expect(entries.map((entry) => entry.name)).toEqual([
+    "sunflower-2026-05-03T10-00-00-000Z.jpg",
+    "sunflower-2026-05-03T10-00-00-000Z-2.jpg",
+    "sunflower-2026-05-01T10-00-00-000Z.png",
+  ]);
+  expect(entries.map((entry) => new TextDecoder().decode(entry.bytes))).toEqual(
+    ["second", "photo", "woolly"],
+  );
+  for (const entry of entries) expect(entry.crc).toBe(crc32(entry.bytes));
+  photography.closeAlbum();
+  for (const photo of photos) await game.activities.photoAlbum.remove(photo.id);
+  photography.openAlbum();
+  expect(element("#downloadAllPhotos").hidden).toBe(true);
 });
 
 test("camera mode edits both actors independently, obeys terrain, and restores entry transforms", () => {
@@ -136,13 +276,14 @@ test("camera and album pause gameplay, capture current framing, survive restart,
   key("Space", { tagName: "INPUT" });
   expect(photoAlbum.photos).toHaveLength(0);
   key("Enter");
+  await settle(game);
   expect(photoAlbum.photos).toHaveLength(1);
   // Resizing to a phone gives the preview a matching portrait camera crop.
   vi.stubGlobal("innerWidth", 390);
   vi.stubGlobal("innerHeight", 844);
   handlers.get("resize")();
   expect(game.rendering.camera.aspect).toBe(3 / 4);
-  expect(photography.takePhoto()).toBe(true);
+  expect(await photography.takePhoto()).toBe(true);
   expect(photoAlbum.photos).toHaveLength(2);
   expect(photography.openAlbum()).toBe(true);
   tick();
@@ -165,10 +306,10 @@ test("camera and album pause gameplay, capture current framing, survive restart,
   game.input.keys.KeyD = true;
   tick();
   expect(hero.position.equals(origin)).toBe(true);
-  element("#deletePhoto").onclick();
+  await element("#deletePhoto").onclick();
   expect(photoAlbum.photos).toHaveLength(1);
   photography.closeAlbum();
-  expect(createPhotoAlbum({ storage: () => storage }).photos).toHaveLength(1);
+  expect((await albumFor(storage)).photos).toHaveLength(1);
   game.controls.resetAdventure();
   expect(photoAlbum.photos).toHaveLength(1);
   element("#guide").open = true;
@@ -436,11 +577,9 @@ test("activity photos pause every ride and pose, save captions, and resume the o
     // Photo mode must render the scene it captures, including at the booth.
     expect(renderer.scene).toBe(game.rendering.scene);
     expect(renderer.camera).toBe(camera);
-    expect(photography.takePhoto(), activity.name).toBe(true);
+    expect(await photography.takePhoto(), activity.name).toBe(true);
     expect(photoAlbum.photos[0].location).toContain(activity.name);
-    expect(createPhotoAlbum({ storage: () => storage }).photos[0]).toEqual(
-      photoAlbum.photos[0],
-    );
+    expect((await albumFor(storage)).photos[0]).toEqual(photoAlbum.photos[0]);
     photography.openAlbum();
     frames(15);
     photography.closeAlbum();

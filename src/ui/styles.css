@@ -548,7 +548,8 @@ body:has(#funfairExit:not([hidden])) #toast {
 #photoControls[hidden],
 #photoSelection[hidden],
 #photoAlbumThumb[hidden],
-#albumDetail[hidden] {
+#albumDetail[hidden],
+#downloadAllPhotos[hidden] {
   display: none;
 }
 body.photo-mode {
@@ -1003,6 +1004,13 @@ body.photo-mode #toast {
   height: 110px;
   object-fit: cover;
   border-radius: 5px;
+}
+.album-summary {
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+.album-summary p {
+  margin: 12px 0;
 }
 .photo-download {
   display: inline-block;

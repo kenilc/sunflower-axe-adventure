@@ -296,8 +296,8 @@
         shutter or Enter to take a photo. During activities, Camera holds the
         current poses while you orbit and zoom. Exit resumes the moment. During
         exploration, exit restores your positions.<br /><b>Album / L</b> — view,
-        download or delete photos. Up to 30 photos stay in this browser across
-        reloads.<br />
+        download or delete photos, or download them all as a zip. Up to 200
+        photos stay in this browser across reloads.<br />
         <b>Sunset Beach</b> — follow the sign in the southeast garden. Walk
         together along the shore and press <b>X</b> near a glimmer to collect a
         shell or stone.<br />
@@ -477,7 +477,12 @@
           </svg>
         </button>
       </div>
-      <p id="albumSummary" role="status"></p>
+      <div class="photo-toolbar album-summary">
+        <p id="albumSummary" role="status"></p>
+        <button id="downloadAllPhotos" type="button" hidden>
+          Download all (.zip)
+        </button>
+      </div>
       <div id="albumDetail" hidden>
         <img id="albumImage" alt="" />
         <p id="albumCaption"></p>

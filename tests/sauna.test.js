@@ -127,7 +127,7 @@ test("the log hut opens a warm sauna, water pouring and photos pause, and leavin
   expect(game.activities.photoMode.canEditActors).toBe(false);
   expect(glasses.every((node) => !node.visible)).toBe(true);
   expectSolidScenery(game.rendering.scene, "sauna photo");
-  expect(game.activities.photography.takePhoto()).toBe(true);
+  expect(await game.activities.photography.takePhoto()).toBe(true);
   expect(game.activities.photoAlbum.photos[0].location).toContain(
     "Sauna warmth for two",
   );

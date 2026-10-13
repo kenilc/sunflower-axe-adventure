@@ -353,7 +353,7 @@ test("all winter moments pause for photos, preserve held items and restore walki
     expect(poses(game)).toEqual(pose);
     expectSolidScenery(game.rendering.scene, `${kind} photo`);
     expect(place.activity.elapsed).toBe(time);
-    expect(game.activities.photography.takePhoto()).toBe(true);
+    expect(await game.activities.photography.takePhoto()).toBe(true);
     expect(game.activities.photoAlbum.photos[0].location).toContain("Lumeküla");
     game.activities.photography.exit();
     place.activity.stop(false);

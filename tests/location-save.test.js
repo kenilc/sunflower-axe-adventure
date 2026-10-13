@@ -127,7 +127,10 @@ test("hiding the tab saves walking but keeps the departure checkpoint during a b
 test("New adventure replaces the checkpoint and leaves the photo album intact", async () => {
   const storage = memoryStorage();
   const { game, element, handlers } = await createTestGame({ storage });
-  game.activities.photoAlbum.add("data:image/png;base64,d29vbGx5", "garden");
+  await game.activities.photoAlbum.add(
+    "data:image/png;base64,d29vbGx5",
+    "garden",
+  );
   game.transitions.open("village");
   handlers.get("pagehide")();
   game.controls.resetAdventure();

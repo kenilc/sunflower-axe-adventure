@@ -1,7 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 import * as THREE from "three";
-import { createTestGame } from "./helpers/game.js";
-import { createPhotoAlbum, PHOTO_LIMIT } from "../src/systems/photo-album.js";
+import { albumFor, createTestGame, settle } from "./helpers/game.js";
+import { PHOTO_LIMIT } from "../src/systems/photo-album.js";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -96,6 +96,7 @@ test("sheep photos pause, restore walking, survive travel, and reset with the ad
   expect(sheepMoment.cameraProp.visible).toBe(false);
   expect(capture).toHaveBeenCalledTimes(1);
   expect(capture).toHaveBeenCalledWith("image/jpeg", 0.82);
+  await settle(game);
   expect(game.activities.photoAlbum.photos).toHaveLength(1);
   const savedPhoto = game.activities.photoAlbum.photos[0];
   expect(savedPhoto.image).toBe("data:image/png;base64,d29vbGx5");
@@ -104,9 +105,7 @@ test("sheep photos pause, restore walking, survive travel, and reset with the ad
     "Saved to your album",
   );
   expect(element("#photoAlbumThumb").src).toBe(savedPhoto.image);
-  expect(createPhotoAlbum({ storage: () => storage }).photos).toEqual([
-    savedPhoto,
-  ]);
+  expect((await albumFor(storage)).photos).toEqual([savedPhoto]);
   expect(photographerFrame).toBe(true);
   expect(companion.character.visible).toBe(true);
   expect(renderer.getRenderTarget()).toBeNull();
@@ -158,9 +157,7 @@ test("sheep photos pause, restore walking, survive travel, and reset with the ad
   ).toBe(false);
   expect(sheepMoment.memories.size).toBe(0);
   expect(game.activities.photoAlbum.photos).toEqual([savedPhoto]);
-  expect(createPhotoAlbum({ storage: () => storage }).photos).toEqual([
-    savedPhoto,
-  ]);
+  expect((await albumFor(storage)).photos).toEqual([savedPhoto]);
   expect(element("#sheepPhoto").hidden).toBe(true);
   expect(
     village.sheep.every(
@@ -211,23 +208,29 @@ test("sheep photos pause, restore walking, survive travel, and reset with the ad
 test("sheep photos still preview when album storage is full or blocked", async () => {
   for (const failure of ["full", "blocked"]) {
     const { game, element } = await createTestGame({
-      storage: {
-        getItem: () => null,
-        setItem() {
-          if (failure === "blocked") throw new Error("storage blocked");
-        },
-      },
+      indexedDB:
+        failure === "blocked"
+          ? {
+              open() {
+                throw new Error("storage blocked");
+              },
+            }
+          : undefined,
     });
     const { photoAlbum, sheepMoment } = game.activities;
     if (failure === "full") {
       for (let i = 0; i < PHOTO_LIMIT; i++)
-        photoAlbum.add("data:image/jpeg;base64,cGhvdG8=", "Existing memory");
+        await photoAlbum.add(
+          "data:image/jpeg;base64,cGhvdG8=",
+          "Existing memory",
+        );
     }
     const before = photoAlbum.photos;
     game.rendering.clock.getDelta = () => 0.04;
     game.transitions.jump("village", { activity: "sheep" });
     game.controls.interactVillage();
     for (let i = 0; i < 180; i++) game.update();
+    await settle(game);
     expect(sheepMoment.hasPhoto, failure).toBe(true);
     expect(sheepMoment.viewing, failure).toBe(true);
     expect(element("#sheepPhotoCaption").textContent).toContain(

@@ -1,11 +1,10 @@
 import * as THREE from "three";
 import { LOCATION_SAVE_KEY } from "../src/game/location-save.js";
 import { afterEach, expect, test, vi } from "vitest";
-import { createTestGame } from "./helpers/game.js";
+import { albumFor, createTestGame } from "./helpers/game.js";
 import { expectSolidScenery } from "./helpers/scenery.js";
 import { createBeachAmbience } from "../src/locations/seaside/ambience.js";
 import { createMeshFactory } from "../src/rendering/mesh-factory.js";
-import { createPhotoAlbum } from "../src/systems/photo-album.js";
 import {
   createKeepsakes,
   KEEPSAKES_KEY,
@@ -850,7 +849,7 @@ test.each(["sunset", "sandcastle", "tidepool"])(
       expect(node.position.equals(pose[i].position)).toBe(true);
       expect(node.quaternion.equals(pose[i].quaternion)).toBe(true);
     });
-    expect(photo.takePhoto()).toBe(true);
+    expect(await photo.takePhoto()).toBe(true);
     expect(game.activities.photoAlbum.photos[0].location).toContain(
       kind === "sunset"
         ? "Sunset for two"
@@ -858,7 +857,7 @@ test.each(["sunset", "sandcastle", "tidepool"])(
           ? "Shape the base"
           : "Discovering the tide pool",
     );
-    expect(createPhotoAlbum({ storage: () => storage }).photos).toHaveLength(1);
+    expect((await albumFor(storage)).photos).toHaveLength(1);
     expect(photo.openAlbum()).toBe(true);
     frames(game, 10);
     photo.closeAlbum();

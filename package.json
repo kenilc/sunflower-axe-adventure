@@ -30,6 +30,7 @@
   "homepage": "https://github.com/kenilc/sunflower-axe-adventure#readme",
   "devDependencies": {
     "eslint": "^9.39.5",
+    "fake-indexeddb": "^6.2.5",
     "globals": "^17.13.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",

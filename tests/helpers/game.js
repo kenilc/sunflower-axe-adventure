@@ -1,8 +1,35 @@
 import { vi } from "vitest";
+import { IDBFactory } from "fake-indexeddb";
 import { readModels } from "./models.js";
 import { createRandom } from "../../src/systems/random.js";
+import { createPhotoAlbum } from "../../src/systems/photo-album.js";
 
-export async function createTestGame({ storage } = {}) {
+// Each storage object gets its own IndexedDB, so restarting a game with the
+// same storage also keeps the same photo album.
+const databases = new WeakMap();
+export function databaseFor(storage) {
+  if (!storage) return new IDBFactory();
+  if (!databases.has(storage)) databases.set(storage, new IDBFactory());
+  return databases.get(storage);
+}
+
+// A second album over the same storage, to check what really persisted.
+export async function albumFor(storage) {
+  const album = createPhotoAlbum({
+    storage: () => storage,
+    database: () => databaseFor(storage),
+  });
+  await album.ready;
+  return album;
+}
+
+// Waits for pending album saves and deletes, and the UI updates after them.
+export async function settle(game) {
+  await game.activities.photoAlbum.whenIdle();
+  await new Promise((resolve) => setImmediate(resolve));
+}
+
+export async function createTestGame({ storage, indexedDB } = {}) {
   const elements = new Map();
   const handlers = new Map();
   const element = (selector) => {
@@ -48,6 +75,7 @@ export async function createTestGame({ storage } = {}) {
       getItem: () => null,
       setItem() {},
     },
+    indexedDB: indexedDB ?? databaseFor(storage),
     requestAnimationFrame() {},
     cancelAnimationFrame() {},
     addEventListener(name, callback) {
@@ -125,6 +153,7 @@ export async function createTestGame({ storage } = {}) {
     createRenderer: () => new browser.FakeRenderer(),
     random: createRandom(7),
   });
+  await G.activities.photoAlbum.ready;
   G.update();
   return { game: G, models, element, handlers, elements };
 }

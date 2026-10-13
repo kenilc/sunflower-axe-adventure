@@ -331,16 +331,22 @@ export function createSheepMoment({
       if (!capturedPhoto) return;
       lastPhoto = capturedPhoto;
       if (savePhoto) {
-        try {
-          savePhoto(capturedPhoto);
-          $("#sheepPhotoCaption").textContent =
-            "A woolly afternoon ♥ · Saved to your album";
-        } catch (error) {
-          $("#sheepPhotoCaption").textContent =
-            error.message === "album-full"
-              ? "A woolly afternoon ♥ · Your album is full. This photo is available here for now."
-              : "A woolly afternoon ♥ · Could not save to the album. Browser storage may be full or unavailable.";
-        }
+        const caption = $("#sheepPhotoCaption");
+        caption.textContent = "A woolly afternoon ♥ · Saving to your album…";
+        savePhoto(capturedPhoto).then(
+          () => {
+            if (lastPhoto === capturedPhoto)
+              caption.textContent =
+                "A woolly afternoon ♥ · Saved to your album";
+          },
+          (error) => {
+            if (lastPhoto === capturedPhoto)
+              caption.textContent =
+                error.message === "album-full"
+                  ? "A woolly afternoon ♥ · Your album is full. This photo is available here for now."
+                  : "A woolly afternoon ♥ · Could not save to the album. Browser storage may be full or unavailable.";
+          },
+        );
       }
       openPhoto();
     },

@@ -1,4 +1,25 @@
 import { PHOTO_LIMIT } from "../systems/photo-album.js";
+import { createZip } from "../systems/zip.js";
+
+function photoFileName(photo) {
+  const extension = photo.image.startsWith("data:image/png;") ? "png" : "jpg";
+  return `sunflower-${photo.createdAt.replace(/[:.]/g, "-")}.${extension}`;
+}
+
+function photoBytes(photo) {
+  const binary = atob(photo.image.slice(photo.image.indexOf(",") + 1));
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click?.();
+  // Revoking straight away can cancel the download in some browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
 
 export function bindPhotography({
   $,
@@ -12,6 +33,7 @@ export function bindPhotography({
   getLocation,
   view,
   resetGestures = () => {},
+  download = downloadBlob,
 }) {
   let selected = null;
   const albumDialog = $("#photoAlbum");
@@ -83,13 +105,13 @@ export function bindPhotography({
     document.activeElement?.blur?.();
     return true;
   }
-  function savePhoto(image, location) {
-    const photo = album.add(image, location);
+  async function savePhoto(image, location) {
+    const photo = await album.add(image, location);
     $("#photoAlbumThumb").src = image;
     $("#photoAlbumThumb").hidden = false;
     return photo;
   }
-  function takePhoto() {
+  async function takePhoto() {
     if (!mode.active || albumDialog.open || $("#guide").open) return false;
     resetGestures();
     try {
@@ -107,7 +129,8 @@ export function bindPhotography({
         quality: 0.82,
       });
       if (!image) throw new Error("capture-unavailable");
-      savePhoto(image, getLocation());
+      $("#photoStatus").textContent = "Saving photo…";
+      await savePhoto(image, getLocation());
       $("#photoStatus").textContent =
         `Photo saved ♥ ${album.photos.length} / ${PHOTO_LIMIT}`;
       const flash = $("#photoFlash");
@@ -130,17 +153,21 @@ export function bindPhotography({
     $("#albumCaption").textContent =
       `${photo.location} · ${new Date(photo.createdAt).toLocaleString()}`;
     $("#downloadPhoto").href = photo.image;
-    const extension = photo.image.startsWith("data:image/png;") ? "png" : "jpg";
-    $("#downloadPhoto").download =
-      `sunflower-${photo.createdAt.replace(/[:.]/g, "-")}.${extension}`;
+    $("#downloadPhoto").download = photoFileName(photo);
+    $("#deletePhoto").disabled = album.loadError;
   }
   function renderAlbum() {
     const photos = album.photos;
-    $("#albumSummary").textContent = album.loadError
-      ? "The saved album could not be read. Browser storage may be unavailable."
-      : photos.length
-        ? `${photos.length} / ${PHOTO_LIMIT} photos · Saved in this browser`
-        : "Your album is waiting for its first memory. Open Camera to take a photo.";
+    $("#albumSummary").textContent = !album.loaded
+      ? "Opening your album…"
+      : album.loadError
+        ? photos.length
+          ? `${photos.length} photos · Browser storage is unavailable, so photos can be downloaded but not added or deleted.`
+          : "The saved album could not be read. Browser storage may be unavailable."
+        : photos.length
+          ? `${photos.length} / ${PHOTO_LIMIT} photos · Saved in this browser`
+          : "Your album is waiting for its first memory. Open Camera to take a photo.";
+    $("#downloadAllPhotos").hidden = !photos.length;
     const grid = $("#albumGrid");
     grid.replaceChildren();
     for (const photo of photos) {
@@ -182,7 +209,30 @@ export function bindPhotography({
     clearInput();
     renderAlbum();
     albumDialog.showModal();
+    if (!album.loaded)
+      album.ready.then(() => albumDialog.open && renderAlbum());
     return true;
+  }
+  function downloadAll() {
+    const photos = album.photos;
+    if (!photos.length) return;
+    const used = new Set();
+    const files = photos.map((photo) => {
+      let name = photoFileName(photo);
+      for (let n = 2; used.has(name); n++)
+        name = photoFileName(photo).replace(/(\.\w+)$/, `-${n}$1`);
+      used.add(name);
+      return {
+        name,
+        bytes: photoBytes(photo),
+        date: new Date(photo.createdAt),
+      };
+    });
+    const day = new Date().toISOString().slice(0, 10);
+    download(
+      new Blob([createZip(files)], { type: "application/zip" }),
+      `sunflower-photos-${day}.zip`,
+    );
   }
   $("#cameraAction").onclick = () => (mode.active ? exit() : enter());
   $("#albumAction").onclick = openAlbum;
@@ -191,19 +241,23 @@ export function bindPhotography({
   $("#takePhoto").onclick = takePhoto;
   $("#closeAlbum").onclick = closeAlbum;
   albumDialog.addEventListener("close", clearInput);
-  $("#deletePhoto").onclick = () => {
+  $("#downloadAllPhotos").onclick = downloadAll;
+  $("#deletePhoto").onclick = async () => {
     if (!selected) return;
     try {
-      album.remove(selected);
+      await album.remove(selected);
       renderAlbum();
     } catch {
       $("#albumSummary").textContent =
         "Photo could not be deleted. Browser storage is unavailable.";
     }
   };
-  const latest = album.photos[0];
-  $("#photoAlbumThumb").hidden = !latest;
-  if (latest) $("#photoAlbumThumb").src = latest.image;
+  $("#photoAlbumThumb").hidden = true;
+  album.ready.then(() => {
+    const latest = album.photos[0];
+    $("#photoAlbumThumb").hidden = !latest;
+    if (latest) $("#photoAlbumThumb").src = latest.image;
+  });
   return {
     enter,
     exit,
@@ -211,6 +265,7 @@ export function bindPhotography({
     closeAlbum,
     takePhoto,
     savePhoto,
+    downloadAll,
     updateControls,
     updateSelection,
     get viewing() {
