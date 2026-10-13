@@ -416,10 +416,7 @@ export function createRiversidePlace(context) {
       const panorama =
         THREE.MathUtils.smoothstep(104 - hero.position.z, 60, 110) *
         THREE.MathUtils.smoothstep(-Math.cos(state.yaw), 0.3, 0.85);
-      return Math.min(
-        THREE.MathUtils.lerp(2, 5.5, panorama),
-        state.zoom * 0.22,
-      );
+      return THREE.MathUtils.lerp(2, 5.5, panorama);
     },
     reset: () => {
       riverside.reset();

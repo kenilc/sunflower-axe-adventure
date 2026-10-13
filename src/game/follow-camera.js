@@ -9,10 +9,14 @@ export const clampPitch = (pitch) =>
 // yaw, pitch and zoom kept in the game state.
 export function createFollowCamera({ camera, hero, state, locations }) {
   const desired = new THREE.Vector3();
-  const targetHeight = () => locations.active.cameraTarget();
+  const orbitDistance = () =>
+    locations.active.cameraDistance?.(state.zoom) ?? state.zoom;
+  // A place may aim above the characters to show tall scenery, but limit
+  // that aim when zooming in so both players stay whole on screen.
+  const targetHeight = () =>
+    Math.min(locations.active.cameraTarget(), orbitDistance() * 0.22);
   function orbitPosition() {
-    const distance =
-      locations.active.cameraDistance?.(state.zoom) ?? state.zoom;
+    const distance = orbitDistance();
     return desired
       .set(
         Math.sin(state.yaw) * Math.cos(state.pitch) * distance,

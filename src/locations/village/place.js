@@ -87,7 +87,7 @@ export function createVillagePlace(context) {
     onClear: resetCamera,
     onFinish() {
       $(".instructions").innerHTML =
-        "<kbd>W A S D</kbd> walk / hike <kbd>X</kbd> shops / sheep / summit cart <kbd>DRAG / Q E</kbd> rotate";
+        "<kbd>W A S D</kbd> walk / hike <kbd>X</kbd> shops / sheep / summit cart <kbd>DRAG</kbd> look around <kbd>Q E</kbd> rotate";
       clearRestInput();
       village.stamps.add("lookout");
       $("#villageStamps").textContent = village.stamps.size;
@@ -206,7 +206,7 @@ export function createVillagePlace(context) {
       ? "Shop doors: north side of the street · X. Sheep: eastern meadow. Via ferrata: west path. Return gate: south."
       : "Swiss village: south path. Funfair: east. Riverside: west. Treasure cave: north.";
     $(".instructions").innerHTML = enter
-      ? "<kbd>W A S D</kbd> walk / hike <kbd>X</kbd> shops / sheep / summit cart <kbd>DRAG / Q E</kbd> rotate"
+      ? "<kbd>W A S D</kbd> walk / hike <kbd>X</kbd> shops / sheep / summit cart <kbd>DRAG</kbd> look around <kbd>Q E</kbd> rotate"
       : state.outsideView?.instructions;
     effects.clearProjectiles();
     effects.clearParticles();
@@ -476,12 +476,8 @@ export function createVillagePlace(context) {
     objective: villageObjective,
     cameraTarget() {
       if (state.activeVillageShop) return 1;
-      // Pair the higher panorama aim with more distance, and limit it when
-      // zooming in so both players keep a margin below their feet.
-      return Math.min(
-        THREE.MathUtils.lerp(1.8, 10, mountainPanorama()),
-        this.cameraDistance(state.zoom) * 0.22,
-      );
+      // Pair the higher panorama aim with more distance.
+      return THREE.MathUtils.lerp(1.8, 10, mountainPanorama());
     },
     cameraDistance(zoom) {
       const interest = Math.min(

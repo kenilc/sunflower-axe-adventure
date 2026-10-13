@@ -113,8 +113,8 @@ export function createFestivalPlace(context) {
       ? "Food stalls line the street. Tea house: northwest bank. Firefly gardens: northeast. Bridge: straight ahead. Return gate: south."
       : "Festival lantern gate: north. Return to the garden: south.";
     $(".instructions").innerHTML = enter
-      ? "<kbd>W A S D</kbd> move <kbd>X</kbd> fireworks together <kbd>DRAG / Q E</kbd> rotate <kbd>R / F</kbd> view"
-      : "<kbd>W A S D</kbd> move <kbd>X</kbd> ride / play <kbd>DRAG / Q E</kbd> rotate <kbd>R / F</kbd> view";
+      ? "<kbd>W A S D</kbd> move <kbd>X</kbd> fireworks together <kbd>DRAG</kbd> look around <kbd>Q E</kbd> rotate <kbd>R / F</kbd> view"
+      : "<kbd>W A S D</kbd> move <kbd>X</kbd> ride / play <kbd>DRAG</kbd> look around <kbd>Q E</kbd> rotate <kbd>R / F</kbd> view";
     state.passageCooldown = 1;
     clearRestInput();
     toast(

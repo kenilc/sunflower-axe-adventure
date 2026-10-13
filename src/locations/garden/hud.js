@@ -10,7 +10,7 @@ export function createGardenHud(context) {
         .get("winter")
         .terrain.entranceGate.nearby(hero.position);
     return {
-      instructions: `<kbd>W A S D</kbd> move <kbd>SHIFT</kbd> run ${heroRig.items.canThrow ? "<kbd>CLICK</kbd> throw " : ""}<kbd>DRAG / Q E</kbd> rotate <kbd>R / F</kbd> view up / down`,
+      instructions: `<kbd>W A S D</kbd> move <kbd>SHIFT</kbd> run ${heroRig.items.canThrow ? "<kbd>CLICK</kbd> throw " : ""}<kbd>DRAG</kbd> look around <kbd>Q E</kbd> rotate <kbd>R / F</kbd> view up / down`,
       countsId: "gardenCounts",
       hint: "Lumeküla, Estonia: northeast winter path · Sunset Beach: southeast · Cave: north · Alpine village: south · Funfair: east · Riverside: west",
       region:

@@ -117,7 +117,7 @@ export function createFunfairPlace(context) {
       ? "Ferris wheel: northwest. Carousel: northeast. Ring toss: southeast. Return gate: south."
       : "Swiss village: south path. Funfair gate: east. River gate: west. Treasure cave: north. Lake & bench: southeast.";
     $(".instructions").innerHTML = enter
-      ? "<kbd>W A S D</kbd> move <kbd>X</kbd> ride / play <kbd>DRAG / Q E</kbd> rotate <kbd>R / F</kbd> view"
+      ? "<kbd>W A S D</kbd> move <kbd>X</kbd> ride / play <kbd>DRAG</kbd> look around <kbd>Q E</kbd> rotate <kbd>R / F</kbd> view"
       : state.outsideView?.instructions;
     effects.clearProjectiles();
     effects.clearParticles();

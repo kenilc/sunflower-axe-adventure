@@ -119,7 +119,7 @@ export function createCastlePlace(context) {
     state.passageCooldown = 1;
     $("#lagoonCounts").hidden = enter;
     $(".instructions").innerHTML = enter
-      ? "<kbd>W A S D</kbd> move <kbd>X</kbd> interact <kbd>DRAG / Q E</kbd> rotate <kbd>R / F</kbd> view up / down"
+      ? "<kbd>W A S D</kbd> move <kbd>X</kbd> interact <kbd>DRAG</kbd> look around <kbd>Q E</kbd> rotate <kbd>R / F</kbd> view up / down"
       : state.castleOutsideView?.instructions;
     $("#castleCounts").hidden = !enter;
     $("#castleStars").textContent = castleRoom.collected;
