@@ -21,10 +21,11 @@ function texture() {
 // Soft dark patches on the ground under trees, tilted to the slope, in one
 // instanced batch. Forests on distant mountains lie beyond the sun's shadow
 // area, so without these the trees look pinned onto the slopes.
-// Each site is { position, normal, radius }.
+// Each site is { position, normal, radius }. Near-vertical rock (steeper
+// than about 65°) gets no patch, where it would read as a dark smudge.
 export function createGroundShade(
   sites,
-  { color = "#142010", opacity = 0.85 } = {},
+  { color = "#142010", opacity = 0.85, minUpward = 0.42 } = {},
 ) {
   const shade = new THREE.InstancedMesh(
     new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
@@ -43,7 +44,15 @@ export function createGroundShade(
   shade.name = "ground-shade";
   const transform = new THREE.Object3D(),
     up = new THREE.Vector3(0, 1, 0);
+  // A hidden patch collapses where it stands, so bounds stay on the slope.
+  const hidden = sites.map(({ position }) =>
+    new THREE.Matrix4().makeScale(0, 0, 0).setPosition(position),
+  );
   const matrices = sites.map(({ position, normal, radius }, i) => {
+    if (normal.y < minUpward) {
+      shade.setMatrixAt(i, hidden[i]);
+      return hidden[i];
+    }
     transform.position.copy(position).addScaledVector(normal, 0.05);
     transform.quaternion.setFromUnitVectors(up, normal);
     transform.scale.setScalar(radius * 2);
@@ -52,12 +61,11 @@ export function createGroundShade(
     return transform.matrix.clone();
   });
   shade.computeBoundingSphere();
-  const hidden = new THREE.Matrix4().makeScale(0, 0, 0);
   return {
     mesh: shade,
     // Hide or show the patch under one tree.
     setHidden(index, hide) {
-      shade.setMatrixAt(index, hide ? hidden : matrices[index]);
+      shade.setMatrixAt(index, hide ? hidden[index] : matrices[index]);
       shade.instanceMatrix.needsUpdate = true;
     },
   };
