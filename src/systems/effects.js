@@ -1,16 +1,18 @@
 import * as THREE from "three";
 
-// A soft round dot that fades to its edge, shared by every burst.
+// A round dot with a solid core, a slightly darker rim and a soft edge, so
+// each particle reads as a little chip or sparkle rather than a haze.
 function softDot() {
   const size = 32,
     pixels = new Uint8Array(size * size * 4);
   for (let y = 0; y < size; y++)
     for (let x = 0; x < size; x++) {
       const r = Math.hypot(x - 15.5, y - 15.5) / 15.5;
-      pixels.set(
-        [255, 255, 255, Math.round(Math.max(0, 1 - r * r) ** 1.5 * 255)],
-        (y * size + x) * 4,
+      const shade = Math.round(255 * (1 - 0.35 * Math.min(1, r * 1.2) ** 2));
+      const alpha = Math.round(
+        255 * (1 - THREE.MathUtils.smoothstep(r, 0.55, 1)),
       );
+      pixels.set([shade, shade, shade, alpha], (y * size + x) * 4);
     }
   const texture = new THREE.DataTexture(pixels, size, size);
   texture.needsUpdate = true;
@@ -31,11 +33,13 @@ export function createEffects({ scene, rand, capacity = 600 }) {
   const cloud = new THREE.Points(
     geometry,
     new THREE.PointsMaterial({
-      size: 0.55,
+      size: 0.38,
       map: softDot(),
       vertexColors: true,
       transparent: true,
       depthWrite: false,
+      // Unlit dots lose their colour to tone mapping; show them as authored.
+      toneMapped: false,
     }),
   );
   cloud.name = "burst-particles";
