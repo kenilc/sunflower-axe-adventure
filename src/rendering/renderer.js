@@ -35,11 +35,12 @@ export function createRendering({
   const sun = new THREE.DirectionalLight();
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
+  // The shadow camera follows the heroine; a tighter area keeps shadows crisp.
   Object.assign(sun.shadow.camera, {
-    left: -45,
-    right: 45,
-    top: 45,
-    bottom: -45,
+    left: -28,
+    right: 28,
+    top: 28,
+    bottom: -28,
     near: 0.5,
     far: 100,
   });

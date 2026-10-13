@@ -25,6 +25,7 @@ import { createGameApi } from "./game-api.js";
 import { createFollowCamera } from "./follow-camera.js";
 import { createPlayerMovement } from "./player-movement.js";
 import { createSceneryFading } from "../rendering/scenery-fading.js";
+import { createContactShadows } from "../rendering/contact-shadows.js";
 import { createFeedback } from "../ui/feedback.js";
 import { bindGameUi } from "../ui/bind-ui.js";
 
@@ -97,6 +98,10 @@ export function createGame({ createRenderer, models, random } = {}) {
   } = createHero({ scene, model: models.hero, axeModel: models.axe });
   const companion = createCompanion({ model: models.companion, random });
   garden.add(companion.character);
+  const contactShadows = createContactShadows({
+    scene,
+    actors: [hero, companion.character],
+  });
   const companionReactions = createCompanionReactions({ companion, toast });
   const companionObstacles = [
     ...blockers,
@@ -443,6 +448,7 @@ export function createGame({ createRenderer, models, random } = {}) {
       activePlace,
     });
     environment.followTarget(hero.position);
+    contactShadows.update();
     if (!photoMode.active && !photography.viewing)
       for (const place of places.all()) place.lateAnimate?.(time);
     const view = photoMode.active
