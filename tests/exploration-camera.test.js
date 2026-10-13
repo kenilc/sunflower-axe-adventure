@@ -120,3 +120,23 @@ test.each(["riverside", "village"])(
     expect(game.state.zoom).toBe(10);
   },
 );
+
+test.each(["festival", "funfair", "village", "winter", "seaside"])(
+  "Q and E turn the %s camera whenever no activity locks it",
+  async (area) => {
+    const { game } = await createTestGame();
+    game.transitions.open(area);
+    game.rendering.clock.getDelta = () => 0.04;
+    for (let i = 0; i < 10; i++) game.update();
+    const start = game.state.yaw;
+    game.input.keys.KeyQ = true;
+    for (let i = 0; i < 10; i++) game.update();
+    game.input.keys.KeyQ = false;
+    expect(game.state.yaw).toBeGreaterThan(start + 0.3);
+    const turned = game.state.yaw;
+    game.input.keys.KeyE = true;
+    for (let i = 0; i < 10; i++) game.update();
+    game.input.keys.KeyE = false;
+    expect(game.state.yaw).toBeLessThan(turned - 0.3);
+  },
+);
