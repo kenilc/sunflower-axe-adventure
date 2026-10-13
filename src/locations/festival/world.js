@@ -1,6 +1,7 @@
 import { createFestivalCrowd } from "./crowd.js";
 import * as THREE from "three";
 import { createDioramaBase } from "../../rendering/diorama-base.js";
+import { markGlow } from "../../rendering/glow.js";
 
 // A summer matsuri, reached through the funfair's north lantern gate.
 export function createNightFestival({ mesh, box, cyl, ball }) {
@@ -715,6 +716,11 @@ export function createNightFestival({ mesh, box, cyl, ball }) {
     Math.abs(x) < 31 &&
     Math.abs(z) < 30 &&
     (!(z > -10.5 && z < -1.5) || Math.abs(x) < 2.5);
+  // Paper lanterns, lit windows, the rocket and the fireworks glow.
+  group.traverse((node) => {
+    if (node.material === warm || node.material === pink) markGlow(node);
+  });
+  markGlow(fireworks, streaks);
   update(0);
   return {
     group,

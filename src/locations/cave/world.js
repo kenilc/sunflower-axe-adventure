@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { markGlow } from "../../rendering/glow.js";
 
 export function createCave() {
   const interior = new THREE.Group();
@@ -76,7 +77,7 @@ export function createCave() {
   boulder(0, 6, 0, 3.6, 1.8, 2, entrance);
   function torch(x, y, z, parent) {
     box(0.15, 0.85, 0.15, wood, x, y - 0.45, z, parent);
-    add(
+    const flame = add(
       new THREE.ConeGeometry(0.2, 0.55, 6),
       new THREE.MeshBasicMaterial({ color: "#ffb347" }),
       x,
@@ -84,6 +85,7 @@ export function createCave() {
       z,
       parent,
     );
+    markGlow(flame);
     const l = new THREE.PointLight("#ffb34c", 18, 11, 1.6);
     l.position.set(x, y + 0.3, z);
     parent.add(l);

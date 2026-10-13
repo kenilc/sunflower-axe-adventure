@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { markGlow } from "../../rendering/glow.js";
 
 export function createCastleRoom({ mesh, box, cyl, ball }) {
   const group = new THREE.Group();
@@ -95,6 +96,7 @@ export function createCastleRoom({ mesh, box, cyl, ball }) {
         group,
       ),
     );
+  markGlow(...flames);
   const fireLight = new THREE.PointLight("#ffc48b", 30, 15);
   fireLight.position.set(0, 3, -10);
   group.add(fireLight);

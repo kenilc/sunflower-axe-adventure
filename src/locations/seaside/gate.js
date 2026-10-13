@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { markGlow } from "../../rendering/glow.js";
 
 // The doorway and its trigger share one transform, so moving the arch cannot
 // leave an invisible passage behind. Coordinates are relative to the opening.
@@ -140,7 +141,7 @@ export function createSeasideGate({ parent, helpers, x, z, destination }) {
       transparent: true,
       opacity: 0.85,
     });
-    cyl(0.23, 0.23, 0.55, glow, 0, -0.33, 0, lantern, 8);
+    markGlow(cyl(0.23, 0.23, 0.55, glow, 0, -0.33, 0, lantern, 8));
     for (let i = 0; i < 4; i++)
       cyl(
         0.025,

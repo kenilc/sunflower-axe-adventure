@@ -26,6 +26,7 @@ import { createFollowCamera } from "./follow-camera.js";
 import { createPlayerMovement } from "./player-movement.js";
 import { createSceneryFading } from "../rendering/scenery-fading.js";
 import { createContactShadows } from "../rendering/contact-shadows.js";
+import { createGlow } from "../rendering/glow.js";
 import { createFeedback } from "../ui/feedback.js";
 import { bindGameUi } from "../ui/bind-ui.js";
 
@@ -98,6 +99,7 @@ export function createGame({ createRenderer, models, random } = {}) {
   } = createHero({ scene, model: models.hero, axeModel: models.axe });
   const companion = createCompanion({ model: models.companion, random });
   garden.add(companion.character);
+  const glow = createGlow({ renderer });
   const contactShadows = createContactShadows({
     scene,
     actors: [hero, companion.character],
@@ -456,6 +458,7 @@ export function createGame({ createRenderer, models, random } = {}) {
       : (activePlace.getRenderView?.() ??
         rootPlace.getRenderView?.() ?? { scene, camera });
     renderer.render(view.scene, view.camera);
+    glow.render(view.scene, view.camera);
     if (photoMode.active) photography.updateSelection();
     activePlace.afterRender?.(paused);
     if (!passageTransition.active && !boatTrip.rowing && !cableCar.riding)

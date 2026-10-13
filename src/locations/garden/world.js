@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { markGlow } from "../../rendering/glow.js";
 import { createMeshFactory } from "../../rendering/mesh-factory.js";
 import { createTreeVisibility } from "../../rendering/tree-visibility.js";
 import { createLakeside, inLake, reservedLakeside } from "./lakeside.js";
@@ -322,6 +323,8 @@ export function createGarden({ scene, rand, benchModel }) {
     );
     gems.push({ g, crystal, got: false });
   }
+  // The relic and sunstones glow.
+  markGlow(relic, ...gems.map(({ crystal }) => crystal));
   return {
     group,
     terrain,

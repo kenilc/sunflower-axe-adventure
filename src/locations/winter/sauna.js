@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { markGlow } from "../../rendering/glow.js";
 import { createMeshFactory } from "../../rendering/mesh-factory.js";
 import { createWinterLabel } from "./gate.js";
 
@@ -176,6 +177,9 @@ export function createSauna({ context, parent, hut }) {
     });
     light.intensity = 16 + Math.sin(elapsed * 1.8) * 0.3;
   }
+  group.traverse((node) => {
+    if (node.material === glow) markGlow(node);
+  });
   return {
     group,
     steam,

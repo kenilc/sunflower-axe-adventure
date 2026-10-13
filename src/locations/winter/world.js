@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { markGlow } from "../../rendering/glow.js";
 import { createMeshFactory } from "../../rendering/mesh-factory.js";
 import { createTreeVisibility } from "../../rendering/tree-visibility.js";
 import { createRandom } from "../../systems/random.js";
@@ -558,6 +559,10 @@ export function createWinterWorld(context) {
     }),
   );
   let elapsed = 0;
+  // Lit windows and lamp heads glow.
+  group.traverse((node) => {
+    if (node.material === warm) markGlow(node);
+  });
   return {
     group,
     blockers,
