@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createRandom } from "../../systems/random.js";
 import { createSunsetSpot } from "./sunset-rest.js";
 import { createBeachAmbience } from "./ambience.js";
 import { createSeasideGate } from "./gate.js";
@@ -46,6 +47,40 @@ export function createSeaside({
   sand.name = "continuous-beach-sand";
   const wetSand = box(1400, 0.02, 12, "#bc9e86", 0, -0.04, -21, group);
   wetSand.name = "continuous-wet-sand";
+  // Wind ripples break up the open sand in front of the camera. The low sun
+  // lights one side of each ridge, so they read as texture, not props.
+  const rippleRandom = createRandom(23);
+  const rippleSpots = [];
+  for (let z = 14; z <= 40; z += 1.3)
+    for (let x = -34; x <= 34; x += 3.2) {
+      const px = x + (rippleRandom() - 0.5) * 2.4,
+        pz = z + (rippleRandom() - 0.5) * 0.5;
+      // Leave the boardwalk to the garden arch and the towels clear.
+      if (Math.abs(px + 6) < 3.2 && pz > 17) continue;
+      if (Math.hypot(px - 18, pz - 17) < 4) continue;
+      if (rippleRandom() < 0.25) continue;
+      rippleSpots.push([px, pz, 1.4 + rippleRandom() * 1.6]);
+    }
+  const ripples = new THREE.InstancedMesh(
+    new THREE.IcosahedronGeometry(1, 1),
+    new THREE.MeshStandardMaterial({
+      color: "#e2bc8f",
+      roughness: 1,
+      flatShading: true,
+    }),
+    rippleSpots.length,
+  );
+  const rippleShape = new THREE.Object3D();
+  rippleSpots.forEach(([x, z, length], i) => {
+    rippleShape.position.set(x, -0.015, z);
+    rippleShape.rotation.set(0, (rippleRandom() - 0.5) * 0.25, 0);
+    rippleShape.scale.set(length, 0.07, 0.22);
+    rippleShape.updateMatrix();
+    ripples.setMatrixAt(i, rippleShape.matrix);
+  });
+  ripples.name = "sand-ripples";
+  ripples.receiveShadow = true;
+  group.add(ripples);
 
   // A sky dome keeps the sunset visible while orbiting or taking photos.
   const sky = new THREE.Mesh(
