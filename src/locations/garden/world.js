@@ -35,6 +35,10 @@ export function createGarden({ scene, rand, benchModel }) {
     blockers.push({ x, z, r: s, minClearance: 0.8 });
   }
   const treeVisibility = createTreeVisibility();
+  // The opening camera stands near (0, 26) looking north; keep the wedge
+  // just in front of it clear, so no pine fills the first view.
+  const inOpeningView = (x, z) =>
+    z < 26 && Math.hypot(x, z - 26) < 14 && Math.abs(x) < (26 - z) * 0.8;
   function tree(x, z, s = 1) {
     const g = new THREE.Group();
     group.add(g);
@@ -68,7 +72,8 @@ export function createGarden({ scene, rand, benchModel }) {
       reservedLakeside(x, z) ||
       inLake(x, z, 4) ||
       reservedWinterGate(x, z) ||
-      Math.hypot(x - 6.4, z - 9.6) < 7
+      Math.hypot(x - 6.4, z - 9.6) < 7 ||
+      inOpeningView(x, z)
     )
       continue;
     tree(x, z, 0.65 + rand() * 0.8);
