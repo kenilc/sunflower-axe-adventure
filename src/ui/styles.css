@@ -129,6 +129,10 @@ footer {
   gap: 12px;
   font-size: 14px;
   align-items: center;
+  padding: 10px 18px 10px 14px;
+  background: #12342abc;
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
 }
 .location > span {
   font-size: 30px;
@@ -137,7 +141,7 @@ footer {
 .location small {
   display: block;
   font-size: 11px;
-  color: #b9cbbd;
+  color: #cfddcc;
   margin-top: 4px;
 }
 .instructions {
@@ -398,8 +402,24 @@ body.is-moving #toast {
 #sceneDetails {
   display: none;
 }
+/* The counters and location label sit on the scene itself, which can be
+   bright sky, sand or snow; give them the control bar's dark pill. */
 .quest .counts {
   margin-top: 0;
+  /* Size to the counter text, wrapping only when the screen is narrow. */
+  width: max-content;
+  max-width: calc(100vw - 48px);
+  padding: 10px 16px;
+  background: #12342abc;
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+  text-shadow: none;
+}
+@media (max-width: 700px) {
+  /* Leave room for the compass on the right. */
+  .quest .counts {
+    max-width: calc(100vw - 96px);
+  }
 }
 #sceneTransition {
   position: fixed;
