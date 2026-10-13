@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createDioramaBase } from "../../rendering/diorama-base.js";
 import { markGlow } from "../../rendering/glow.js";
 import { createMeshFactory } from "../../rendering/mesh-factory.js";
 import { createTreeVisibility } from "../../rendering/tree-visibility.js";
@@ -27,8 +28,18 @@ export function createWinterWorld(context) {
     emissiveIntensity: 0.8,
     roughness: 0.5,
   });
-  cyl(43, 45, 1.8, "#a6bdc9", 0, -0.95, 0, group, 96);
-  cyl(43, 43, 0.15, snow, 0, -0.07, 0, group, 96);
+  // A snow-topped board over frozen soil and pale Estonian limestone.
+  createDioramaBase({
+    parent: group,
+    mesh,
+    size: 43,
+    top: 0.005,
+    grass: snow,
+    soil: "#a8958a",
+    stone: "#e2ddcf",
+    rock: "#a9b3bc",
+    seed: 731,
+  });
   box(5.5, 0.035, 58, "#c9dbe5", 0, 0.02, 2);
   box(35, 0.035, 4, "#c9dbe5", 1, 0.025, 3);
 
