@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { createDioramaBase } from "../../rendering/diorama-base.js";
+import { createGroundShade } from "../../rendering/ground-shade.js";
 import { createTreeVisibility } from "../../rendering/tree-visibility.js";
 
 export function createRiverside({ mesh, box, cyl, ball }) {
@@ -368,6 +369,7 @@ export function createRiverside({ mesh, box, cyl, ball }) {
   const perVariety = 450;
   forest.userData.treeCount = perVariety * varieties.length;
   forest.userData.varieties = varieties.map((v) => v.name);
+  const shadeSites = [];
   varieties.forEach((variety, species) => {
     const trunks = plantBatch(
       forest,
@@ -390,17 +392,26 @@ export function createRiverside({ mesh, box, cyl, ball }) {
       const size = (0.55 + forestRandom() * 0.7) * (site.y > 35 ? 0.8 : 1);
       const yaw = forestRandom() * Math.PI * 2;
       const trunkHeight = size * (variety.shape === "umbrella" ? 4.2 : 2.8);
+      // Reach further into steep ground, so the downhill side meets the slope.
+      const normal = site.normal.clone().normalize();
+      const sink =
+        size * 0.25 * (Math.sqrt(1 - normal.y ** 2) / Math.max(normal.y, 0.2));
       plantInstance(
         trunks,
         i,
         site.x,
-        site.y + trunkHeight / 2,
+        site.y + (trunkHeight - sink) / 2,
         site.z,
         size,
-        trunkHeight,
+        trunkHeight + sink,
         size,
         yaw,
       );
+      shadeSites.push({
+        position: new THREE.Vector3(site.x, site.y, site.z),
+        normal,
+        radius: size * 1.7,
+      });
       for (let tier = 0; tier < 3; tier++) {
         let x = site.x,
           z = site.z,
@@ -449,6 +460,9 @@ export function createRiverside({ mesh, box, cyl, ball }) {
       }
     }
   });
+  // The mountain lies beyond the sun's shadow area; shade the ground under
+  // each tree so the forest sits in the slope. The lagoon's copy keeps it.
+  forest.add(createGroundShade(shadeSites).mesh);
   const grass = new THREE.Group();
   grass.name = "mountain-grass";
   mountain.add(grass);

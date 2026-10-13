@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { alpineTint, createAlpineDetails } from "./details.js";
+import { createGroundShade } from "../../rendering/ground-shade.js";
 
 // Batch the woodland and birds so dense scenery stays inexpensive to draw.
 export function createAlpineNature({
@@ -208,46 +209,17 @@ export function createAlpineNature({
   });
   forest.userData.treeCount = trees.length;
 
-  // A soft dark patch on the slope under every crown. The mountains lie
-  // beyond the sun's shadow area, so without it the trees look pinned on.
-  const shade = new Uint8Array(32 * 32 * 4);
-  for (let y = 0; y < 32; y++)
-    for (let x = 0; x < 32; x++) {
-      const r = Math.hypot(x - 15.5, y - 15.5) / 15.5;
-      shade.set(
-        [255, 255, 255, Math.round(Math.max(0, 1 - r) ** 1.5 * 255)],
-        (y * 32 + x) * 4,
-      );
-    }
-  const shadeTexture = new THREE.DataTexture(shade, 32, 32);
-  shadeTexture.needsUpdate = true;
-  const groundShade = new THREE.InstancedMesh(
-    new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
-    new THREE.MeshBasicMaterial({
-      color: "#142010",
-      map: shadeTexture,
-      transparent: true,
-      opacity: 0.85,
-      depthWrite: false,
-      polygonOffset: true,
-      polygonOffsetFactor: -2,
-      polygonOffsetUnits: -2,
-    }),
-    trees.length,
+  // The mountains lie beyond the sun's shadow area; shade the ground under
+  // each crown so the trees sit in the slope.
+  const groundShade = createGroundShade(
+    trees.map((tree) => ({
+      position: tree.site,
+      normal: tree.groundNormal,
+      radius: tree.width * 1.1,
+    })),
   );
-  groundShade.name = "alpine-forest-ground-shade";
-  const up = new THREE.Vector3(0, 1, 0);
-  trees.forEach((tree, i) => {
-    transform.position.copy(tree.site).addScaledVector(tree.groundNormal, 0.05);
-    transform.quaternion.setFromUnitVectors(up, tree.groundNormal);
-    transform.scale.setScalar(tree.width * 2.2);
-    transform.updateMatrix();
-    groundShade.setMatrixAt(i, transform.matrix);
-    tree.shadeIndex = i;
-    tree.shadeMatrix = transform.matrix.clone();
-  });
-  groundShade.computeBoundingSphere();
-  forest.add(groundShade);
+  groundShade.mesh.name = "alpine-forest-ground-shade";
+  forest.add(groundShade.mesh);
   forest.userData.varieties = species.map((s) => s.name);
 
   const grass = new THREE.Group();
@@ -691,7 +663,7 @@ export function createAlpineNature({
       }
       patch.mesh.material.depthWrite = !fading;
     }
-    for (const tree of trees) {
+    for (const [i, tree] of trees.entries()) {
       const cx = tree.site.x,
         cy = tree.site.y + tree.height * 0.5,
         cz = tree.site.z;
@@ -723,11 +695,7 @@ export function createAlpineNature({
         mesh.setMatrixAt(tree.index, hidden ? hiddenMatrix : tree.matrix);
         mesh.instanceMatrix.needsUpdate = true;
       }
-      groundShade.setMatrixAt(
-        tree.shadeIndex,
-        hidden ? hiddenMatrix : tree.shadeMatrix,
-      );
-      groundShade.instanceMatrix.needsUpdate = true;
+      groundShade.setHidden(i, hidden);
     }
   }
   return {

@@ -75,8 +75,11 @@ test("riverside scenery and transport", async () => {
       if (i % 90 === 0) {
         ray.set(new T.Vector3(root.x, 100, root.z), new T.Vector3(0, -1, 0));
         const hit = ray.intersectObjects(terrain, false)[0];
+        // Trunks reach a little deeper on steep ground (at most 1.25× their
+        // size), so their downhill side meets the slope.
+        const depth = hit && hit.point.y - 0.05 - root.y;
         assert(
-          hit && Math.abs(hit.point.y - root.y - 0.05) < 0.00001,
+          hit && depth > -0.00001 && depth <= scale.x * 1.25 + 0.00001,
           "Tree roots must follow the visible slope, including overlapping peaks",
         );
       }
