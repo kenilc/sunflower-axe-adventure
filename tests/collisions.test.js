@@ -1068,9 +1068,10 @@ test("gameplay, collisions, travel, activities and restart", async () => {
   );
   const nature = village.nature;
   assert.equal(nature.trees.length, 3600);
-  assert.equal(
-    nature.forest.children.length,
-    8,
+  // Trunks and crowns per species, plus one batch of ground shade.
+  assert.equal(nature.forest.children.length, 9);
+  assert(
+    nature.forest.children.every((batch) => batch.isInstancedMesh),
     "The dense forest must use instanced batches",
   );
   assert.deepEqual(Array.from(nature.forest.userData.varieties).sort(), [
