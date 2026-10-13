@@ -20,6 +20,11 @@ test("contact shadows follow each actor's feet and hide with them", () => {
   // Just above her feet, over paths and decks.
   expect(shadow.position.y).toBeGreaterThan(1.5);
   expect(shadow.position.y).toBeLessThan(1.6);
+  // Lying down, the patch would float beside her.
+  actor.rotation.x = -Math.PI / 2;
+  contact.update();
+  expect(shadow.visible).toBe(false);
+  actor.rotation.x = 0;
   place.visible = false;
   contact.update();
   expect(shadow.visible).toBe(false);

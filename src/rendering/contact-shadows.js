@@ -35,14 +35,18 @@ export function createContactShadows({
     for (; node; node = node.parent) if (!node.visible) return false;
     return true;
   }
-  const position = new THREE.Vector3();
+  const position = new THREE.Vector3(),
+    up = new THREE.Vector3(),
+    rotation = new THREE.Quaternion();
   return {
     shadows,
-    // Follow each actor's feet; hide the patch while the actor is hidden.
+    // Follow each actor's feet. Hide the patch while the actor is hidden or
+    // lying down (as in the castle bed), where it would float beside them.
     update() {
       actors.forEach((actor, i) => {
         const shadow = shadows[i];
-        shadow.visible = shown(actor);
+        up.set(0, 1, 0).applyQuaternion(actor.getWorldQuaternion(rotation));
+        shadow.visible = shown(actor) && up.y > 0.7;
         if (!shadow.visible) return;
         actor.getWorldPosition(position);
         shadow.position.set(position.x, position.y + 0.07, position.z);
