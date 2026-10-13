@@ -1624,7 +1624,8 @@ test("gameplay, collisions, travel, activities and restart", async () => {
   assert(G.characters.hero.position.equals(landingPosition));
   assert.equal(village.stamps.size, 5);
   assert(
-    G.rendering.camera.position.distanceTo(G.characters.hero.position) > 30,
+    G.rendering.camera.position.distanceTo(G.characters.hero.position) >
+      0.9 * G.places.get("village").cameraDistance(G.state.zoom),
     "Normal walking camera resumes after the magic",
   );
   G.characters.hero.position.copy(village.lookout);

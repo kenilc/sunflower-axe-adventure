@@ -178,7 +178,9 @@ export function createVillagePlace(context) {
     if (enter) {
       state.yaw = 0;
       state.pitch = THREE.MathUtils.degToRad(6);
-      state.zoom = 30;
+      // Arrive close enough to see the friends; zooming out opens the
+      // mountain panorama.
+      state.zoom = 20;
       camera.fov = 55;
     } else if (state.outsideView) {
       ({

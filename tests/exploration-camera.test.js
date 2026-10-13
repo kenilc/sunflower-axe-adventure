@@ -70,7 +70,8 @@ test.each(["riverside", "village"])(
       });
       expect(game.places.get(area).cameraTarget()).toBeGreaterThan(nearAim);
     } else {
-      meshes.push(...world.cliffFaces);
+      // The arrival view sits close enough to see the friends, so the range
+      // may run past the sides; its peaks must still be in frame.
       world.group.traverse((object) => {
         if (object.parent?.name === "swiss-mountain-peak") meshes.push(object);
       });
