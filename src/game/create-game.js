@@ -73,7 +73,7 @@ export function createGame({ createRenderer, models, random } = {}) {
   const hearts = createHearts(scene);
   const { mat, mesh, box, ball, cyl } = createMeshFactory(scene);
   const rand = createRandom();
-  const effects = createEffects({ scene, box, rand });
+  const effects = createEffects({ scene, rand });
   const { axes, burst } = effects;
   const {
     group: garden,
