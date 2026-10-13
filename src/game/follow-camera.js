@@ -1,5 +1,10 @@
 import * as THREE from "three";
 
+const MIN_PITCH = THREE.MathUtils.degToRad(6);
+const MAX_PITCH = THREE.MathUtils.degToRad(70);
+export const clampPitch = (pitch) =>
+  THREE.MathUtils.clamp(pitch, MIN_PITCH, MAX_PITCH);
+
 // The exploration camera that orbits and follows the heroine, using the
 // yaw, pitch and zoom kept in the game state.
 export function createFollowCamera({ camera, hero, state, locations }) {
@@ -28,10 +33,8 @@ export function createFollowCamera({ camera, hero, state, locations }) {
     // Q / E turn, R / F tilt.
     rotateFromKeys(dt, keys) {
       state.yaw += ((keys.KeyQ ? 1 : 0) - (keys.KeyE ? 1 : 0)) * dt * 1.4;
-      state.pitch = THREE.MathUtils.clamp(
+      state.pitch = clampPitch(
         state.pitch + ((keys.KeyR ? 1 : 0) - (keys.KeyF ? 1 : 0)) * dt * 0.65,
-        THREE.MathUtils.degToRad(6),
-        THREE.MathUtils.degToRad(70),
       );
     },
     // Jump straight to the orbit position.

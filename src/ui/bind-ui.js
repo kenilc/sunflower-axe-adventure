@@ -9,6 +9,7 @@ import { bindPhotography } from "./photography.js";
 import { createHud } from "./hud.js";
 import { bindTravelMap } from "./travel-map.js";
 import { bindKeepsakes } from "./keepsakes.js";
+import { clampPitch } from "../game/follow-camera.js";
 
 // Camera mode, the album, keyboard/pointer input, the HUD and the map and
 // keepsake dialogs. Gameplay rules (throwing, camera locks, scenery fading)
@@ -112,7 +113,9 @@ export function bindGameUi({
       sheepMoment.viewing ||
       cameraLocked(),
     rotate(dx, dy) {
-      if (!cameraLocked()) state.yaw -= dx * 0.006;
+      if (cameraLocked()) return;
+      state.yaw -= dx * 0.006;
+      state.pitch = clampPitch(state.pitch + dy * 0.004);
     },
     zoomBy(delta) {
       state.zoom = THREE.MathUtils.clamp(
