@@ -72,6 +72,10 @@ test("the log hut opens a warm sauna, water pouring and photos pause, and leavin
   expect(snow.visible).toBe(false);
   expect(game.rendering.scene.fog.density).toBe(0);
   expect(glasses.every((node) => !node.visible)).toBe(true);
+  // With her sunflower hood off, the heroine's long hair shows.
+  const longHair = rigs[0].head.getObjectByName("sauna-long-hair");
+  expect(longHair.visible).toBe(true);
+  expect(rigs[1].head.getObjectByName("sauna-long-hair")).toBeUndefined();
   for (const rig of rigs) {
     expect(rig.appearance.state.outfit).toBe("sauna");
     expect(rig.body.getObjectByName("sauna-towel-wrap").visible).toBe(true);
@@ -153,6 +157,7 @@ test("the log hut opens a warm sauna, water pouring and photos pause, and leavin
     expect(actor.position.equals(walking[i])).toBe(true),
   );
   rigs.forEach((rig) => expect(rig.appearance.state.outfit).toBe("winter"));
+  expect(longHair.visible).toBe(false);
   expect(glasses.every((node) => node.visible)).toBe(true);
   hands.forEach(({ hand, material }) => expect(hand.material).toBe(material));
   expect(game.characters.rig.items.current).toBe("ice-cream");
@@ -204,6 +209,9 @@ test("reloading a sauna moment restores the door checkpoint, and restart restore
   expect(winter.world.sauna.group.visible).toBe(false);
   expect(winter.world.sauna.ladle.parent.name).toBe("sauna-water-bucket");
   expect(resumed.characters.rig.appearance.state.outfit).toBe("winter");
+  expect(
+    resumed.characters.rig.head.getObjectByName("sauna-long-hair").visible,
+  ).toBe(false);
   expect(resumed.characters.rig.held.visible).toBe(true);
   expect(
     resumed.characters.companion.rig.head.children

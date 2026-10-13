@@ -234,6 +234,25 @@ export function createSauna({ context, parent, hut }) {
   };
 }
 
+// Her hair is tucked under the sunflower hood outdoors; with the hood off it
+// falls past her shoulders. Coordinates are relative to the head pivot.
+function longHair(head, { cyl, ball }) {
+  const color = "#473b32";
+  const hair = new THREE.Group();
+  hair.name = "sauna-long-hair";
+  hair.userData.clothingSlot = "hair";
+  head.add(hair);
+  const back = cyl(0.56, 0.46, 0.95, color, 0, -0.2, -0.36, hair, 14);
+  back.scale.z = 0.45;
+  ball(0.46, color, 0, -0.67, -0.38, hair).scale.set(1, 0.35, 0.42);
+  for (const side of [-1, 1]) {
+    const lock = cyl(0.16, 0.12, 0.62, color, side * 0.5, -0.12, 0.08, hair, 8);
+    lock.rotation.z = side * 0.08;
+    ball(0.12, color, side * 0.52, -0.43, 0.1, hair);
+  }
+  return hair;
+}
+
 export function createSaunaOutfits(rigs, helpers) {
   const { cyl, box } = helpers;
   const skin = "#f0bd8a";
@@ -323,6 +342,7 @@ export function createSaunaOutfits(rigs, helpers) {
       parts.push(bare);
       bareFeet.push({ bare, foot });
     });
+    if (!i) parts.push(longHair(rig.head, helpers));
     rig.appearance.registerOutfit("sauna", {
       parts,
       hideSlots: [
