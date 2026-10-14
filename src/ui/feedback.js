@@ -31,5 +31,5 @@ export function createFeedback({ $, state, getSoundscape }) {
       toast("Audio could not start. Tap Sound to try again.");
     }
   }
-  return { toast, beep, setSound };
+  return { toast, beep, setSound, setMusicLevel: audio.setMusicLevel };
 }

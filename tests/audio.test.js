@@ -16,6 +16,9 @@ function param(value = 0) {
     exponentialRampToValueAtTime(value, time) {
       this.events.push({ type: "exponential", value, time });
     },
+    setTargetAtTime(value, time) {
+      this.events.push({ type: "target", value, time });
+    },
     cancelScheduledValues: vi.fn(),
   };
 }
@@ -66,8 +69,12 @@ function advance(seconds) {
   context.currentTime += seconds;
   vi.advanceTimersByTime(80);
 }
+// Tracks play through the music bus, the only gain feeding master and delay.
+function musicBus() {
+  return context.gains.find((gain) => gain.connections.length === 2);
+}
 function trackBuses() {
-  return context.gains.filter((gain) => gain.connections.length === 2);
+  return context.gains.filter((gain) => gain.connections[0] === musicBus());
 }
 function frequencySignature() {
   const start = context.oscillators[0].start.mock.calls[0][0];
@@ -233,4 +240,19 @@ test("a delayed audio unlock cannot unmute a later mute request", async () => {
   AudioContext.prototype.resume = async function () {
     this.state = "running";
   };
+});
+
+test("scene fades dip the music bus but leave effects at full volume", async () => {
+  await audio.setEnabled(true);
+  advance(0.5);
+  const master = context.gains[0];
+  audio.setMusicLevel(0);
+  expect(musicBus().gain.events.at(-1)).toMatchObject({
+    type: "target",
+    value: 0,
+  });
+  expect(trackBuses()).toHaveLength(1);
+  expect(master.gain.events.at(-1).value).toBe(0.65);
+  audio.setMusicLevel(1);
+  expect(musicBus().gain.events.at(-1).value).toBe(1);
 });

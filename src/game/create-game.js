@@ -30,7 +30,12 @@ import { createGlow } from "../rendering/glow.js";
 import { createFeedback } from "../ui/feedback.js";
 import { bindGameUi } from "../ui/bind-ui.js";
 
-export function createGame({ createRenderer, models, random } = {}) {
+export function createGame({
+  createRenderer,
+  models,
+  random,
+  transitionDuration = 1.2,
+} = {}) {
   const places = createPlaceRegistry();
   const state = {
     castleOutsideView: null,
@@ -61,7 +66,7 @@ export function createGame({ createRenderer, models, random } = {}) {
     toastUntil: 0,
   };
   const $ = (s) => document.querySelector(s);
-  const { toast, beep, setSound } = createFeedback({
+  const { toast, beep, setSound, setMusicLevel } = createFeedback({
     $,
     state,
     getSoundscape: () => locations.active.soundscape ?? locations.current,
@@ -130,9 +135,11 @@ export function createGame({ createRenderer, models, random } = {}) {
   $("#benchStand").onclick = () => benchMoment.stand();
 
   const locations = createLocationManager({ places });
+  // A slow fade through black, with the music dipping and returning in step.
   const passageTransition = createSceneTransition((opacity) => {
     $("#sceneTransition").style.opacity = String(opacity);
-  });
+    setMusicLevel(1 - opacity);
+  }, transitionDuration);
   const keepsakes = createKeepsakes();
   const followCamera = createFollowCamera({ camera, hero, state, locations });
   const resetCamera = followCamera.reset;

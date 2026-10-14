@@ -152,6 +152,8 @@ export async function createTestGame({ storage, indexedDB } = {}) {
     models,
     createRenderer: () => new browser.FakeRenderer(),
     random: createRandom(7),
+    // A quick fade keeps scenario steps short; the game itself fades slower.
+    transitionDuration: 0.36,
   });
   await G.activities.photoAlbum.ready;
   G.update();

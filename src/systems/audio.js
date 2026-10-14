@@ -5,6 +5,8 @@ import { MUSIC_SCORES, musicScoreId } from "./music-scores.js";
 export function createGameAudio(getLocation = () => "garden") {
   let ctx,
     master,
+    music,
+    musicLevel = 1,
     delay,
     enabled = false,
     timer = null,
@@ -90,6 +92,12 @@ export function createGameAudio(getLocation = () => "garden") {
     feedback.connect(delay);
     delay.connect(wet);
     wet.connect(master);
+    // Every track plays through one music bus, so scene fades can dip the
+    // music without touching sound effects.
+    music = ctx.createGain();
+    music.gain.value = musicLevel;
+    music.connect(master);
+    music.connect(delay);
   }
 
   function tone(
@@ -194,8 +202,7 @@ export function createGameAudio(getLocation = () => "garden") {
     }
     const bus = ctx.createGain();
     bus.gain.value = 0;
-    bus.connect(master);
-    bus.connect(delay);
+    bus.connect(music);
     active = {
       id,
       score: MUSIC_SCORES[id],
@@ -330,5 +337,10 @@ export function createGameAudio(getLocation = () => "garden") {
   addEventListener("pagehide", () => {
     void setEnabled(false);
   });
-  return { setEnabled, effect };
+  // Follows the scene fade: 1 plays the music fully, 0 silences it.
+  function setMusicLevel(level) {
+    musicLevel = level;
+    if (music) music.gain.setTargetAtTime(level, ctx.currentTime, 0.03);
+  }
+  return { setEnabled, effect, setMusicLevel };
 }
