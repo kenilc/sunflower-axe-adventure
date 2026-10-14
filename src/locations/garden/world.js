@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createDioramaBase } from "../../rendering/diorama-base.js";
 import { markGlow } from "../../rendering/glow.js";
 import { createMeshFactory } from "../../rendering/mesh-factory.js";
 import { createTreeVisibility } from "../../rendering/tree-visibility.js";
@@ -8,7 +9,13 @@ export function createGarden({ scene, rand, benchModel }) {
   const group = new THREE.Group();
   scene.add(group);
   const { mesh, box, cyl, ball, mat } = createMeshFactory(group);
-  const ground = cyl(53, 56, 2.5, "#557e4a", 0, -1.28, 0, group, 80);
+  createDioramaBase({
+    parent: group,
+    mesh,
+    size: 53,
+    top: -0.03,
+    grass: "#557e4a",
+  });
   const pathMat = mat("#b8ac73");
   function path(x, z, w, d, rot = 0) {
     const p = box(w, 0.04, d, pathMat, x, 0.025, z);

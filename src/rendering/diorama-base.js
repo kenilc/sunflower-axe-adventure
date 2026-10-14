@@ -6,12 +6,16 @@ const TAU = Math.PI * 2;
 // A place's ground as a diorama board: a grass top with a lip, soil and
 // stone bands down the side, and a rocky underside tapering below, so the
 // place reads as a little world of its own rather than land that stops.
-// `size` is the radius of a round board or the half-width of a square one.
+// `size` is the radius of a round board or the half-width of a square one;
+// a square board takes `depth` as its half-depth to become a rectangle.
+// `thickness` scales the side bands, so a very large board doesn't look thin.
 // Pass `grass: null` when the place's own ground already forms the top.
 export function createDioramaBase({
   parent,
   mesh,
   size,
+  depth = size,
+  thickness = 1,
   shape = "round",
   top = 0,
   grass,
@@ -22,6 +26,7 @@ export function createDioramaBase({
 }) {
   const rand = createRandom(seed);
   const square = shape === "square";
+  const stretch = square ? depth / size : 1;
   const group = new THREE.Group();
   group.name = "diorama-base";
   parent.add(group);
@@ -43,31 +48,44 @@ export function createDioramaBase({
       0,
       group,
     );
-    if (square) part.rotation.y = Math.PI / 4;
+    if (square) {
+      // Turn the geometry, not the mesh, so stretching keeps the sides square.
+      part.geometry.rotateY(Math.PI / 4);
+      part.scale.z = stretch;
+    }
     part.name = name;
     y -= height;
     return part;
   }
   if (grass) band("diorama-grass", grass, 0.5, size + 0.25, size);
   const soilTop = y;
-  band("diorama-soil", soil, 1.8, size, size - 0.5);
-  band("diorama-stone", stone, 1.4, size - 0.5, size - 1.6);
+  const soilHeight = 1.8 * thickness,
+    soilInset = 0.5 * thickness,
+    stoneInset = 1.6 * thickness;
+  band("diorama-soil", soil, soilHeight, size, size - soilInset);
+  band(
+    "diorama-stone",
+    stone,
+    1.4 * thickness,
+    size - soilInset,
+    size - stoneInset,
+  );
   const underside = band(
     "diorama-underside",
     rock,
     size * 0.32,
-    size - 1.6,
+    size - stoneInset,
     size * 0.18,
   );
   underside.castShadow = false;
   // Rocks half set into the soil band break up the smooth side.
-  const count = Math.round(size * (square ? 1.1 : 0.9));
+  const count = Math.round(square ? ((size + depth) / 2) * 1.1 : size * 0.9);
   for (let i = 0; i < count; i++) {
     const t = (i + rand() * 0.5) / count,
-      depth = 0.25 + rand() * 1.3,
-      // The soil narrows by 0.5 over its 1.8 height.
-      edge = size - (depth / 1.8) * 0.5,
-      bit = 0.3 + rand() * 0.4,
+      sink = (0.25 + rand() * 1.3) * thickness,
+      // The soil narrows as it goes down.
+      edge = size - (sink / soilHeight) * soilInset,
+      bit = (0.3 + rand() * 0.4) * thickness,
       inset = edge - bit * 0.4;
     let x, z;
     if (square) {
@@ -80,6 +98,7 @@ export function createDioramaBase({
         [-along * inset, -inset],
         [-inset, along * inset],
       ][side];
+      z *= stretch;
     } else {
       x = Math.cos(t * TAU) * inset;
       z = Math.sin(t * TAU) * inset;
@@ -88,7 +107,7 @@ export function createDioramaBase({
       new THREE.IcosahedronGeometry(bit, 0),
       rand() < 0.6 ? stone : rock,
       x,
-      soilTop - depth,
+      soilTop - sink,
       z,
       group,
     );

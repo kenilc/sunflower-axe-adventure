@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createDioramaBase } from "../../rendering/diorama-base.js";
 import { createTreeVisibility } from "../../rendering/tree-visibility.js";
 import { createAlpineNature } from "./nature.js";
 import { createVillageMeadow, creekCenter, meadowHeight } from "./terrain.js";
@@ -622,6 +623,18 @@ export function createAlpineVillage({ mesh, box, cyl, ball }) {
     south: -9,
     name: "alpine-valley-ground",
   });
+  // The meadow eases down to -5 at its edges, where the board picks it up.
+  createDioramaBase({
+    parent: group,
+    mesh,
+    size: 100,
+    depth: 130,
+    thickness: 2.5,
+    shape: "square",
+    top: -5,
+    grass: null,
+    seed: 37,
+  }).position.z = -30;
   const ravine = new THREE.Group();
   ravine.name = "alpine-stream-ravine";
   group.add(ravine);

@@ -8,11 +8,18 @@ This small example is a complete destination; replace its geometry with your des
 
 ```js
 import * as THREE from "three";
+import { createDioramaBase } from "../../rendering/diorama-base.js";
 
 export function createGrovePlace(context) {
   const group = new THREE.Group();
   context.scene.add(group);
-  context.helpers.cyl(18, 18, 0.5, "#547c49", 0, -0.25, 0, group, 48);
+  createDioramaBase({
+    parent: group,
+    mesh: context.helpers.mesh,
+    size: 18,
+    top: -0.03,
+    grass: "#547c49",
+  });
 
   let keepsakes = 0;
   return {
@@ -66,6 +73,20 @@ export function createGrovePlace(context) {
   };
 }
 ```
+
+## Diorama board
+
+Every new place stands on a diorama board unless its design says otherwise. Build the ground with `createDioramaBase` from `src/rendering/diorama-base.js`, as the example does, rather than a plain slab or ground that just stops:
+
+- Round places pass `size` (the radius). Square ones pass `shape: "square"`, and rectangular ones add `depth` (the half-depth) and move the returned group to the board's centre.
+- Pass `grass` for the top colour, or `grass: null` when the place's own ground already forms the top; then set `top` to the height of that ground's edge.
+- Choose `soil`, `stone` and `rock` colours that suit the place, such as limestone for Lumeküla.
+- For very large boards (around 80 or more), raise `thickness` so the side doesn't look paper-thin.
+- Make the walkable `terrain` stay inside the board, and look at the edge from outside before finishing.
+
+Leave a place without a board only when it should feel endless, like the Sunset Beach horizon, or is an indoor room. Note the reason in the place's `world.js`.
+
+## Registering the place
 
 Import the factory in `src/locations/register-places.js`, then add `places.register(createGrovePlace(context))` before `places.validate()`. No input, HUD, movement, or restart branch is required. Decorate the entrance separately if you want a visible gate in its parent world; the example defines the gate's detection area only. Check that its approach and return spawn avoid the parent's obstacles.
 
