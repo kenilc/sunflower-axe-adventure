@@ -495,11 +495,15 @@ export function createVillagePlace(context) {
         3,
         9,
       );
+      // The mountain view pulls the camera back, less so when zooming in,
+      // so the closest zoom matches the garden's.
+      const pullBack =
+        mountainPanorama() * THREE.MathUtils.smoothstep(zoom, 10, 30);
       return (
         zoom *
         (hero.position.y > 0.5
           ? THREE.MathUtils.lerp(1.12, 0.92, panorama)
-          : close * THREE.MathUtils.lerp(1, 1.6, mountainPanorama()))
+          : close * THREE.MathUtils.lerp(1, 1.6, pullBack))
       );
     },
     cameraFloor: (x, z) =>
