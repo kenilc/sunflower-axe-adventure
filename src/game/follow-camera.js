@@ -17,13 +17,17 @@ export function createFollowCamera({ camera, hero, state, locations }) {
     Math.min(locations.active.cameraTarget(), orbitDistance() * 0.22);
   function orbitPosition() {
     const distance = orbitDistance();
-    return desired
+    desired
       .set(
         Math.sin(state.yaw) * Math.cos(state.pitch) * distance,
         1 + Math.sin(state.pitch) * distance,
         Math.cos(state.yaw) * Math.cos(state.pitch) * distance,
       )
       .add(hero.position);
+    // On sloping ground, keep the camera above the hill behind the heroine.
+    const floor = locations.active.cameraFloor?.(desired.x, desired.z);
+    if (floor !== undefined) desired.y = Math.max(desired.y, floor + 1.2);
+    return desired;
   }
   function lookAtHero() {
     camera.lookAt(

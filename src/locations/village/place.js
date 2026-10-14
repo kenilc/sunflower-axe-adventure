@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { createAlpineCart } from "./alpine-cart.js";
 import { createAlpineVillage, createAlpineOutfits } from "./world.js";
 import { createSheepMoment } from "./sheep-moment.js";
+import { meadowHeight } from "./terrain.js";
 import { createPhotoCapture } from "../../rendering/photo-capture.js";
 
 export const VILLAGE_ENVIRONMENT = {
@@ -501,6 +502,8 @@ export function createVillagePlace(context) {
           : close * THREE.MathUtils.lerp(1, 1.6, mountainPanorama()))
       );
     },
+    cameraFloor: (x, z) =>
+      state.activeVillageShop ? undefined : meadowHeight(x, z),
     maxZoom: 52,
     canThrow: false,
     reset: () => {

@@ -432,7 +432,7 @@ export function createAlpineNature({
     const bounds = new THREE.Box3().setFromObject(source);
     const isVillage = source.name === "alpine-village-ground";
     const count = isVillage
-      ? 2400
+      ? 8000
       : source.name === "alpine-valley-ground"
         ? 12000
         : 90;
@@ -446,7 +446,8 @@ export function createAlpineNature({
             Math.max(0, Math.abs(x) - 39),
             Math.max(0, z - 34),
           );
-          if (random() < THREE.MathUtils.smoothstep(edgeDistance, 0, 25))
+          // Thinner, but still grassy, down the lower meadow.
+          if (random() < THREE.MathUtils.smoothstep(edgeDistance, 0, 25) * 0.55)
             continue;
         }
         meadowRay.set(new THREE.Vector3(x, 150, z), down);

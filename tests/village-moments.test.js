@@ -193,7 +193,13 @@ test("sheep photos pause, restore walking, survive travel, and reset with the ad
         site.mesh.name,
       )
     )
-      expect(village.contains(site.point.x, site.point.z)).toBe(false);
+      // Props where the characters can walk must block them.
+      expect(
+        !village.contains(site.point.x, site.point.z) ||
+          village.blockers.some(
+            (b) => Math.hypot(b.x - site.point.x, b.z - site.point.z) < 1e-6,
+          ),
+      ).toBe(true);
   }
   const site = details.sites[0],
     opacity = site.source.material.opacity;

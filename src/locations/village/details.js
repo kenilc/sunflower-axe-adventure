@@ -83,15 +83,16 @@ export function createAlpineDetails({
     group.add(mesh);
     batches.push(mesh);
   }
-  function scatter(count, kind) {
+  // The foothills by default; the lower meadow passes its own bounds.
+  function scatter(count, kind, [minX, maxX, minZ, maxZ] = [-78, 82, -78, 35]) {
     const locations = [];
     for (
       let attempt = 0;
       attempt < count * 50 && locations.length < count;
       attempt++
     ) {
-      const x = -78 + random() * 160,
-        z = -78 + random() * 113;
+      const x = THREE.MathUtils.lerp(minX, maxX, random()),
+        z = THREE.MathUtils.lerp(minZ, maxZ, random());
       if (
         trailDistance(x, z) < 4 ||
         Math.hypot(x - lookout.x, z - lookout.z) < 6
@@ -99,7 +100,7 @@ export function createAlpineDetails({
         continue;
       if (!grassAllowed(x, z)) continue;
       // Larger props stay off every walkable street, meadow and shop approach.
-      if (kind !== "flowers" && Math.abs(x) < 37 && z > -9) continue;
+      if (kind !== "flowers" && Math.abs(x) < 37 && z > -9 && z < 36) continue;
       const hit = groundAt(x, z);
       if (
         !hit ||
@@ -118,13 +119,23 @@ export function createAlpineDetails({
     }
     return locations;
   }
+  // The lower meadow runs from the terrace down to the board's edge.
+  const lowerMeadow = [-94, 94, -7, 94];
+  const rocks = [
+    ...scatter(240, "rocks"),
+    ...scatter(90, "rocks", lowerMeadow),
+  ];
+  const shrubs = [
+    ...scatter(180, "shrubs"),
+    ...scatter(50, "shrubs", lowerMeadow),
+  ];
   batch(
     "alpine-foothill-boulders",
     new THREE.IcosahedronGeometry(1, 0)
       .scale(0.7, 0.45, 0.8)
       .translate(0, 0.15, 0),
     "#a6a58e",
-    scatter(240, "rocks"),
+    rocks,
   );
   batch(
     "alpine-juniper-shrubs",
@@ -132,9 +143,16 @@ export function createAlpineDetails({
       .scale(0.7, 0.45, 0.8)
       .translate(0, 0.35, 0),
     "#65866a",
-    scatter(180, "shrubs"),
+    shrubs,
   );
-  const flowers = scatter(280, "flowers");
+  // Rocks and shrubs where the characters can walk block them.
+  const blocking = [...rocks, ...shrubs]
+    .filter((site) => site.point.z >= -7)
+    .map((site) => ({ x: site.point.x, z: site.point.z, r: site.size * 0.75 }));
+  const flowers = [
+    ...scatter(280, "flowers"),
+    ...scatter(160, "flowers", lowerMeadow),
+  ];
   batch(
     "alpine-wildflower-stems",
     new THREE.CylinderGeometry(0.025, 0.035, 0.65, 4).translate(0, 0.325, 0),
@@ -192,6 +210,7 @@ export function createAlpineDetails({
     group,
     sites,
     batches,
+    obstacles: blocking,
     updateVisibility() {
       for (const site of sites) {
         const hidden = site.source.material.opacity < 0.45;

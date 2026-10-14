@@ -767,20 +767,26 @@ export function createAlpineVillage({ mesh, box, cyl, ball }) {
       return !(z < -12 && z > -77 && Math.abs(x - creekCenter(z)) < 1.65);
     },
   });
+  blockers.push(...nature.details.obstacles);
+  const onTerrace = (x, z) => Math.abs(x) < 36 && z >= -7 && z < 32;
+  // Beyond the terrace the meadow slopes down to the board's edge.
+  const onLowerMeadow = (x, z) => Math.abs(x) < 94 && z >= -7 && z < 94;
   function onTrail(x, z) {
     return z < -7 && trailSample(x, z).distance < trailRadius;
   }
   function contains(x, z) {
     if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
     return (
-      (Math.abs(x) < 36 && z >= -7 && z < 32) ||
+      onLowerMeadow(x, z) ||
       onTrail(x, z) ||
       Math.hypot(x - lookout.x, z - lookout.z) < 3.5
     );
   }
   function heightAt(x, z) {
     return z >= -7
-      ? 0
+      ? onTerrace(x, z)
+        ? 0
+        : meadowHeight(x, z)
       : Math.hypot(x - lookout.x, z - lookout.z) < 3.5
         ? lookout.y
         : trailSample(x, z).y;
