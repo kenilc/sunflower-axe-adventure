@@ -9,7 +9,14 @@ export function createCompanion({ model, random = Math.random }) {
   const { body, legs, arms } = rig;
   const destination = new THREE.Vector3();
   const forward = new THREE.Vector3();
+  // Closer than contactDistance they bump (and hearts may float up); closer
+  // than bodyDistance she slides round him rather than walking through.
   const contactDistance = 1.2;
+  const bodyDistance = 0.85;
+  // Walking towards him, she would rather he stepped aside.
+  const yieldAhead = 2.6;
+  const yieldWidth = 1.3;
+  const yieldSpeed = 3.6;
   const wanderRadius = 7;
   const maxDistance = 10;
   // He keeps up by speeding up as she pulls away, faster than her run near
@@ -30,6 +37,8 @@ export function createCompanion({ model, random = Math.random }) {
     travelTime = 0,
     stuckTime = 0,
     trailTarget = null;
+  const lastHero = new THREE.Vector3();
+  let heroKnown = false;
   const horizontalDistance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
   const flatGround = {
     contains: (x, z) => Math.hypot(x, z) < 48,
@@ -107,6 +116,7 @@ export function createCompanion({ model, random = Math.random }) {
     wait = 0.8;
     walking = false;
     gait = travelTime = stuckTime = 0;
+    heroKnown = false;
     trail.length = 0;
     trailTarget = null;
     body.position.y = 0;
@@ -118,11 +128,65 @@ export function createCompanion({ model, random = Math.random }) {
     walking = false;
     wait = 1 + random() * 2.5;
   }
+  // She slides round him like a soft round obstacle instead of stopping
+  // dead. Returns whether they bumped.
   function blocksPlayer(position, previous) {
-    if (horizontalDistance(position, character.position) >= contactDistance)
-      return false;
-    position.copy(previous);
+    const distance = horizontalDistance(position, character.position);
+    if (distance >= bodyDistance) return false;
+    let dx = position.x - character.position.x,
+      dz = position.z - character.position.z;
+    if (distance < 1e-6) {
+      dx = previous.x - character.position.x;
+      dz = previous.z - character.position.z;
+    }
+    const length = Math.hypot(dx, dz) || 1;
+    position.x = character.position.x + (dx / length) * bodyDistance;
+    position.z = character.position.z + (dz / length) * bodyDistance;
     return true;
+  }
+  // When she walks towards him, he steps out of her way: to the side he is
+  // already on, else ahead of her, else the other side.
+  function giveWay(dt, heroPosition, obstacles, terrain) {
+    const moved = heroKnown
+      ? horizontalDistance(heroPosition, lastHero) / Math.max(dt, 1e-6)
+      : 0;
+    const heading = new THREE.Vector3(
+      heroPosition.x - lastHero.x,
+      0,
+      heroPosition.z - lastHero.z,
+    );
+    lastHero.copy(heroPosition);
+    heroKnown = true;
+    if (moved < 0.8 || moved > 20) return 0;
+    heading.normalize();
+    const rx = character.position.x - heroPosition.x,
+      rz = character.position.z - heroPosition.z;
+    const ahead = rx * heading.x + rz * heading.z;
+    const side = rx * heading.z - rz * heading.x;
+    if (ahead <= 0 || ahead > yieldAhead || Math.abs(side) > yieldWidth)
+      return 0;
+    const sign = side >= 0 ? 1 : -1;
+    const across = new THREE.Vector3(heading.z * sign, 0, -heading.x * sign);
+    const step = yieldSpeed * dt;
+    for (const direction of [
+      across,
+      across.clone().add(heading).normalize(),
+      heading,
+      across.clone().negate(),
+    ]) {
+      const x = character.position.x + direction.x * step,
+        z = character.position.z + direction.z * step;
+      if (!clear(x, z, obstacles, terrain, trailClearance)) continue;
+      if (Math.hypot(x - heroPosition.x, z - heroPosition.z) < bodyDistance)
+        continue;
+      character.position.set(x, terrain.heightAt(x, z), z);
+      character.rotation.set(0, Math.atan2(direction.x, direction.z), 0);
+      walking = false;
+      wait = 0.6;
+      trailTarget = null;
+      return step;
+    }
+    return 0;
   }
   function update(dt, obstacles, heroPosition, terrain = flatGround) {
     let separation = horizontalDistance(character.position, heroPosition);
@@ -132,8 +196,9 @@ export function createCompanion({ model, random = Math.random }) {
       separation = horizontalDistance(character.position, heroPosition);
     }
     remember(heroPosition);
+    const gaveWay = giveWay(dt, heroPosition, obstacles, terrain);
     const followDistance = terrain.followDistance ?? 5;
-    const following = separation > followDistance;
+    const following = !gaveWay && separation > followDistance;
     if (following) {
       destination.copy(heroPosition);
       walking = true;
@@ -150,7 +215,7 @@ export function createCompanion({ model, random = Math.random }) {
       if (trailTarget) destination.copy(trailTarget);
     } else if (horizontalDistance(destination, heroPosition) > wanderRadius)
       pause();
-    if (!walking) {
+    if (!walking && !gaveWay) {
       wait -= dt;
       if (wait <= 0) {
         for (let i = 0; i < 20; i++) {
@@ -168,9 +233,9 @@ export function createCompanion({ model, random = Math.random }) {
         if (!walking) wait = 1;
       }
     }
-    let moved = 0,
+    let moved = gaveWay,
       bumped = false;
-    if (walking) {
+    if (walking && !gaveWay) {
       const dx = destination.x - character.position.x;
       const dz = destination.z - character.position.z;
       const distance = Math.hypot(dx, dz);
@@ -260,6 +325,7 @@ export function createCompanion({ model, random = Math.random }) {
     reset,
     blocksPlayer,
     contactDistance,
+    bodyDistance,
     rig,
   };
 }

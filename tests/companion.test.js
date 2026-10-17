@@ -108,3 +108,30 @@ test("through a gap she fits, he follows her trail and keeps up without jumping"
   expect(largestStep).toBeLessThan(0.5);
   expect(farthest).toBeLessThan(10);
 });
+
+test("walking straight at him in a narrow aisle, he steps aside and she gets past", async () => {
+  const models = await readModels();
+  const companion = createCompanion({ model: models.companion });
+  // An aisle 2.6 wide, like a gap between kitchen furniture.
+  const aisle = {
+    contains: (x) => Math.abs(x) < 1.3,
+    heightAt: () => 0,
+  };
+  const hero = new THREE.Vector3(0, 0, 4);
+  companion.reset(hero, [], aisle);
+  companion.character.position.set(0, 0, 0.5);
+  let stalled = 0;
+  for (let i = 0; i < 120; i++) {
+    const previous = hero.clone();
+    hero.z -= 4.7 * 0.04;
+    companion.blocksPlayer(hero, previous);
+    if (!aisle.contains(hero.x)) hero.copy(previous);
+    if (previous.z - hero.z < 0.02) stalled++;
+    companion.update(0.04, [], hero, aisle);
+    const { x, z } = companion.character.position;
+    expect(aisle.contains(x, z)).toBe(true);
+    expect(Math.hypot(hero.x - x, hero.z - z)).toBeGreaterThan(0.85 - 1e-6);
+  }
+  expect(hero.z).toBeLessThan(-12);
+  expect(stalled).toBeLessThan(5);
+});
