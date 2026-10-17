@@ -70,6 +70,7 @@ export function createPolderPlaces(context) {
       return true;
     }
     const kind = world.nearby(context.hero.position);
+    if (kind === "barge") return world.trip.board();
     if (kind === "windmill") {
       world.gust();
       context.burst(
@@ -111,7 +112,7 @@ export function createPolderPlaces(context) {
     cameraTarget: () => 1.4,
     canPhotograph: () => true,
     canLeave: () => !bikes.riding,
-    canSaveLocation: () => !bikes.riding,
+    canSaveLocation: () => !bikes.riding && !world.trip.sailing,
     photoLocation: () =>
       bikes.riding ? "Tulip Polder · Cycling together" : "Tulip Polder",
     getPhotoPreset() {
@@ -161,7 +162,7 @@ export function createPolderPlaces(context) {
       world.reset();
     },
     interact,
-    moveInstead: (dt) => bikes.move(dt),
+    moveInstead: (dt) => bikes.move(dt) || world.trip.move(dt),
     getGate: () =>
       !bikes.riding && world.returnGate.contains(context.hero.position)
         ? { id: "garden" }
@@ -214,6 +215,10 @@ export function createPolderPlaces(context) {
           : "Turn the sails into the wind · X";
         hint =
           "De molen · Lean on the cap together and let the wind take the sails · X · The door leads inside";
+      } else if (nearby === "barge") {
+        label = "Take the barge to Lavender Hills · X";
+        icon = "gate";
+        hint = "Sit at the bow and sail away down the canal to Provence · X";
       } else if (nearby === "ducks") {
         label = "Feed the ducks · X";
         hint = "Eendjes · Scatter a few crumbs from the bank · X";

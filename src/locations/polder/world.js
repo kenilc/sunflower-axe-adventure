@@ -4,6 +4,7 @@ import { createDioramaBase } from "../../rendering/diorama-base.js";
 import { createMeshFactory } from "../../rendering/mesh-factory.js";
 import { createTreeVisibility } from "../../rendering/tree-visibility.js";
 import { createRandom } from "../../systems/random.js";
+import { createBargeTrip } from "../lavender/barge.js";
 import { createPolderSign } from "./gate.js";
 
 // Tulip Polder: flat Dutch farmland on a square board. Strips of tulips run
@@ -463,7 +464,8 @@ export function createPolderWorld(context) {
 
   // Ducks paddle along the canal, each on its own side of the bridge; fed,
   // the ducks on her side swim over to the bank.
-  const DUCK_REACH = [3.4, POLDER_SIZE - 2];
+  // East of x 19 belongs to the barge landing.
+  const DUCK_REACH = [3.4, 18.5];
   const duckSide = (x, side) =>
     side * THREE.MathUtils.clamp(Math.abs(x), ...DUCK_REACH);
   const ducks = [-1, 1, -1, 1, 1].map((side, i) => {
@@ -475,7 +477,7 @@ export function createPolderWorld(context) {
     ball(0.17, drake ? "#2f6b4a" : "#8a6a4c", 0, 0.38, 0.28, duck);
     const beak = box(0.1, 0.05, 0.16, "#f0a03a", 0, 0.36, 0.46, duck);
     beak.castShadow = false;
-    const home = side * (9 + (i >> 1) * 9 + rand() * 4),
+    const home = side * (6 + (i >> 1) * 5 + rand() * 3),
       z = -18 + (rand() - 0.5) * 3;
     duck.position.set(home, 0, z);
     return {
@@ -489,6 +491,33 @@ export function createPolderWorld(context) {
   });
   let feedX = null,
     feedLeft = 0;
+
+  // The barge landing on the canal's south bank: a short wooden jetty and
+  // the flower barge to Lavender Hills, ready to sail east.
+  const landing = new THREE.Vector3(25, 0, CANAL.south + 1.2);
+  box(3.2, 0.12, 1.8, "#8a6a4c", landing.x, 0.06, CANAL.south - 0.2);
+  for (const dx of [-1.4, 1.4])
+    cyl(
+      0.12,
+      0.14,
+      0.8,
+      "#6b4a2a",
+      landing.x + dx,
+      0.2,
+      CANAL.south - 0.95,
+      group,
+      6,
+    );
+  const trip = createBargeTrip(context, {
+    parent: group,
+    mooring: new THREE.Vector3(landing.x, 0.01, CANAL.south - 1.5),
+    turn: Math.PI / 2,
+    destination: "lavender",
+  });
+  visibility.add(trip.barge, {
+    meshes: trip.barge.children.filter((node) => node.isMesh),
+    dynamic: true,
+  });
 
   const entranceGate = createPolderSign({
     parent: context.garden,
@@ -529,6 +558,8 @@ export function createPolderWorld(context) {
     farmDoor,
     bikes,
     rideStart,
+    trip,
+    landing,
     ducks,
     canal: CANAL,
     visibility,
@@ -545,9 +576,11 @@ export function createPolderWorld(context) {
         position.z > CANAL.south &&
         position.z < CANAL.south + 2.6 &&
         Math.abs(position.x) > 2.6 &&
-        Math.abs(position.x) < 28
+        Math.abs(position.x) < 19.5
       )
         return "ducks";
+      if (Math.hypot(position.x - landing.x, position.z - landing.z) < 2.4)
+        return "barge";
       return null;
     },
     get gusting() {
@@ -581,9 +614,11 @@ export function createPolderWorld(context) {
       gustLeft = 0;
       feedLeft = 0;
       windSpeed = 0.6;
+      trip.reset();
     },
     animate(dt) {
       elapsed += dt;
+      trip.animate(dt);
       gustLeft = Math.max(0, gustLeft - dt);
       feedLeft = Math.max(0, feedLeft - dt);
       windSpeed +=

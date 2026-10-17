@@ -34,6 +34,14 @@ export const JOURNEY_DESTINATIONS = [
     hint: "Northwest windmill path from the garden",
   },
   {
+    id: "lavender",
+    name: "Lavender Hills",
+    icon: "❦",
+    x: 8,
+    y: 12,
+    hint: "Take the barge from the polder",
+  },
+  {
     id: "village",
     name: "Edelweiss Village",
     icon: "⌂",

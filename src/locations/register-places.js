@@ -8,6 +8,7 @@ import { createFestivalPlace } from "./festival/place.js";
 import { createGardenPlace } from "./garden/place.js";
 import { createWinterPlace } from "./winter/place.js";
 import { createPolderPlaces } from "./polder/place.js";
+import { createLavenderPlace } from "./lavender/place.js";
 
 export function registerPlaces(places, context) {
   const { hero } = context;
@@ -26,6 +27,7 @@ export function registerPlaces(places, context) {
   places.register(createCavePlace(context));
   places.register(createWinterPlace(context));
   for (const place of createPolderPlaces(context)) places.register(place);
+  places.register(createLavenderPlace(context));
   const { boatTrip, cableCar } = places.get("riverside").parts;
   places.register({
     id: "lagoon",

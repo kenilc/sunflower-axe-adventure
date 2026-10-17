@@ -44,6 +44,25 @@ export const PLACE_OUTFITS = {
       hat: { style: "flat-cap", color: "#6b5a44" },
     },
   ],
+  lavender: [
+    {
+      torso: "#f6f0e4",
+      skirt: "#9b77c9",
+      dress: true,
+      trim: "#f4efe2",
+      sleeves: "short",
+      legs: { style: "tights", color: "#f0bd8a" },
+      shoes: { style: "shoes", color: "#c9b48a" },
+    },
+    {
+      torso: "#f4ead8",
+      collar: "#fbf6ec",
+      sleeves: "rolled",
+      legs: { style: "trousers", color: "#d8c69a" },
+      shoes: { style: "shoes", color: "#c9b48a" },
+      hat: { style: "straw", color: "#e6cf8f" },
+    },
+  ],
   funfair: [
     {
       torso: "#f2a7b8",
@@ -253,6 +272,10 @@ function buildOutfit(rig, index, look, { box, cyl, ball, mesh }) {
       crown.scale.set(1, 0.72, 1);
       cyl(0.97, 0.97, 0.06, color, 0, 0.72, 0, hat, 16);
       cyl(0.64, 0.64, 0.09, "#7a5a3e", 0, 0.8, 0, hat, 16);
+    } else if (style === "straw") {
+      cyl(0.52, 0.56, 0.32, color, 0, 0.9, 0, hat, 12);
+      cyl(0.57, 0.57, 0.09, "#4f6b8f", 0, 0.8, 0, hat, 12);
+      cyl(0.95, 0.95, 0.05, color, 0, 0.73, 0, hat, 16);
     } else if (style === "alpine") {
       cyl(0.45, 0.58, 0.44, color, 0, 0.95, 0, hat, 10);
       cyl(0.82, 0.82, 0.06, color, 0, 0.74, 0, hat, 14);
