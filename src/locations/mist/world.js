@@ -11,28 +11,28 @@ import { createBalloonTrip } from "./balloon-trip.js";
 // in a meadow to the south; a lantern path winds north through the trees to
 // a clearing where four sleepy animal-head houses sit round a little pond.
 // Little mist puffs drift in a glade beside the path.
-export const MIST_SIZE = 30;
+export const MIST_SIZE = 38;
 const EDGE = MIST_SIZE - 1.4;
-const CLEARING = { x: 0, z: -11, r: 14 };
-const FIELD = { x: 0, z: 19, r: 6.5 };
-const POND = { x: 0, z: -11, r: 3.1 };
+const CLEARING = { x: 0, z: -14, r: 20 };
+const FIELD = { x: 0, z: 30, r: 6.5 };
+const POND = { x: 0, z: -14, r: 3.4 };
 // The path winds between these depths, from the meadow to the clearing.
-const PATH = { from: -0.5, to: 14.5, half: 1.5 };
+const PATH = { from: 4, to: 26, half: 1.5 };
 export const pathX = (z) => 3.2 * Math.sin(z * 0.22);
-const GLADE = { x: pathX(6) - 5, z: 6, r: 4 };
-// The houses in assets/blender/build_mist_houses.py, and how far each one's
-// door (and the little porch in front of it) stands from its centre.
+const GLADE = { x: pathX(14) - 5, z: 14, r: 4 };
+// The houses in assets/blender/build_mist_houses.py: how far each one's
+// door stands in front of its centre, and its head's half-width, both at
+// the model's own size. Built small, they stand twice as big in the
+// hollow, so the friends fit through the doors and walk inside.
+export const HOUSE_SCALE = 2;
 const HOUSES = [
-  { kind: "frog", angle: -1.22, radius: 2.9, door: 3.2 },
-  { kind: "cat", angle: -0.42, radius: 2.6, door: 3.4 },
-  { kind: "rabbit", angle: 0.42, radius: 2.5, door: 3.4 },
-  { kind: "owl", angle: 1.22, radius: 2.4, door: 3.3 },
+  { kind: "frog", angle: -1.6, front: 2.13, width: 2.8 },
+  { kind: "cat", angle: -0.55, front: 1.96, width: 2.5 },
+  { kind: "rabbit", angle: 0.55, front: 1.87, width: 2.3 },
+  { kind: "owl", angle: 1.6, front: 1.75, width: 2.2 },
 ];
-// The models are built small; in the hollow they stand half as big again,
-// so they tower over the friends.
-const HOUSE_SCALE = 1.5;
-const HOUSE_RING = 11;
-const LOG = new THREE.Vector3(-4.4, 0, -5.4);
+const HOUSE_RING = 15;
+const LOG = new THREE.Vector3(-5, 0, -8);
 const PINES = ["#3e6b6e", "#467a74", "#36605f", "#4d7f7c"];
 const ROUNDS = ["#4c7a73", "#5a8578", "#456f6d"];
 
@@ -137,12 +137,12 @@ export function createMistWorld(context) {
 
   // The meadow where the balloon comes down.
   const balloon = instantiateModel(context.models.balloon);
-  balloon.position.set(-2.6, 0, 20.6);
+  balloon.position.set(-2.6, 0, FIELD.z + 1.6);
   group.add(balloon);
   const envelope = balloon.getObjectByName("envelope");
   for (const dx of [-2.3, 2.3])
-    cyl(0.1, 0.12, 0.4, "#5a4338", -2.6 + dx, 0.2, 20.6, group, 6);
-  blockers.push({ x: -2.6, z: 20.6, r: 1.3 });
+    cyl(0.1, 0.12, 0.4, "#5a4338", -2.6 + dx, 0.2, FIELD.z + 1.6, group, 6);
+  blockers.push({ x: -2.6, z: FIELD.z + 1.6, r: 1.3 });
   visibility.add(balloon, {
     meshes: (() => {
       const list = [];
@@ -152,7 +152,7 @@ export function createMistWorld(context) {
     dynamic: true,
   });
   const trip = createBalloonTrip(context, { balloon, destination: "lavender" });
-  const balloonSpot = new THREE.Vector3(0, 0, 19.6);
+  const balloonSpot = new THREE.Vector3(0, 0, FIELD.z + 0.6);
 
   // The forest: pines and round trees in misty teal, thick right up to the
   // paths. Trees near a path fade when they hide her; those deeper in, which
@@ -274,11 +274,11 @@ export function createMistWorld(context) {
     rock.scale.y = 0.5;
   }
   for (const [x, z] of [
-    [-1.4, -10.2],
-    [1.6, -12.1],
-    [0.4, -9.2],
-    [-0.8, -12.8],
-  ]) {
+    [-1.4, 0.8],
+    [1.6, -1.1],
+    [0.4, 1.8],
+    [-0.8, -1.8],
+  ].map(([dx, dz]) => [POND.x + dx, POND.z + dz])) {
     const pad = cyl(0.42, 0.42, 0.03, "#6f9a6a", x, 0.07, z, group, 10);
     pad.castShadow = false;
   }
@@ -305,9 +305,12 @@ export function createMistWorld(context) {
   });
   let afloat = 0;
 
-  // The sleepy animal houses round the north side of the pond, facing it.
-  const houses = HOUSES.map(({ kind, angle, radius, door }) => {
+  // The sleepy animal houses round the pond, facing it. Each door leads
+  // inside. The head blocks the way except at its door: a circle set back
+  // so its front stops just short of the doorway.
+  const houses = HOUSES.map(({ kind, angle, front, width }) => {
     const out = new THREE.Vector3(Math.sin(angle), 0, -Math.cos(angle));
+    const facing = out.clone().negate();
     const home = instantiateModel(
       context.models.mist_houses.getObjectByName(`${kind}-house`),
     );
@@ -323,16 +326,12 @@ export function createMistWorld(context) {
     const meshes = [];
     home.traverse((node) => node.isMesh && meshes.push(node));
     visibility.add(home, { meshes });
-    blockers.push({
-      x: home.position.x,
-      z: home.position.z,
-      r: radius * HOUSE_SCALE,
-    });
-    const facing = out.clone().negate();
-    const porch = home.position
+    const doorway = front * HOUSE_SCALE;
+    const reach = width * HOUSE_SCALE * 0.9;
+    const head = home.position
       .clone()
-      .addScaledVector(facing, 2.1 * HOUSE_SCALE);
-    blockers.push({ x: porch.x, z: porch.z, r: 0.85 * HOUSE_SCALE });
+      .addScaledVector(facing, doorway - 0.3 - reach);
+    blockers.push({ x: head.x, z: head.z, r: reach });
     const post = new THREE.Vector3(
       kind === "rabbit" || kind === "owl" ? -2.1 : 2.1,
       0,
@@ -343,13 +342,17 @@ export function createMistWorld(context) {
     blockers.push({
       x: home.position.x + post.x,
       z: home.position.z + post.z,
-      r: 0.3,
+      r: 0.35,
     });
     return {
       kind,
       home,
-      door: home.position.clone().addScaledVector(facing, door * HOUSE_SCALE),
-      greeted: false,
+      facing,
+      // Step onto this spot, at the door, to walk in.
+      door: home.position.clone().addScaledVector(facing, doorway + 0.4),
+      // Where they come back out, on the stepping stones.
+      outside: home.position.clone().addScaledVector(facing, doorway + 2.6),
+      visited: false,
       wiggle: 0,
     };
   });
@@ -418,11 +421,11 @@ export function createMistWorld(context) {
     );
   }
   const strays = [
-    [pathX(11) - 2.8, 1.6, 11],
-    [pathX(2) + 2.6, 1.9, 2],
-    [-9, 2.2, -6],
-    [9.5, 1.8, -5],
-    [5, 2.6, 16],
+    [pathX(20) - 2.8, 1.6, 20],
+    [pathX(8) + 2.6, 1.9, 8],
+    [-11, 2.4, -4],
+    [11.5, 2, -3],
+    [5, 2.6, 27],
   ].map(([x, y, z]) => wisp(x, y, z));
 
   // Low mist lying over the ground, drifting slowly.
@@ -435,7 +438,7 @@ export function createMistWorld(context) {
   const banks = [];
   for (let i = 0; i < 16; i++) {
     const a = rand() * Math.PI * 2,
-      r = 4 + rand() * 20;
+      r = 4 + rand() * 28;
     const bank = mesh(
       new THREE.CircleGeometry(4 + rand() * 3, 16),
       mistMaterial,
@@ -452,9 +455,9 @@ export function createMistWorld(context) {
 
   // Warm light pooling round the lanterns and the house doors.
   for (const [x, y, z, power] of [
-    [0, 3.5, -7, 32],
-    [pathX(7), 2.5, 7, 30],
-    [0, 3, 18, 26],
+    [0, 4, -10, 45],
+    [pathX(15), 2.5, 15, 30],
+    [0, 3, FIELD.z - 1, 26],
   ]) {
     const light = new THREE.PointLight("#ffcf8a", power, 16, 1.6);
     light.position.set(x, y, z);
@@ -485,8 +488,6 @@ export function createMistWorld(context) {
       const near = (spot, reach) =>
         Math.hypot(position.x - spot.x, position.z - spot.z) < reach;
       if (near(balloonSpot, 2.6)) return { kind: "balloon" };
-      for (const house of houses)
-        if (near(house.door, 1.7)) return { kind: "door", house };
       if (near(restSpot, 1.6)) return { kind: "rest" };
       if (near(POND, POND.r + 1.8)) return { kind: "pond" };
       if (near(GLADE, GLADE.r)) return { kind: "wisps" };
@@ -499,9 +500,9 @@ export function createMistWorld(context) {
     gather(seconds = 5) {
       gathering = seconds;
     },
-    knock(house) {
+    // A happy wiggle as the friends come back out of a house.
+    wave(house) {
       house.wiggle = 1.4;
-      house.greeted = true;
     },
     // A lantern set down at the pond's edge nearest them drifts away.
     floatLantern(from) {
@@ -517,7 +518,7 @@ export function createMistWorld(context) {
       gathering = 0;
       afloat = 0;
       for (const house of houses) {
-        house.greeted = false;
+        house.visited = false;
         house.wiggle = 0;
         house.home.scale.setScalar(HOUSE_SCALE);
       }

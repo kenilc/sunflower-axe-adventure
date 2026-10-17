@@ -1,14 +1,9 @@
 import * as THREE from "three";
 import { createPoseHold, sitPose } from "../polder/poses.js";
+import { createHouseRooms } from "./rooms.js";
 import { createMistWorld } from "./world.js";
 
 const MOMENTS = ["wisps", "houses", "pond", "rest"];
-const HELLOS = {
-  frog: "The frog house blinks awake and gives a sleepy little croak",
-  cat: "The cat house purrs without opening its eyes",
-  rabbit: "The rabbit house twitches its long ears hello",
-  owl: "The owl house ruffles up and hoots softly",
-};
 
 // Dusk in a misty forest: violet sky, thick fog and warm paper lanterns.
 export const MIST_ENVIRONMENT = {
@@ -24,7 +19,8 @@ export const MIST_ENVIRONMENT = {
   exposure: 1.15,
 };
 
-export function createMistPlace(context) {
+// The hollow and the four animal houses the friends can walk into.
+export function createMistPlaces(context) {
   const world = createMistWorld(context);
   const pose = createPoseHold(context, "mist-log");
   const made = new Set();
@@ -40,7 +36,18 @@ export function createMistPlace(context) {
       `${message} · ${made.size} / ${MOMENTS.length} misty memories`,
     );
   }
-  const greeted = () => world.houses.filter((house) => house.greeted).length;
+  const visited = () => world.houses.filter((house) => house.visited).length;
+  // Walking into a house; visiting all four makes a memory.
+  function visit(kind, hello) {
+    world.houses.find((house) => house.kind === kind).visited = true;
+    const count = visited();
+    if (count === world.houses.length) remember("houses", hello);
+    else
+      context.toast(
+        `${hello} · ${count} / ${world.houses.length} houses visited`,
+      );
+  }
+  let pendingRoom = null;
   function sitDown() {
     resting = true;
     restTime = 0;
@@ -76,24 +83,6 @@ export function createMistPlace(context) {
       remember("wisps", "The mist puffs come to say hello and float round you");
       return true;
     }
-    if (spot.kind === "door") {
-      const { house } = spot;
-      world.knock(house);
-      context.beep(392, 0.25);
-      context.burst(
-        house.door.clone().add(new THREE.Vector3(0, 2.4, 0)),
-        "#f5b6c0",
-        10,
-      );
-      const count = greeted();
-      if (count === world.houses.length)
-        remember("houses", `${HELLOS[house.kind]} ♥`);
-      else
-        context.toast(
-          `${HELLOS[house.kind]} · ${count} / ${world.houses.length} houses greeted`,
-        );
-      return true;
-    }
     if (spot.kind === "pond") {
       world.floatLantern(context.hero.position);
       context.burst(
@@ -110,7 +99,7 @@ export function createMistPlace(context) {
     }
     return false;
   }
-  return {
+  const mist = {
     id: "mist",
     outfit: "mist",
     name: "Mistwood Hollow",
@@ -142,37 +131,50 @@ export function createMistPlace(context) {
     // Arrive in the meadow by balloon; it flies back to the lavender hilltop.
     returnSpawn: [-16.4, 4, -22],
     settings: {
-      spawn: [1.6, 0, 17.6],
+      spawn: [1.6, 0, 28.6],
       heading: Math.PI,
       camera: { yaw: 0, pitch: 0.42, zoom: 24, fov: 50 },
       environment: MIST_ENVIRONMENT,
       instructions:
         "<kbd>W A S D</kbd> walk <kbd>X</kbd> mist puffs / houses / pond / log <kbd>M</kbd> photo",
     },
-    enter({ returning, options = {} } = {}) {
-      // Direct links: ?area=mist&activity=village or rest.
-      if (options.activity === "village" || options.activity === "rest") {
+    enter({ from, returning, options = {} } = {}) {
+      // Direct links: ?area=mist&activity=village, rest, or a house:
+      // frog, cat, rabbit or owl, which opens on the first frame.
+      if (world.houses.some((house) => house.kind === options.activity))
+        pendingRoom = `mist:${options.activity}`;
+      else if (options.activity === "village" || options.activity === "rest") {
         const spot =
           options.activity === "village"
-            ? new THREE.Vector3(0, 0, -5)
+            ? new THREE.Vector3(0, 0, -6)
             : world.restSpot;
         context.hero.position.set(spot.x, 0, spot.z);
         context.hero.rotation.set(0, Math.PI, 0);
         context.companion.reset(context.hero.position, world.blockers, world);
         if (options.activity === "rest") sitDown();
       }
-      if (!returning)
+      const house = world.houses.find(({ kind }) => `mist:${kind}` === from);
+      if (house) world.wave(house);
+      if (!returning && !pendingRoom)
         context.toast(
           "Shh… the hollow is sleepy ♥ Follow the lanterns north to the little houses",
         );
     },
-    exit() {
+    exit({ to } = {}) {
       standUp();
+      // Stepping into a house keeps the lanterns floating on the pond.
+      if (to?.startsWith("mist:")) return;
       world.reset();
     },
     interact,
     moveInstead: (dt) => world.trip.move(dt),
     update(dt) {
+      if (pendingRoom) {
+        const id = pendingRoom;
+        pendingRoom = null;
+        context.transitions.jump(id);
+        return true;
+      }
       if (!resting) return false;
       restTime += dt;
       if (restTime > 3)
@@ -214,7 +216,7 @@ export function createMistPlace(context) {
       let label = "Explore the hollow · X",
         icon = "interact",
         hint =
-          "Lantern path: north to the houses · Mist puffs: the glade off the path · Balloon: meadow";
+          "Lantern path: north to the houses, whose doors open · Mist puffs: the glade off the path · Balloon: meadow";
       if (resting) {
         label = "Get up from the log · X";
         icon = "return";
@@ -229,9 +231,6 @@ export function createMistPlace(context) {
           ? "The mist puffs are floating round you…"
           : "Say hello to the mist puffs · X";
         hint = "Soft little puffs of mist, curious and shy · X";
-      } else if (spot?.kind === "door") {
-        label = `Knock on the ${spot.house.kind} house · X`;
-        hint = `${greeted()} / ${world.houses.length} houses greeted · Knock softly, they're sleepy · X`;
       } else if (spot?.kind === "pond") {
         label = "Float a paper lantern · X";
         hint = "Set a lantern on the still water · X";
@@ -249,7 +248,7 @@ export function createMistPlace(context) {
           objective:
             made.size === MOMENTS.length
               ? "Every misty memory made. Find a photo spot, or fly home by balloon."
-              : "Greet the mist puffs, knock on all four houses, float a lantern and rest on the log.",
+              : "Greet the mist puffs, walk into all four houses, float a lantern and rest on the log.",
         },
         progress: `${made.size} / ${MOMENTS.length} misty memories`,
         hint,
@@ -273,13 +272,15 @@ export function createMistPlace(context) {
     getProgress: () => ({
       memories: MOMENTS.filter((kind) => made.has(kind)),
       totalMemories: MOMENTS.length,
-      housesGreeted: greeted(),
+      housesVisited: visited(),
       resting,
     }),
     reset() {
       standUp();
       made.clear();
+      pendingRoom = null;
       world.reset();
     },
   };
+  return [mist, ...createHouseRooms(context, { world, visit })];
 }

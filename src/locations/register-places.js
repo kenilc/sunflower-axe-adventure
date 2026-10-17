@@ -9,7 +9,7 @@ import { createGardenPlace } from "./garden/place.js";
 import { createWinterPlace } from "./winter/place.js";
 import { createPolderPlaces } from "./polder/place.js";
 import { createLavenderPlace } from "./lavender/place.js";
-import { createMistPlace } from "./mist/place.js";
+import { createMistPlaces } from "./mist/place.js";
 
 export function registerPlaces(places, context) {
   const { hero } = context;
@@ -29,7 +29,7 @@ export function registerPlaces(places, context) {
   places.register(createWinterPlace(context));
   for (const place of createPolderPlaces(context)) places.register(place);
   places.register(createLavenderPlace(context));
-  places.register(createMistPlace(context));
+  for (const place of createMistPlaces(context)) places.register(place);
   const { boatTrip, cableCar } = places.get("riverside").parts;
   places.register({
     id: "lagoon",

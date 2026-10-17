@@ -68,7 +68,7 @@ test("the lantern path leads from the meadow to the clearing, and the forest sta
     hero = game.characters.hero,
     { terrain } = mist;
   // Follow the path north, keeping to its curve.
-  for (let i = 0; i < 400 && hero.position.z > -2; i++) {
+  for (let i = 0; i < 500 && hero.position.z > 3; i++) {
     const ahead = hero.position.z - 1;
     const steer = 3.2 * Math.sin(ahead * 0.22) - hero.position.x;
     game.input.keys.KeyW = true;
@@ -77,13 +77,13 @@ test("the lantern path leads from the meadow to the clearing, and the forest sta
     frames(game);
   }
   Object.assign(game.input.keys, { KeyW: false, KeyA: false, KeyD: false });
-  expect(hero.position.z).toBeLessThan(-1.5);
-  expect(terrain.contains(0, -5)).toBe(true);
+  expect(hero.position.z).toBeLessThan(3.5);
+  expect(terrain.contains(0, -6)).toBe(true);
   // Deep among the trees, and off the board, are out of bounds.
   expect(terrain.contains(-14, 8)).toBe(false);
-  expect(terrain.contains(0, 29.5)).toBe(false);
+  expect(terrain.contains(0, 37)).toBe(false);
   // Nobody walks into the pond.
-  hero.position.set(0, 0, -6);
+  hero.position.set(0, 0, -8);
   walk(game, "KeyW", 40);
   expect(
     Math.hypot(
@@ -93,7 +93,7 @@ test("the lantern path leads from the meadow to the clearing, and the forest sta
   ).toBeGreaterThan(mist.world.pond.r);
 });
 
-test("greeting the mist puffs, knocking on every house, a lantern and a rest make four memories", async () => {
+test("greeting the mist puffs, visiting every house, a lantern and a rest make four memories", async () => {
   const { game } = await flyToMist();
   const mist = game.places.get("mist"),
     hero = game.characters.hero,
@@ -109,17 +109,24 @@ test("greeting the mist puffs, knocking on every house, a lantern and a rest mak
   frames(game, 30);
   expect(world.wisps[0].puff.position.distanceTo(home)).toBeGreaterThan(0.3);
 
+  // Each door leads into the house; the friends come back out onto the
+  // stepping stones, and the house gives a happy wiggle.
   for (const [i, house] of world.houses.entries()) {
+    const room = game.places.get(`mist:${house.kind}`);
     goTo(house.door);
-    expect(mist.getHud().actions[0].label).toMatch(house.kind);
-    expect(mist.interact()).toBe(true);
-    if (i === 0) {
-      frames(game, 3);
-      expect(house.home.scale.y).not.toBe(house.home.scale.x);
-      expect(mist.getProgress().memories).not.toContain("houses");
-    }
+    frames(game, 40);
+    expect(game.state.activeLocation).toBe(`mist:${house.kind}`);
+    expect(room.group.visible).toBe(true);
+    expect(mist.group.visible).toBe(false);
+    hero.position.set(0, 0, 6.4);
+    frames(game, 40);
+    expect(game.state.activeLocation).toBe("mist");
+    expect(hero.position.distanceTo(house.outside)).toBeLessThan(1);
+    frames(game, 3);
+    expect(house.home.scale.y).not.toBe(house.home.scale.x);
+    if (i === 0) expect(mist.getProgress().memories).not.toContain("houses");
   }
-  expect(mist.getProgress().housesGreeted).toBe(4);
+  expect(mist.getProgress().housesVisited).toBe(4);
 
   goTo(new THREE.Vector3(world.pond.x + 4, 0, world.pond.z + 1));
   expect(mist.getHud().actions[0].label).toMatch(/lantern/);
@@ -143,6 +150,31 @@ test("greeting the mist puffs, knocking on every house, a lantern and a rest mak
   expect(mist.getHud().progress).toBe("4 / 4 misty memories");
   mist.reset();
   expect(mist.getProgress().memories).toEqual([]);
-  expect(mist.getProgress().housesGreeted).toBe(0);
+  expect(mist.getProgress().housesVisited).toBe(0);
   expect(world.floating[0].boat.visible).toBe(false);
+});
+
+test("each house is too big to walk through except at its door, and roomy inside", async () => {
+  const { game } = await flyToMist();
+  const mist = game.places.get("mist"),
+    hero = game.characters.hero,
+    [frog] = mist.world.houses;
+  // Walking at the house beside the door bumps into its head.
+  const side = new THREE.Vector3(-frog.facing.z, 0, frog.facing.x);
+  hero.position.copy(frog.outside).addScaledVector(side, 3.5);
+  hero.lookAt(hero.position.clone().sub(frog.facing));
+  game.input.keys.KeyW = true;
+  frames(game, 60);
+  game.input.keys.KeyW = false;
+  expect(game.state.activeLocation).toBe("mist");
+  expect(hero.position.distanceTo(frog.home.position)).toBeGreaterThan(4);
+
+  for (const kind of ["frog", "cat", "rabbit", "owl"]) {
+    const room = game.places.get(`mist:${kind}`);
+    // Furniture to walk round, a curved back wall, and space in the middle.
+    expect(room.terrain.blockers.length).toBeGreaterThanOrEqual(2);
+    expect(room.terrain.contains(0, 0)).toBe(true);
+    expect(room.terrain.contains(0, -6.4)).toBe(false);
+    expect(room.terrain.isExit(room.terrain.arrival)).toBe(false);
+  }
 });
