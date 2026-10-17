@@ -88,14 +88,21 @@ Leave a place without a board only when it should feel endless, like the Sunset 
 
 ## Models made in Blender
 
-Code is still the right tool for scenery built from simple shapes. Use Blender for a landmark that is hard to make from primitives, such as the Tulip Polder windmill. Each model gets a build script, `assets/blender/build_<name>.py`, which saves `<name>.blend` beside it and exports `src/assets/models/<name>.glb`. Run it inside Blender with `SUNFLOWER_REPO` set to the repository path and `SUNFLOWER_EXPORT=1`. Then add the GLB to `src/assets/urls.js` and place copies with `instantiateModel(context.models.<name>)`.
+Code is still the right tool for scenery built from simple shapes. Use Blender for models that are hard to make from primitives, such as the Tulip Polder windmill, its interior and the cows. Each model gets a build script, `assets/blender/build_<name>.py`, which uses the shared helpers in `assets/blender/kit.py`, saves `<name>.blend` beside it and exports `src/assets/models/<name>.glb`. Blender doesn't need to be open; from the repository root run:
+
+```sh
+SUNFLOWER_EXPORT=1 SUNFLOWER_REPO=$PWD /Applications/Blender.app/Contents/MacOS/Blender --background --factory-startup --python assets/blender/build_<name>.py
+```
+
+Then add the GLB to `src/assets/urls.js` and to `tests/helpers/models.js`, and place copies with `instantiateModel(context.models.<name>)`. When the game relies on sizes inside a model, such as where the windmill's stage is, keep them in one constant beside the code that uses them and note it in the build script.
 
 Keep these conventions so the model sits with the rest of the game:
 
 - 1 Blender unit is 1 game unit; the heroine is about 2.3 tall. Stand the model on Z = 0.
 - Blender −Y is the model's front, which becomes +Z in the game.
 - Name the root empty after the model, because `loadModels` finds it by that name.
-- Give parts the game moves their own named empty, upright in its own frame, such as the windmill's `sails`, which spins about its local Z.
+- Give parts the game moves their own named empty, upright in its own frame, such as the windmill's `sails` (spinning about its local Z), the millstone's `runner` (turning about the game's Y) or the cow's `head` (dipping about X). Blender's Z becomes the game's Y.
+- A whole model can be scaled on its root empty, as the windmill is, so its doors fit the friends.
 - Use Principled materials with roughness 0.88 and colours from the game's palette, and merge parts into one mesh per material to keep draw calls low.
 - Set the custom properties `flatShading`, `castShadow` and `receiveShadow` on meshes; they arrive as `userData`, which `instantiateModel` reads.
 

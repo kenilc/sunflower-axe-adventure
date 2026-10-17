@@ -2,3 +2,5 @@ node_modules/
 dist/
 handover.md
 .DS_Store
+*.blend1
+__pycache__/
