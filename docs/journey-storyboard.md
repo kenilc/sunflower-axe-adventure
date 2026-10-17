@@ -4,7 +4,7 @@ Draft for review. Nothing here is built yet.
 
 ## The thread
 
-The friends sit under the big garden sunflower when the wind takes its last seed. It drifts over the wall and they follow it. The seed shows up at every stop, caught in a windmill sail, tucked into a lavender bundle and so on, until they plant it in Sunflower Valley. Back in the garden, a young sunflower now stands where they first sat.
+The friends sit under the big garden sunflower when the wind takes its last seed. It drifts over the wall and they follow it. The seed shows up at every stop, caught in a windmill sail, floating in a paper lantern on a misty pond and so on, until they plant it in Sunflower Valley. Back in the garden, a young sunflower now stands where they first sat.
 
 - **Start.** A new **Seed Gate** stands in the garden's northwest corner. A small wooden sign shows a seed with a dotted line.
 - **Order.** Each stop opens the next. You travel on that stop's own vehicle, the same way the boat and cable car work. Once a stop is visited, Map / V can bring you back to it.
@@ -48,7 +48,7 @@ _Spring morning in Dutch flatland. A breeze, birdsong, and the sound of windmill
 | Arrive      | Over a small bridge from the Seed Gate                                                   |
 
 ```
-   ~~~~~~~~ canal ~~~~~~~~~~~~~~~~~~~~ → barge (5)
+   ~~~~~~~~ canal ~~~~~~~~~~~~~~~~~~~~ → balloon (5)
    ===== dike path ==========================
    |red|yel|pink|red|  ⌂ windmill 3★  |pur|
    |red|yel|pink|red|      S          |pur|
@@ -63,7 +63,7 @@ _Spring morning in Dutch flatland. A breeze, birdsong, and the sound of windmill
 2. **Tandem bike:** press X at the shed and both friends pedal along the dike loop. The tulips rush past, and a petal trail follows the bike.
 3. **Windmill:** the seed is stuck on a sail. The friends turn the cap together (a short push), the sails start, and the seed drops loose.
 4. **Feed the ducks** at the canal edge (an extra moment).
-5. Leave on a **canal barge** full of flower crates.
+5. Leave by the **striped balloon** waiting on the canal bank.
 
 **Photo spots**
 
@@ -71,56 +71,58 @@ _Spring morning in Dutch flatland. A breeze, birdsong, and the sound of windmill
 2. Leaning on bikes at the shed.
 3. ★ Holding hands on the dike, the windmill behind with its sails mid-turn.
 4. On the white drawbridge, looking down the canal.
-5. Waving from the barge's bow.
+5. Waving from the balloon basket as it lifts off over the tulips.
 6. Sharing a wheel of cheese at the cheese cart.
 
 Stamp: a red tulip on a windmill.
 
 ---
 
-## 2 · Lavender Hills
+## 2 · Mistwood Hollow
 
-_High-summer noon in Provence. Hot stone, cicadas, and a market under plane trees._
+_Dusk in a misty forest. Paper lanterns, soft fog, and five sleepy animal houses you can walk into._
 
-|             |                                                                                                                       |
-| ----------- | --------------------------------------------------------------------------------------------------------------------- |
-| Inspired by | Valensole lavender rows and Gordes hill villages                                                                      |
-| Light       | Bright white-gold noon with short shadows. `background #f3e3c4`, `skyTop #7fb4e0`, strong warm sun, haze on the hills |
-| Board       | Round, about 30. It rises to a hilltop village. Grass `#a3a65c`, ochre soil `#c28a55`, limestone `#e2d4b6`            |
-| Music       | Guitar, light percussion, a cicada bed                                                                                |
-| Outfit      | Linen, straw hats, espadrilles                                                                                        |
-| Arrive      | Barge docks at a stone landing below the rows                                                                         |
+|             |                                                                                                                             |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Inspired by | Misty mountain forests and lantern walks, with storybook animal cottages (mysterious but cute, never scary, and not Ghibli) |
+| Light       | Violet dusk. `background #8d93b8`, `skyTop #4d5688`, a dim lilac sun, **thick fog**, warm lantern glow                      |
+| Board       | Round, about 38, thick with teal pines and round trees. Moss `#4f6a62`, dark soil `#3b2f2c`, grey stone `#6e7a78`           |
+| Music       | A slow, hushed flute over soft pads                                                                                         |
+| Outfit      | Cosy knits: her plum pinafore, his mustard jumper and bucket hat                                                            |
+| Arrive      | The balloon from the polder comes down in a meadow at the forest's south edge                                               |
 
 ```
-                 ⛪ hill village  7 bell tower
-            5 fountain   market ▒▒▒  → balloon (8)
-       ~~~~~ plane-tree square 4 ~~~~~
-   ////// lavender rows ////// 2★ ///////
-   ////// lavender rows /S//// lone tree 3
-   1 stone wall    sunflower strip 6
-   @ barge landing
+            ⌂ cat 2★      ⌂ rabbit
+     ⌂ frog 6     ◎ pond S 4     ⌂ owl 7
+        log 5             ⌂ turtle 8
+   glade of mist puffs 3 ~ lantern path ~
+   1 meadow                    → balloon (9)
+   @ balloon lands
 ```
 
 **Beats**
 
-1. Walk up between the purple rows, with bees drifting around.
-2. **Cut lavender:** both friends gather armfuls into a basket. The seed is tied into the last bundle.
-3. **Market:** visit a few stalls (soap, bread, peaches) and fill a **picnic basket**.
-4. **Picnic** under the lone tree: a blanket, the basket and a view down the rows.
-5. Climb to the hilltop, where a **hot-air balloon** is waiting.
+1. Follow the paper lanterns north up a winding stone path through the fog.
+2. **Mist puffs:** in a glade beside the path, soft round wisps with tiny faces come to say hello and float round the friends.
+3. **The houses:** a frog, a cat, a rabbit, an owl and a turtle in its shell sit round a little pond. Each is big enough to walk into, with a round room inside that suits its animal. Each house gives a happy wiggle as you step back out.
+4. **Paper lanterns:** set lanterns floating on the pond. The seed is resting in one of them.
+5. **Rest** on the mossy log by the pond and watch the mist, then take the balloon on from the meadow.
 
 **Photo spots**
 
-1. Sitting on an old stone wall above the rows.
-2. ★ Standing deep in the lavender rows, which run in long lines to the far hill.
-3. Picnic blanket under the lone tree.
-4. Café chairs in the plane-tree square.
-5. Splashing at the moss-green fountain.
-6. A strip of sunflowers with a hint of the finale.
-7. Under the bell-tower arch, looking down over the hills.
-8. In the balloon basket as it lifts off.
+1. Under the first paper lantern at the meadow's edge.
+2. ★ On the stepping stones before the cat house, all five houses round the pond in the mist.
+3. Among the mist puffs in the glade.
+4. At the pond's edge with lanterns drifting on the water.
+5. Side by side on the mossy log.
+6. By the frog's indoor pool, under the firefly jars.
+7. On the owl's reading rug, under the star garland.
+8. At the turtle's low tea table.
+9. In the balloon basket, rising out of the mist.
 
-Stamp: a lavender bundle tied with ribbon.
+Stamp: a sleepy cat-house face with a lantern.
+
+Built note: today the hollow's balloon flies back to the polder. Once the tea terraces exist, it carries on there.
 
 ---
 
@@ -135,7 +137,7 @@ _A soft rainy afternoon in the hills. This is the first rain in the game: mist, 
 | Board       | Round, about 28, stepped into **terraces** that climb around a cone. Grass `#5f8f4e`, red earth `#9a5a3c`, wet slate `#6f7570` |
 | Music       | Sitar-like plucks, soft rain, a far-off train whistle                                                                          |
 | Outfit      | Rain jackets, one shared umbrella, wellies                                                                                     |
-| Arrive      | The balloon lands on a flat terrace at the bottom                                                                              |
+| Arrive      | The balloon from the misty forest lands on a flat terrace at the bottom                                                        |
 
 ```
                   ☂ tea house (top) 6
@@ -480,7 +482,7 @@ Stamp: a sunflower with two little figures under it.
 | #   | Place             | Time           | Weather / season  | New for the game                  |
 | --- | ----------------- | -------------- | ----------------- | --------------------------------- |
 | 1   | Tulip Polder      | Morning        | Breezy spring     | Tandem bike                       |
-| 2   | Lavender Hills    | Noon           | Hot summer        | Picnic basket, market             |
+| 2   | Mistwood Hollow   | Dusk           | **Mist**          | Walk-in animal houses             |
 | 3   | Tea Terraces      | Afternoon      | **Rain**, rainbow | Shared umbrella, puddles          |
 | 4   | Night Train       | Dusk → night   | Inside            | **Moving place**                  |
 | 5   | Desert Oasis      | Dusk → stars   | Dry               | Joining stars into constellations |
