@@ -40,7 +40,7 @@ test("the map starts with only the garden, blocks locked travel and pauses all i
   expect(destination(element, "cave")).toBeUndefined();
   const stops = element("#travelDestinations").children;
   expect(stops.filter((stop) => stop.className === "travel-fog")).toHaveLength(
-    12,
+    13,
   );
   for (const fog of stops.filter((stop) => stop.className === "travel-fog")) {
     expect(fog.attributes["aria-hidden"]).toBe("true");
@@ -51,7 +51,7 @@ test("the map starts with only the garden, blocks locked travel and pauses all i
   }
   expect(element("#journeyPaths").children).toHaveLength(0);
   expect(element("#travelSummary").textContent).toBe(
-    "1 of 13 places discovered",
+    "1 of 14 places discovered",
   );
   const position = game.characters.hero.position.clone();
   handlers.get("keydown")(event("KeyD"));
@@ -324,6 +324,7 @@ test("map paths match place parents and show the beach southeast of the garden",
       "garden->winter",
       "garden->polder",
       "polder->lavender",
+      "lavender->mist",
       "garden->village",
       "garden->funfair",
       "garden->riverside",

@@ -119,6 +119,26 @@ export const MUSIC_SCORES = {
       [74, null, 71, 67, 69, null, null, null],
     ),
   },
+  // A slow, hushed flute over soft pads, for the misty forest at dusk.
+  mist: {
+    bpm: 64,
+    volume: 0.22,
+    lead: "flute",
+    backing: "pad",
+    sustain: 3,
+    chords: [
+      [50, 53, 57],
+      [46, 50, 53],
+      [45, 48, 53],
+      [48, 52, 55],
+    ],
+    melody: bars(
+      [74, null, 77, null, 76, 74, null, null],
+      [70, null, 74, 72, 70, null, null, null],
+      [69, 72, 77, null, 76, null, 72, null],
+      [72, null, 76, 79, 76, null, null, null],
+    ),
+  },
   funfair: {
     bpm: 112,
     volume: 0.25,

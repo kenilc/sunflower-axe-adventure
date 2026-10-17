@@ -42,6 +42,14 @@ export const JOURNEY_DESTINATIONS = [
     hint: "Take the barge from the polder",
   },
   {
+    id: "mist",
+    name: "Mistwood Hollow",
+    icon: "☾",
+    x: 36,
+    y: 47,
+    hint: "Fly the balloon from Lavender Hills",
+  },
+  {
     id: "village",
     name: "Edelweiss Village",
     icon: "⌂",

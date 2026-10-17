@@ -4,6 +4,7 @@ import { createDioramaBase } from "../../rendering/diorama-base.js";
 import { createMeshFactory } from "../../rendering/mesh-factory.js";
 import { createTreeVisibility } from "../../rendering/tree-visibility.js";
 import { createRandom } from "../../systems/random.js";
+import { createBalloonTrip } from "../mist/balloon-trip.js";
 import { createBargeTrip } from "./barge.js";
 
 // Lavender Hills: a Provence hillside on a round board. Lavender rows climb
@@ -519,7 +520,8 @@ export function createLavenderWorld(context) {
   visibility.add(tower);
   const bellSpot = new THREE.Vector3(7.5, top, -25);
 
-  // The striped balloon, tethered on the open hilltop to the west.
+  // The striped balloon on the open hilltop to the west, ready to fly to
+  // the misty forest.
   const balloon = instantiateModel(context.models.balloon);
   balloon.position.set(-19.5, top, -22);
   group.add(balloon);
@@ -551,6 +553,11 @@ export function createLavenderWorld(context) {
     })(),
     dynamic: true,
   });
+  const balloonTrip = createBalloonTrip(context, {
+    balloon,
+    destination: "mist",
+  });
+  const balloonSpot = new THREE.Vector3(-16.9, top, -22);
 
   // The barge home to the polder waits at the quay.
   const trip = createBargeTrip(context, {
@@ -568,6 +575,8 @@ export function createLavenderWorld(context) {
     blockers,
     visibility,
     trip,
+    balloonTrip,
+    balloonSpot,
     bell,
     basket,
     blanket,
@@ -587,6 +596,7 @@ export function createLavenderWorld(context) {
       const near = (spot, reach) =>
         Math.hypot(position.x - spot.x, position.z - spot.z) < reach;
       if (near(quaySpot, 2.4)) return { kind: "barge" };
+      if (near(balloonSpot, 2)) return { kind: "balloon" };
       if (near(bellSpot, 2)) return { kind: "bell" };
       if (near(blanket.position, 2.2)) return { kind: "picnic" };
       for (const stall of stalls)
@@ -611,6 +621,7 @@ export function createLavenderWorld(context) {
       bellSwing = 0;
       basket.visible = false;
       trip.reset();
+      balloonTrip.reset();
     },
     animate(dt) {
       elapsed += dt;

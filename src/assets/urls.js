@@ -7,6 +7,7 @@ import cow from "./models/cow.glb?url";
 import bicycle from "./models/bicycle.glb?url";
 import barge from "./models/barge.glb?url";
 import balloon from "./models/balloon.glb?url";
+import mistHouses from "./models/mist_houses.glb?url";
 import millInterior from "./models/mill_interior.glb?url";
 
 export const modelUrls = {
@@ -19,5 +20,6 @@ export const modelUrls = {
   bicycle,
   barge,
   balloon,
+  mist_houses: mistHouses,
   mill_interior: millInterior,
 };

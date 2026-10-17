@@ -65,6 +65,7 @@ export function createLavenderPlace(context) {
     const spot = world.nearby(context.hero.position);
     if (!spot) return false;
     if (spot.kind === "barge") return world.trip.board();
+    if (spot.kind === "balloon") return world.balloonTrip.board();
     if (spot.kind === "lavender") {
       context.hero.rotation.set(
         0,
@@ -135,7 +136,8 @@ export function createLavenderPlace(context) {
     },
     canPhotograph: () => true,
     canLeave: () => !picnic,
-    canSaveLocation: () => !picnic && !world.trip.sailing,
+    canSaveLocation: () =>
+      !picnic && !world.trip.sailing && !world.balloonTrip.flying,
     cameraLocked: () => picnic,
     photoLocation: () =>
       picnic ? "Lavender Hills · Picnic under the oak" : "Lavender Hills",
@@ -187,7 +189,7 @@ export function createLavenderPlace(context) {
       world.reset();
     },
     interact,
-    moveInstead: (dt) => world.trip.move(dt),
+    moveInstead: (dt) => world.trip.move(dt) || world.balloonTrip.move(dt),
     update(dt) {
       if (!picnic) return false;
       picnicTime += dt;
@@ -228,7 +230,7 @@ export function createLavenderPlace(context) {
       let label = "Explore the hills · X",
         icon = "interact",
         hint =
-          "Lavender rows: either side of the path · Village, market and bell tower: hilltop · Barge: quay";
+          "Lavender rows: either side of the path · Village, market and bell tower: hilltop · Barge: quay · Balloon: west hilltop";
       if (picnic) {
         label = "Pack up the picnic · X";
         icon = "return";
@@ -238,6 +240,10 @@ export function createLavenderPlace(context) {
         label = "Take the barge back to the polder · X";
         icon = "gate";
         hint = "Sit at the bow and glide back down the canal · X";
+      } else if (spot?.kind === "balloon") {
+        label = "Fly the balloon to the misty forest · X";
+        icon = "gate";
+        hint = "Climb into the basket and float away over the hills · X";
       } else if (spot?.kind === "lavender") {
         label = "Cut lavender together · X";
         hint = "Lavande · Gather an armful from the row · X";
@@ -264,7 +270,7 @@ export function createLavenderPlace(context) {
           title: "Lavender in rows.<br />Warm stone and cicadas.",
           objective:
             made.size === MOMENTS.length
-              ? "Every lavender memory made. Find a photo spot, or take the barge home."
+              ? "Every lavender memory made. Find a photo spot, take the barge home, or fly the balloon on."
               : "Cut lavender, fill a basket at the market, picnic under the oak, and ring the bell.",
         },
         progress: `${made.size} / ${MOMENTS.length} lavender memories`,

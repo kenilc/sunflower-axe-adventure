@@ -63,6 +63,26 @@ export const PLACE_OUTFITS = {
       hat: { style: "straw", color: "#e6cf8f" },
     },
   ],
+  // Cosy knits for a misty evening: her plum pinafore, his mustard jumper.
+  mist: [
+    {
+      torso: "#f0e6da",
+      skirt: "#7b5a8f",
+      dress: true,
+      trim: "#d9c7e6",
+      sleeves: "long",
+      legs: { style: "tights", color: "#5b4a6b" },
+      shoes: { style: "boots", color: "#5c4433" },
+    },
+    {
+      torso: "#d9a441",
+      collar: "#f0e6da",
+      sleeves: "long",
+      legs: { style: "trousers", color: "#4a5068" },
+      shoes: { style: "boots", color: "#5c4433" },
+      hat: { style: "bucket", color: "#7f8a9e" },
+    },
+  ],
   funfair: [
     {
       torso: "#f2a7b8",
