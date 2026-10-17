@@ -379,6 +379,7 @@ export function createRiversidePlace(context) {
     progressLabel: () => (cableCar.riding ? "cable car" : "riverside"),
 
     id: "riverside",
+    outfit: "riverside",
     getHud: createRiversideHud({
       boatTrip,
       cableCar,

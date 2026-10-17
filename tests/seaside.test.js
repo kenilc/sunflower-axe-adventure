@@ -352,10 +352,10 @@ test("beach clothing preserves identities and restores other outfits on departur
   expect(resumed.characters.rig.appearance.state.outfit).toBe("beach");
   expect(game.controls.travelTo("garden")).toBe(true);
   frames(game);
+  // The garden has its own clothes; the beach ones come off.
   rigs.forEach((rig, i) => {
-    expect(rig.appearance.state.outfit).toBe("winter");
+    expect(rig.appearance.state.outfit).toBe("garden");
     expect(rig.body.getObjectByName("beach-shirt").visible).toBe(false);
-    expect(rig.leftFoot.visible).toBe(true);
     expect(rig.leftFoot.material).toBe(originalFootMaterials[i]);
   });
   expect(game.controls.fastTravel("seaside")).toBe(true);
@@ -368,7 +368,7 @@ test("beach clothing preserves identities and restores other outfits on departur
   expect(rigs[0].appearance.state.outfit).toBe("beach");
   game.controls.resetAdventure();
   rigs.forEach((rig) => {
-    expect(rig.appearance.state.outfit).toBe("winter");
+    expect(rig.appearance.state.outfit).toBe("garden");
     expect(rig.body.getObjectByName("beach-shirt").visible).toBe(false);
   });
 });
@@ -482,7 +482,7 @@ test("sunset activity links and restarting restore the seated pose without leavi
   expect(game.state.area).toBe("garden");
   expect(game.characters.hero.position.toArray()).toEqual([0, 0, 7]);
   expect(game.characters.rig.leftLeg.position.y).toBe(originalY);
-  expect(game.characters.rig.appearance.state.outfit).toBe("winter");
+  expect(game.characters.rig.appearance.state.outfit).toBe("garden");
   expect(game.characters.rig.items.canThrow).toBe(true);
 });
 
@@ -552,7 +552,7 @@ test("sandcastles build together in three stages, pause and cancel safely, and c
   expect(place.activity.active).toBe(false);
   expect(castle.stage).toBe(0);
   expect(game.characters.rig.items.canThrow).toBe(true);
-  expect(game.characters.rig.appearance.state.outfit).toBe("winter");
+  expect(game.characters.rig.appearance.state.outfit).toBe("garden");
 });
 
 test("tide pools are approachable, inspectable, animated, and restore the walking pose", async () => {

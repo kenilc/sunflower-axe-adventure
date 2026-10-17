@@ -403,7 +403,7 @@ test("winter resumes the walking checkpoint and restart removes active poses, ou
     expect(winter.activity.active).toBe(false);
     expect(winter.world.snowmanStage).toBe(0);
     expect(winter.activity.memories.size).toBe(0);
-    expect(resumed.characters.rig.appearance.state.outfit).toBe("winter");
+    expect(resumed.characters.rig.appearance.state.outfit).toBe("garden");
     expect(resumed.characters.rig.items.current).toBe("axe");
     expect(resumed.characters.rig.held.visible).toBe(true);
     expect(resumed.readProgress().discoveredPlaces).toEqual(["garden"]);

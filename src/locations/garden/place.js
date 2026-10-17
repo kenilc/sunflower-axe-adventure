@@ -28,6 +28,7 @@ export function createGardenPlace(context) {
   } = context;
   return {
     id: "garden",
+    outfit: "garden",
     group: garden,
     terrain: {
       ...gardenTerrain,

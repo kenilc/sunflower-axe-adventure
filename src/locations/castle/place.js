@@ -212,6 +212,7 @@ export function createCastlePlace(context) {
       state.castleMusicSession++;
     },
     id: "castle",
+    outfit: "castle",
     getHud: createCastleHud({
       bedRest,
       castleRoom,

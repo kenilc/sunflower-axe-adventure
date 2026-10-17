@@ -184,6 +184,7 @@ export function createFunfairPlace(context) {
       funfairActivities.reset();
     },
     id: "funfair",
+    outfit: "funfair",
     pointerAction: () =>
       funfairActivities.playing ? interactFunfair() : context.fire(),
     cameraLocked: () => funfairActivities.playing,

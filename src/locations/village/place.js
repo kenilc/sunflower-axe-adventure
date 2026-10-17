@@ -424,6 +424,7 @@ export function createVillagePlace(context) {
       hikingTethers.forEach((rope) => (rope.visible = false));
     },
     id: "village",
+    outfit: "village",
     cameraLocked: () =>
       alpineCart.riding || sheepMoment.active || sheepMoment.viewing,
     getHud: createVillageHud({

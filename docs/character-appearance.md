@@ -34,7 +34,15 @@ rig.appearance.registerOutfit("raincoat", {
 rig.appearance.setOutfit("raincoat");
 ```
 
-Slots omitted from `hideSlots` retain the winter outfit's pieces. Register an
+Slots omitted from `hideSlots` retain the winter outfit's pieces.
+
+Most scenes dress the friends through `src/characters/place-outfits.js`: a
+place declares `outfit: "<id>"`, and `PLACE_OUTFITS` describes that outfit for
+each friend (shirt or dress, sleeves, trousers, shoes and his hat). The game
+puts it on whenever the location changes; rooms and contexts wear their
+place's outfit, and places without one go back to winter clothing. Places
+with clothes tied to activities, such as the beach, the festival and the
+winter village, manage their own overrides instead. Register an
 accessory with `registerAccessory(slot, id, [nodes])`. Controllers change
 visibility rather than shared materials; create independent materials when
 adding color variants. Existing summer outfits are assembled at runtime; separate

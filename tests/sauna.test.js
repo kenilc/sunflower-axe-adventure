@@ -208,7 +208,7 @@ test("reloading a sauna moment restores the door checkpoint, and restart restore
   expect(winter.activity.memories.size).toBe(0);
   expect(winter.world.sauna.group.visible).toBe(false);
   expect(winter.world.sauna.ladle.parent.name).toBe("sauna-water-bucket");
-  expect(resumed.characters.rig.appearance.state.outfit).toBe("winter");
+  expect(resumed.characters.rig.appearance.state.outfit).toBe("garden");
   expect(
     resumed.characters.rig.head.getObjectByName("sauna-long-hair").visible,
   ).toBe(false);

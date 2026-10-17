@@ -14,6 +14,7 @@ import { createEffects } from "../systems/effects.js";
 import { createRandom } from "../systems/random.js";
 import { createHero } from "../characters/hero.js";
 import { createGarden } from "../locations/garden/world.js";
+import { createPlaceOutfits } from "../characters/place-outfits.js";
 import { createLocationManager } from "./location-manager.js";
 import { createGameLoop } from "./game-loop.js";
 import { createLocationSave } from "./location-save.js";
@@ -213,6 +214,18 @@ export function createGame({
     burst,
   };
   registerPlaces(places, placeContext);
+  // Each scene has its own clothes; rooms and contexts wear their place's.
+  const placeOutfits = createPlaceOutfits({
+    scene,
+    rigs: [heroRig, companion.rig],
+  });
+  function outfitFor(id) {
+    const place = places.get(id);
+    if (Object.hasOwn(place, "outfit")) return place.outfit;
+    return place.kind === "room" || place.kind === "context"
+      ? outfitFor(place.parent)
+      : null;
+  }
   const { funfairActivities } = places.get("funfair").parts;
   const funfair = places.get("funfair").terrain;
   const { festivalMoment, summerOutfits } = places.get("festival").parts;
@@ -344,6 +357,9 @@ export function createGame({
     companionReactions.reset();
     heroRig.appearance.reset();
     companion.rig.appearance.reset();
+    // Reset dropped every override; the garden's clothes go back on.
+    placeOutfits.forget();
+    placeOutfits.wear(outfitFor(locations.current));
     heroRig.items.reset("axe");
     companion.rig.items.reset();
     hero.position.set(0, 0, 7);
@@ -436,6 +452,7 @@ export function createGame({
       rootPlace.animate?.(dt, time, paused);
       if (activePlace !== rootPlace) activePlace.animate?.(dt, time, paused);
     }
+    placeOutfits.wear(outfitFor(locations.current));
     effects.update(paused ? 0 : dt);
     if (
       photoMode.updateCamera() ||

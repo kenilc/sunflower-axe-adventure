@@ -17,6 +17,7 @@ export function createCavePlace(context) {
     context.places.get("riverside").controls.changePassage(enter);
   return {
     id: "cave",
+    outfit: "cave",
     soundscape: "cave",
     getHud: () => ({ countsId: "gardenCounts", region: "The Golden Grotto" }),
     parent: "garden",
