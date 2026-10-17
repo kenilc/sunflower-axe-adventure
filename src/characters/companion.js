@@ -12,25 +12,75 @@ export function createCompanion({ model, random = Math.random }) {
   const contactDistance = 1.2;
   const wanderRadius = 7;
   const maxDistance = 10;
+  // He keeps up by speeding up as she pulls away, faster than her run near
+  // the edge of his range. Placing him beside her is a last resort, for
+  // when he stays out of range and stuck, or she jumps far away at once.
+  const catchUpSpeed = 10.5;
+  const stuckSeconds = 2.5;
+  const jumpDistance = 20;
+  // Her recent footsteps: where she walked is open ground, so when the way
+  // straight to her is blocked he follows her trail instead.
+  const trail = [];
+  const trailSpacing = 0.6;
+  const trailLength = 60;
+  const trailClearance = 0.4;
   let wait = 0,
     walking = false,
     gait = 0,
-    travelTime = 0;
+    travelTime = 0,
+    stuckTime = 0,
+    trailTarget = null;
   const horizontalDistance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
   const flatGround = {
     contains: (x, z) => Math.hypot(x, z) < 48,
     heightAt: () => 0,
   };
-  function clear(x, z, obstacles, terrain) {
+  function clear(x, z, obstacles, terrain, clearance = 0.65) {
     return (
       terrain.contains(x, z) &&
       obstacles.every(
         (b) =>
           b.active === false ||
           Math.hypot(x - b.x, z - b.z) >
-            b.r + Math.max(0.65, b.minClearance ?? 0),
+            b.r + Math.max(clearance, b.minClearance ?? 0),
       )
     );
+  }
+  function remember(heroPosition) {
+    const last = trail.at(-1);
+    // A jump (a gate, a ride, a restored checkpoint) is not a walkable trail.
+    if (last && horizontalDistance(last, heroPosition) > 3) trail.length = 0;
+    if (
+      !trail.length ||
+      horizontalDistance(trail.at(-1), heroPosition) > trailSpacing
+    ) {
+      trail.push(heroPosition.clone());
+      if (trail.length > trailLength) trail.shift();
+    }
+  }
+  function inSight(target, obstacles, terrain, clearance = trailClearance) {
+    const from = character.position;
+    const length = horizontalDistance(from, target);
+    for (let travelled = 0.4; travelled < length; travelled += 0.4) {
+      const t = travelled / length;
+      if (
+        !clear(
+          from.x + (target.x - from.x) * t,
+          from.z + (target.z - from.z) * t,
+          obstacles,
+          terrain,
+          clearance,
+        )
+      )
+        return false;
+    }
+    return true;
+  }
+  // The footstep closest to her that he can walk straight to.
+  function trailStep(obstacles, terrain) {
+    for (let i = trail.length - 1; i >= 0; i--)
+      if (inSight(trail[i], obstacles, terrain)) return trail[i];
+    return null;
   }
   function reset(
     center = new THREE.Vector3(0, 0, 7),
@@ -56,7 +106,9 @@ export function createCompanion({ model, random = Math.random }) {
     destination.copy(character.position);
     wait = 0.8;
     walking = false;
-    gait = travelTime = 0;
+    gait = travelTime = stuckTime = 0;
+    trail.length = 0;
+    trailTarget = null;
     body.position.y = 0;
     [...legs, ...arms].forEach((limb) => {
       limb.rotation.x = 0;
@@ -74,17 +126,28 @@ export function createCompanion({ model, random = Math.random }) {
   }
   function update(dt, obstacles, heroPosition, terrain = flatGround) {
     let separation = horizontalDistance(character.position, heroPosition);
-    // Catch up promptly when she leaves; wandering stays centered on her.
-    if (separation > maxDistance) {
+    stuckTime = separation > maxDistance ? stuckTime + dt : 0;
+    if (separation > jumpDistance || stuckTime > stuckSeconds) {
       reset(heroPosition, obstacles, terrain);
       separation = horizontalDistance(character.position, heroPosition);
     }
+    remember(heroPosition);
     const followDistance = terrain.followDistance ?? 5;
     const following = separation > followDistance;
     if (following) {
       destination.copy(heroPosition);
       walking = true;
       travelTime = 0;
+      // Out of sight around a corner or through a gap, he walks her trail
+      // to the last footstep he can see, until he can see her again.
+      if (inSight(heroPosition, obstacles, terrain, 0.65)) trailTarget = null;
+      else if (
+        !trailTarget ||
+        horizontalDistance(character.position, trailTarget) < 0.3 ||
+        !inSight(trailTarget, obstacles, terrain)
+      )
+        trailTarget = trailStep(obstacles, terrain);
+      if (trailTarget) destination.copy(trailTarget);
     } else if (horizontalDistance(destination, heroPosition) > wanderRadius)
       pause();
     if (!walking) {
@@ -122,22 +185,31 @@ export function createCompanion({ model, random = Math.random }) {
           Math.sin(heading - currentHeading),
           Math.cos(heading - currentHeading),
         );
+        // Far behind, he turns quicker and sets off before fully facing her.
+        const hurry = following && separation > followDistance + 1.5;
+        const turnRate = following ? (hurry ? 10 : 6) : 2;
         const turning = THREE.MathUtils.clamp(
           turn,
-          -dt * (following ? 6 : 2),
-          dt * (following ? 6 : 2),
+          -dt * turnRate,
+          dt * turnRate,
         );
         character.rotation.set(0, currentHeading + turning, 0);
         const speed = following
-          ? Math.min(8.8, 1.05 + (separation - followDistance) * 2.5)
+          ? Math.min(catchUpSpeed, 1.05 + (separation - followDistance) * 3)
           : 1.05;
-        const step = speed * dt * (Math.abs(turn - turning) < 0.35 ? 1 : 0);
+        const step =
+          speed *
+          dt *
+          (Math.abs(turn - turning) < (hurry ? 0.6 : 0.35) ? 1 : 0);
+        // On her trail he squeezes through wherever she fitted; otherwise he
+        // keeps a wider berth.
+        const clearance = trailTarget ? trailClearance : 0.65;
         // Try nearby headings to go around rocks rather than getting stuck.
         for (const offset of step > 0 ? [0, 0.5, -0.5, 1, -1, 1.5, -1.5] : []) {
           const angle = (following ? heading : character.rotation.y) + offset;
           const x = character.position.x + Math.sin(angle) * step;
           const z = character.position.z + Math.cos(angle) * step;
-          if (!clear(x, z, obstacles, terrain)) continue;
+          if (!clear(x, z, obstacles, terrain, clearance)) continue;
           if (
             Math.hypot(x - heroPosition.x, z - heroPosition.z) < contactDistance
           ) {
@@ -158,7 +230,9 @@ export function createCompanion({ model, random = Math.random }) {
           travelTime += dt;
           break;
         }
-        if (step > 0 && !moved && !bumped) pause();
+        // While following, a blocked step only waits a moment: he tries
+        // again (or takes her trail) next frame rather than standing idle.
+        if (step > 0 && !moved && !bumped && !following) pause();
       }
     }
     gait += moved * 5;

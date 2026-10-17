@@ -61,8 +61,50 @@ test("the companion turns before catching up and faces the accepted path around 
         companion.character.position.x,
         companion.character.position.z - 1.2,
       ),
-    ).toBeGreaterThanOrEqual(0.95 - 1e-7);
+      // Following her, he may pass as close as her own trail allows.
+    ).toBeGreaterThanOrEqual(0.7 - 1e-7);
   }
   expect(distance).toBeGreaterThan(1);
   expect(avoided).toBe(true);
+});
+
+test("through a gap she fits, he follows her trail and keeps up without jumping", async () => {
+  const models = await readModels();
+  const companion = createCompanion({ model: models.companion });
+  // A fence along z = 0 with one gap: wide enough for her, tighter than
+  // his usual wandering clearance.
+  const fence = [];
+  for (let x = 0.95; x < 20; x += 0.5)
+    fence.push({ x, z: 0, r: 0.3 }, { x: -x, z: 0, r: 0.3 });
+  const hero = new THREE.Vector3(4, 0, 8);
+  companion.reset(hero, fence, terrain);
+  const route = [
+    [0, 3],
+    [0, -3],
+    [-6, -12],
+    [6, -16],
+  ];
+  let farthest = 0,
+    largestStep = 0;
+  for (const [x, z] of route) {
+    while (Math.hypot(hero.x - x, hero.z - z) > 0.2) {
+      const toward = new THREE.Vector3(x - hero.x, 0, z - hero.z);
+      const length = toward.length();
+      hero.addScaledVector(toward.normalize(), Math.min(7.8 * 0.04, length));
+      const before = companion.character.position.clone();
+      companion.update(0.04, fence, hero, terrain);
+      const { x: cx, z: cz } = companion.character.position;
+      largestStep = Math.max(
+        largestStep,
+        before.distanceTo(companion.character.position),
+      );
+      farthest = Math.max(farthest, Math.hypot(hero.x - cx, hero.z - cz));
+      for (const post of fence)
+        expect(Math.hypot(cx - post.x, cz - post.z)).toBeGreaterThan(post.r);
+    }
+  }
+  for (let i = 0; i < 100; i++) companion.update(0.04, fence, hero, terrain);
+  expect(companion.character.position.z).toBeLessThan(0);
+  expect(largestStep).toBeLessThan(0.5);
+  expect(farthest).toBeLessThan(10);
 });
