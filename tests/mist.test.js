@@ -115,7 +115,7 @@ test("greeting the mist puffs, knocking on every house, a lantern and a rest mak
     expect(mist.interact()).toBe(true);
     if (i === 0) {
       frames(game, 3);
-      expect(house.home.scale.y).not.toBe(1);
+      expect(house.home.scale.y).not.toBe(house.home.scale.x);
       expect(mist.getProgress().memories).not.toContain("houses");
     }
   }
