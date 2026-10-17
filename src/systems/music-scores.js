@@ -78,6 +78,26 @@ export const MUSIC_SCORES = {
       [74, null, 79, null, 76, 74, 72, null],
     ),
   },
+  // A lilting street-organ waltz in F for the Dutch polder.
+  polder: {
+    bpm: 96,
+    volume: 0.24,
+    lead: "accordion",
+    backing: "bell",
+    sustain: 1.6,
+    stepsPerBar: 6,
+    chords: [F, C, [46, 50, 53], C, F, [43, 46, 50], C, F],
+    melody: bars(
+      [77, null, 81, 84, 81, 77],
+      [76, null, 79, 82, 79, 76],
+      [74, null, 77, 81, 77, 74],
+      [72, null, 76, 79, 77, 76],
+      [77, 81, 84, null, 86, 84],
+      [82, 79, 74, null, 79, 82],
+      [81, 77, 79, 76, 74, 72],
+      [77, null, null, 72, null, null],
+    ),
+  },
   funfair: {
     bpm: 112,
     volume: 0.25,

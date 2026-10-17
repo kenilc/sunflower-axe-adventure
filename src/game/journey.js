@@ -26,6 +26,14 @@ export const JOURNEY_DESTINATIONS = [
     hint: "Northeast winter path from the garden",
   },
   {
+    id: "polder",
+    name: "Tulip Polder",
+    icon: "✾",
+    x: 27,
+    y: 12,
+    hint: "Northwest windmill path from the garden",
+  },
+  {
     id: "village",
     name: "Edelweiss Village",
     icon: "⌂",

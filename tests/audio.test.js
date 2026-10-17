@@ -104,7 +104,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-test("all eleven actual destinations produce distinct audible phrases", async () => {
+test("all twelve actual destinations produce distinct audible phrases", async () => {
   const signatures = new Set();
   for (const { id } of JOURNEY_DESTINATIONS) {
     location = id;
