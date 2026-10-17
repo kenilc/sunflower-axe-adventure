@@ -33,7 +33,8 @@ export function createBikeRide(context, world) {
   const trail = [];
   const offset = new THREE.Vector3();
   let riding = false,
-    speed = 0;
+    speed = 0,
+    followSpeed = 0;
 
   function seat(bike, actor) {
     const { x, z } = bike.group.position;
@@ -142,13 +143,15 @@ export function createBikeRide(context, world) {
     return bike.position.distanceTo(old);
   }
   function follow(dt) {
-    // The point FOLLOW_GAP back along her bike's path.
+    // The point FOLLOW_GAP back along her path, measured from where she is
+    // now, so it glides along rather than jumping a trail point at a time.
+    const path = [lead().group.position, ...trail.toReversed()];
     let remaining = FOLLOW_GAP,
-      target = trail[0] ?? lead().group.position;
-    for (let i = trail.length - 1; i > 0; i--) {
-      const step = trail[i].distanceTo(trail[i - 1]);
+      target = path.at(-1);
+    for (let i = 1; i < path.length; i++) {
+      const step = path[i - 1].distanceTo(path[i]);
       if (step >= remaining) {
-        target = trail[i].clone().lerp(trail[i - 1], remaining / step);
+        target = path[i - 1].clone().lerp(path[i], remaining / step);
         break;
       }
       remaining -= step;
@@ -157,16 +160,21 @@ export function createBikeRide(context, world) {
     const dx = target.x - bike.position.x,
       dz = target.z - bike.position.z;
     const distance = Math.hypot(dx, dz);
-    if (distance < 0.05) return 0;
-    const move = Math.min(distance, (Math.abs(speed) + 2) * dt * 1.4);
+    // His own speed eases towards what keeps him on that point, so he
+    // pedals steadily instead of lurching.
+    const wanted = Math.min(distance * 6, FAST_SPEED * 1.3);
+    followSpeed += (wanted - followSpeed) * (1 - Math.exp(-dt * 5));
+    const move = Math.min(distance, followSpeed * dt);
+    if (move < 1e-4) return 0;
     bike.position.x += (dx / distance) * move;
     bike.position.z += (dz / distance) * move;
+    // Face the way he is going, turning gently.
     const heading = Math.atan2(dx, dz);
     const turn = Math.atan2(
       Math.sin(heading - bike.rotation.y),
       Math.cos(heading - bike.rotation.y),
     );
-    bike.rotation.y += turn * (1 - Math.exp(-dt * 6));
+    if (distance > 0.2) bike.rotation.y += turn * (1 - Math.exp(-dt * 4));
     return move;
   }
   // His bike never sits on hers: it is pushed out to a little gap, onto
@@ -221,7 +229,7 @@ export function createBikeRide(context, world) {
     start() {
       if (riding) return false;
       riding = true;
-      speed = 0;
+      speed = followSpeed = 0;
       trail.length = 0;
       // Bikes still in the shed are wheeled out onto the path first.
       world.bikes.forEach((bike, i) => {

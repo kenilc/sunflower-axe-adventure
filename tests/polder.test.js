@@ -398,3 +398,31 @@ test("riding all over the polder, she can always ride away from whatever stopped
   // The route must actually have run into things to prove anything.
   expect(escapes).toBeGreaterThan(5);
 });
+
+test("his bike follows hers smoothly, without stop-start jerks or twitching", async () => {
+  const { game } = await enterPolder();
+  const polder = game.places.get("polder"),
+    hero = game.characters.hero,
+    { bikes } = polder.world;
+  hero.position.set(-9, 0, 28.6);
+  frames(game);
+  polder.interact();
+  walk(game, "KeyD", 40);
+  // Up the main path at a steady speed, once both are rolling.
+  game.input.keys.KeyW = true;
+  frames(game, 50);
+  let last = bikes[1].group.position.clone(),
+    lastStep = null,
+    lastTurn = bikes[1].group.rotation.y;
+  for (let i = 0; i < 40; i++) {
+    frames(game);
+    const position = bikes[1].group.position;
+    const step = position.distanceTo(last);
+    if (lastStep !== null) expect(Math.abs(step - lastStep)).toBeLessThan(0.03);
+    expect(Math.abs(bikes[1].group.rotation.y - lastTurn)).toBeLessThan(0.03);
+    lastStep = step;
+    last = position.clone();
+    lastTurn = bikes[1].group.rotation.y;
+  }
+  game.input.keys.KeyW = false;
+});
