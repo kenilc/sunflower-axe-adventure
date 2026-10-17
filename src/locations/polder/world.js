@@ -7,9 +7,9 @@ import { createRandom } from "../../systems/random.js";
 import { createPolderSign } from "./gate.js";
 
 // Tulip Polder: flat Dutch farmland on a square board. Strips of tulips run
-// north towards a canal, a white drawbridge and the windmill, which is the
-// first landmark modelled in Blender (assets/blender/build_windmill.py).
-export const POLDER_SIZE = 34;
+// north towards a canal, a white drawbridge, a farmhouse and the windmill.
+// The windmill and cows are modelled in Blender (assets/blender).
+export const POLDER_SIZE = 38;
 const EDGE = POLDER_SIZE - 1.4;
 // The canal crosses the board; only the drawbridge spans it.
 const CANAL = { north: -21.6, south: -14.4, bridge: 1.7 };
@@ -20,6 +20,21 @@ const FIELDS = [
   [-9, 2.4],
   [5.6, 22],
 ];
+// The windmill's sizes in the game, from assets/blender/build_windmill.py:
+// built at 1.7 times its script size, its stone foot is 4.68 across the
+// corners, the stage deck is 4.27 up, and the stage runs from the smock
+// (3.83) to the railing (5.61).
+export const WINDMILL = {
+  x: -12,
+  z: -30,
+  turn: 0.35,
+  foot: 4.68,
+  stage: 4.27,
+  stageInner: 4.05,
+  stageOuter: 5.15,
+};
+// The farmhouse, whose door leads into the kitchen.
+export const FARM = { x: 15, z: -30, width: 10, depth: 7 };
 const TULIP_COLORS = [
   "#e2453c",
   "#f5c842",
@@ -91,9 +106,19 @@ export function createPolderWorld(context) {
   // The garden path leaves from the south-west corner, out of the opening view.
   box(20, 0.035, 2.8, klinker, -8.3, 0.019, 29.4);
   box(3.4, 0.035, 3.4, klinker, -18, 0.02, 31.2);
-  box(60, 0.035, 3, klinker, 0, 0.02, 4);
-  box(64, 0.035, 2.6, klinker, 0, 0.022, -12.4);
-  box(58, 0.035, 2.4, klinker, 0, 0.022, -23.6);
+  box(66, 0.035, 3, klinker, 0, 0.02, 4);
+  box(POLDER_SIZE * 2 - 3, 0.035, 2.6, klinker, 0, 0.022, -12.4);
+  box(POLDER_SIZE * 2 - 6, 0.035, 2.4, klinker, 0, 0.022, -23.4);
+  // Short paths up to the windmill and farmhouse doors.
+  const millDoor = new THREE.Vector3(
+    WINDMILL.x + Math.sin(WINDMILL.turn) * (WINDMILL.foot + 0.6),
+    0,
+    WINDMILL.z + Math.cos(WINDMILL.turn) * (WINDMILL.foot + 0.6),
+  );
+  const millPath = box(2.2, 0.036, 2.6, klinker, 0, 0.023, 0);
+  millPath.position.copy(millDoor).setY(0.023);
+  millPath.rotation.y = WINDMILL.turn;
+  box(2.4, 0.036, 3, klinker, FARM.x, 0.023, FARM.z + FARM.depth / 2 + 1.5);
 
   // Tulips: one instanced mesh for the blooms, coloured per strip, and one
   // for the stems, above a low band of leaves along each strip.
@@ -146,21 +171,23 @@ export function createPolderWorld(context) {
   }
 
   // The windmill from Blender stands across the canal, turned a little
-  // towards the bridge so the sails face the path.
+  // towards the bridge so the sails face the path. Its door opens into the
+  // milling floor; the stage around its waist can be walked from inside.
   const windmill = instantiateModel(context.models.windmill);
-  windmill.position.set(-10, 0, -28.2);
-  windmill.rotation.y = 0.35;
+  windmill.position.set(WINDMILL.x, 0, WINDMILL.z);
+  windmill.rotation.y = WINDMILL.turn;
   group.add(windmill);
   const sails = windmill.getObjectByName("sails");
   const windmillMeshes = [];
   windmill.traverse((node) => node.isMesh && windmillMeshes.push(node));
   visibility.add(windmill, { meshes: windmillMeshes, dynamic: true });
-  blockers.push({ x: -10, z: -28.2, r: 3.5 });
-  const windmillSpot = new THREE.Vector3(
-    -10 + Math.sin(0.35) * 4.6,
-    0,
-    -28.2 + Math.cos(0.35) * 4.6,
+  blockers.push({ x: WINDMILL.x, z: WINDMILL.z, r: WINDMILL.foot });
+  // Beside the door, to turn the sails into the wind.
+  const side = new THREE.Vector3(2.4, 0, 0).applyAxisAngle(
+    new THREE.Vector3(0, 1, 0),
+    WINDMILL.turn,
   );
+  const windmillSpot = millDoor.clone().add(side);
 
   // A white drawbridge with a portal frame and balance beams.
   const bridge = new THREE.Group();
@@ -180,60 +207,99 @@ export function createPolderWorld(context) {
   box(5.2, 0.3, 0.3, white, 0, 5.4, -4.6, bridge);
   box(5.2, 0.24, 0.24, white, 0, 5.5, 3.3, bridge);
   box(4.6, 0.7, 0.9, "#4a5a4c", 0, 5.2, -5.6, bridge);
+  visibility.add(bridge);
 
-  // A brick farmhouse with a stepped gable and green shutters.
+  // A brick farmhouse with a stepped gable, green shutters and a door you
+  // can walk through into the kitchen.
   const farm = new THREE.Group();
   farm.name = "polder-farmhouse";
-  farm.position.set(13, 0, -28.6);
+  farm.position.set(FARM.x, 0, FARM.z);
   group.add(farm);
-  box(8, 3.2, 6, brick, 0, 1.6, 0, farm);
+  const front = FARM.depth / 2;
+  box(FARM.width, 3.8, FARM.depth, brick, 0, 1.9, 0, farm);
   for (const side of [-1, 1]) {
-    const slope = box(4.9, 0.3, 6.6, "#8d7a5c", side * 2.05, 4.35, 0, farm);
-    slope.rotation.z = -side * 0.66;
+    const slope = box(
+      6.1,
+      0.3,
+      FARM.depth + 0.6,
+      "#8d7a5c",
+      side * 2.5,
+      5.15,
+      0,
+      farm,
+    );
+    slope.rotation.z = -side * 0.68;
   }
   for (let step = 0; step < 4; step++) {
-    const width = 8 - step * 1.9;
-    box(width, 0.9, 0.4, brick, 0, 3.6 + step * 0.9, 3.05, farm);
-    box(width + 0.15, 0.12, 0.5, white, 0, 4.05 + step * 0.9, 3.05, farm);
+    const width = FARM.width - step * 2.4;
+    box(width, 1.1, 0.4, brick, 0, 4.35 + step * 1.1, front + 0.05, farm);
+    box(
+      width + 0.15,
+      0.12,
+      0.5,
+      white,
+      0,
+      4.9 + step * 1.1,
+      front + 0.05,
+      farm,
+    );
   }
-  box(1.1, 2, 0.2, "#3f5c4c", 0, 1, 3.05, farm);
+  box(1.7, 2.9, 0.22, "#2b2622", 0, 1.45, front + 0.02, farm);
+  box(2.1, 0.2, 0.3, white, 0, 3.0, front + 0.06, farm);
+  const door = box(0.85, 2.7, 0.1, "#3f5c4c", -1.25, 1.35, front + 0.45, farm);
+  door.rotation.y = -1.3;
   for (const side of [-1, 1]) {
-    box(1.1, 1.2, 0.12, "#f2cf86", side * 2.4, 1.9, 3.06, farm);
-    box(1.3, 1.4, 0.08, white, side * 2.4, 1.9, 3.02, farm);
+    box(1.3, 1.4, 0.12, "#f2cf86", side * 3, 2.1, front + 0.06, farm);
+    box(1.5, 1.6, 0.08, white, side * 3, 2.1, front + 0.02, farm);
     for (const leaf of [-1, 1])
-      box(0.5, 1.3, 0.1, "#3f6b4f", side * 2.4 + leaf * 0.85, 1.9, 3.1, farm);
+      box(
+        0.6,
+        1.5,
+        0.1,
+        "#3f6b4f",
+        side * 3 + leaf * 1.0,
+        2.1,
+        front + 0.1,
+        farm,
+      );
   }
   visibility.add(farm);
-  for (const [x, z] of [
-    [10.6, -27],
-    [15.4, -27],
-    [10.6, -30.2],
-    [15.4, -30.2],
-  ])
-    blockers.push({ x, z, r: 2.1 });
-
-  // Two cows graze beside the farm.
-  function cow(x, z, turn) {
-    const body = new THREE.Group();
-    body.position.set(x, 0, z);
-    body.rotation.y = turn;
-    group.add(body);
-    box(0.75, 0.75, 1.7, white, 0, 1.05, 0, body);
-    box(0.78, 0.5, 0.6, "#2d2a28", 0, 1.15, 0.2, body);
-    box(0.5, 0.4, 0.5, "#2d2a28", 0.15, 1.3, -0.55, body);
-    box(0.45, 0.5, 0.55, white, 0, 1.15, 1.05, body);
-    box(0.47, 0.22, 0.2, "#e7a7a0", 0, 0.98, 1.36, body);
-    for (const [lx, lz] of [
-      [-0.25, -0.6],
-      [0.25, -0.6],
-      [-0.25, 0.6],
-      [0.25, 0.6],
-    ])
-      box(0.16, 0.7, 0.16, "#3a3532", lx, 0.35, lz, body);
-    blockers.push({ x, z, r: 1.1 });
+  // The walls block all round, apart from the doorway.
+  for (let x = -FARM.width / 2 + 0.6; x <= FARM.width / 2 - 0.6; x += 0.9) {
+    blockers.push({ x: FARM.x + x, z: FARM.z - front + 0.6, r: 0.75 });
+    if (Math.abs(x) > 1.3)
+      blockers.push({ x: FARM.x + x, z: FARM.z + front - 0.6, r: 0.75 });
   }
-  cow(23.5, -26.5, 0.7);
-  cow(26.5, -30, -1.9);
+  for (let z = -front + 0.6; z <= front - 0.6; z += 0.9)
+    for (const x of [-1, 1])
+      blockers.push({
+        x: FARM.x + x * (FARM.width / 2 - 0.6),
+        z: FARM.z + z,
+        r: 0.75,
+      });
+  blockers.push({ x: FARM.x, z: FARM.z, r: 2.6 });
+  const farmDoor = new THREE.Vector3(FARM.x, 0, FARM.z + front + 0.6);
+
+  // Cows from Blender graze by the farm; their heads dip and their tails
+  // swish.
+  const cows = [
+    [26.5, -27, 0.7, 1],
+    [30, -31.5, -1.9, 1],
+    [24.5, -33, 2.4, 0.68],
+  ].map(([x, z, turn, size]) => {
+    const cow = instantiateModel(context.models.cow);
+    cow.position.set(x, 0, z);
+    cow.rotation.y = turn;
+    cow.scale.setScalar(size);
+    group.add(cow);
+    blockers.push({ x, z, r: 1.3 * size });
+    return {
+      cow,
+      head: cow.getObjectByName("head"),
+      tail: cow.getObjectByName("tail"),
+      phase: rand() * 10,
+    };
+  });
 
   // Columnar poplars line the board's east and west edges and the far bank.
   function poplar(x, z, s = 1) {
@@ -253,11 +319,11 @@ export function createPolderWorld(context) {
     blockers.push({ x, z, r: 0.5 * s });
     visibility.add(tree);
   }
-  for (let z = -30; z <= 30; z += 4.2)
+  for (let z = -34; z <= 34; z += 4.2)
     for (const x of [-EDGE + 0.4, EDGE - 0.4])
       if (z < CANAL.north - 0.8 || z > CANAL.south + 0.8)
         poplar(x, z + (rand() - 0.5), 0.85 + rand() * 0.3);
-  for (const x of [-22, -18, 2, 5])
+  for (const x of [-26, -22, 0, 3])
     poplar(x, -EDGE + 0.4 + rand() * 0.6, 0.9 + rand() * 0.25);
 
   // A bicycle, or a tandem, with the front wheel towards local +Z.
@@ -311,9 +377,10 @@ export function createPolderWorld(context) {
     { x: -5.2, z: 24.6, r: 0.9 },
   );
 
-  // Giant yellow clogs to sit in for a photo.
+  // Giant yellow clogs: sit in them for a photo, or ride them around.
   function clog(x, z, turn) {
     const shoe = new THREE.Group();
+    shoe.name = "polder-clog";
     shoe.position.set(x, 0, z);
     shoe.rotation.y = turn;
     group.add(shoe);
@@ -323,10 +390,11 @@ export function createPolderWorld(context) {
     box(1.05, 0.06, 1.15, "#6b4a2a", 0, 1.01, -0.6, shoe);
     ball(0.17, "#d9366f", 0.42, 0.85, 0.9, shoe);
     ball(0.17, "#d9366f", -0.42, 0.85, 0.9, shoe);
-    blockers.push({ x, z, r: 1.3 });
+    const blocker = { x, z, r: 1.3 };
+    blockers.push(blocker);
+    return { group: shoe, blocker, home: { x, z, turn } };
   }
-  clog(7.4, 27, -0.35);
-  clog(10.2, 26.4, -0.15);
+  const clogs = [clog(7.4, 27, -0.35), clog(10.2, 26.4, -0.15)];
 
   // A cheese cart beside the bridge, under a striped awning.
   const cart = new THREE.Group();
@@ -387,8 +455,8 @@ export function createPolderWorld(context) {
   // honesty box, as at Dutch farm gates.
   const stall = new THREE.Group();
   stall.name = "polder-tulip-stall";
-  stall.position.set(8.6, 0, 20.6);
-  stall.rotation.y = -0.2;
+  stall.position.set(17.5, 0, 25.4);
+  stall.rotation.y = -0.15;
   group.add(stall);
   box(3.4, 0.16, 1.2, "#8a6a4c", 0, 0.9, 0, stall);
   for (const side of [-1, 1])
@@ -409,10 +477,14 @@ export function createPolderWorld(context) {
       );
   }
   box(0.5, 0.45, 0.4, "#2f5f8a", 1.95, 1.18, 0.1, stall);
-  blockers.push({ x: 8.6, z: 20.6, r: 1.8 });
+  blockers.push({ x: 17.5, z: 25.4, r: 1.8 });
 
-  // Ducks paddle along the canal; fed, they swim over to the bank.
-  const ducks = Array.from({ length: 5 }, (_, i) => {
+  // Ducks paddle along the canal, each on its own side of the bridge; fed,
+  // the ducks on her side swim over to the bank.
+  const DUCK_REACH = [3.4, POLDER_SIZE - 2];
+  const duckSide = (x, side) =>
+    side * THREE.MathUtils.clamp(Math.abs(x), ...DUCK_REACH);
+  const ducks = [-1, 1, -1, 1, 1].map((side, i) => {
     const duck = new THREE.Group();
     group.add(duck);
     const drake = i % 2 === 0;
@@ -421,11 +493,12 @@ export function createPolderWorld(context) {
     ball(0.17, drake ? "#2f6b4a" : "#8a6a4c", 0, 0.38, 0.28, duck);
     const beak = box(0.1, 0.05, 0.16, "#f0a03a", 0, 0.36, 0.46, duck);
     beak.castShadow = false;
-    const home = -24 + i * 11 + rand() * 4,
+    const home = side * (9 + (i >> 1) * 9 + rand() * 4),
       z = -18 + (rand() - 0.5) * 3;
     duck.position.set(home, 0, z);
     return {
       duck,
+      side,
       home,
       z,
       phase: rand() * Math.PI * 2,
@@ -470,6 +543,11 @@ export function createPolderWorld(context) {
     windmill,
     sails,
     windmillSpot,
+    millDoor,
+    farmDoor,
+    clogs,
+    ducks,
+    canal: CANAL,
     visibility,
     stripAt,
     contains(x, z) {
@@ -495,6 +573,20 @@ export function createPolderWorld(context) {
     get feeding() {
       return feedLeft > 0;
     },
+    get windSpeed() {
+      return windSpeed;
+    },
+    resetClogs() {
+      for (const clog of clogs) {
+        const { x, z, turn } = clog.home;
+        clog.group.position.set(x, 0, z);
+        clog.group.rotation.set(0, turn, 0);
+        clog.blocker.x = x;
+        clog.blocker.z = z;
+      }
+      // The first clog leads when they ride.
+      clogs.sort((a, b) => a.home.x - b.home.x);
+    },
     gust(seconds = 5) {
       gustLeft = seconds;
     },
@@ -514,11 +606,27 @@ export function createPolderWorld(context) {
       windSpeed +=
         ((gustLeft > 0 ? 2.6 : 0.6) - windSpeed) * (1 - Math.exp(-dt * 1.5));
       sails.rotation.z += windSpeed * dt;
+      for (const { head, tail, phase } of cows) {
+        const t = elapsed + phase;
+        // Mostly grazing, now and then looking up for a while.
+        const looking = THREE.MathUtils.smoothstep(
+          Math.sin(t * 0.35),
+          0.55,
+          0.9,
+        );
+        head.rotation.x = 0.75 * (1 - looking) + Math.sin(t * 3) * 0.04;
+        tail.rotation.y = Math.sin(t * 1.7) * 0.45;
+      }
       ducks.forEach((d, i) => {
-        const wander = d.home + Math.sin(elapsed * d.speed + d.phase) * 4;
-        const targetX = feedLeft > 0 ? feedX + (i - 2) * 0.9 : wander;
-        const targetZ = feedLeft > 0 ? CANAL.south - 0.9 - (i % 2) * 0.6 : d.z;
-        const step = 1 - Math.exp(-dt * (feedLeft > 0 ? 1.2 : 0.6));
+        const fed = feedLeft > 0 && Math.sign(feedX) === d.side;
+        const targetX = duckSide(
+          fed
+            ? feedX + (i - 2) * 0.9
+            : d.home + Math.sin(elapsed * d.speed + d.phase) * 4,
+          d.side,
+        );
+        const targetZ = fed ? CANAL.south - 0.9 - (i % 2) * 0.6 : d.z;
+        const step = 1 - Math.exp(-dt * (fed ? 1.2 : 0.6));
         const dx = (targetX - d.duck.position.x) * step,
           dz = (targetZ - d.duck.position.z) * step;
         d.duck.position.x += dx;

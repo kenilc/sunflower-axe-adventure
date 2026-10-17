@@ -237,5 +237,8 @@ MUSIC_SCORES.shop = {
 export function musicScoreId(location) {
   if (typeof location === "string" && location.startsWith("shop:"))
     return "shop";
-  return Object.hasOwn(MUSIC_SCORES, location) ? location : "garden";
+  // Rooms such as "polder:farm" play their place's music.
+  const place = typeof location === "string" ? location.split(":")[0] : null;
+  if (Object.hasOwn(MUSIC_SCORES, location)) return location;
+  return Object.hasOwn(MUSIC_SCORES, place) ? place : "garden";
 }
