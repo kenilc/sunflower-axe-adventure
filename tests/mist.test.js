@@ -15,50 +15,46 @@ function walk(game, code, count) {
 async function flyToMist() {
   const created = await createTestGame();
   const { game } = created;
-  game.transitions.jump("lavender");
+  // Into the polder through its garden sign.
+  game.characters.hero.position.set(-23, 0, -21);
+  walk(game, "KeyW", 35);
+  expect(game.state.area).toBe("polder");
+  const polder = game.places.get("polder");
+  game.characters.hero.position.copy(polder.world.balloonSpot);
   frames(game);
-  expect(game.state.area).toBe("lavender");
-  const lavender = game.places.get("lavender");
-  const spot = lavender.world.balloonSpot;
-  game.characters.hero.position.copy(spot);
-  frames(game);
-  expect(lavender.getHud().actions[0].label).toMatch(/misty forest/);
-  const ground = lavender.world.balloonTrip.balloon.position.y;
-  expect(lavender.interact()).toBe(true);
-  expect(lavender.world.balloonTrip.flying).toBe(true);
+  expect(polder.getHud().actions[0].label).toMatch(/misty forest/);
+  const ground = polder.world.trip.balloon.position.y;
+  expect(polder.interact()).toBe(true);
+  expect(polder.world.trip.flying).toBe(true);
   frames(game, 20);
   // They rise, standing in the basket.
-  expect(lavender.world.balloonTrip.balloon.position.y).toBeGreaterThan(
-    ground + 0.2,
-  );
+  expect(polder.world.trip.balloon.position.y).toBeGreaterThan(ground + 0.2);
   frames(game, 60);
   expect(game.state.area).toBe("mist");
   return created;
 }
 
-test("the balloon flies from Lavender Hills to Mistwood Hollow and back", async () => {
+test("the balloon flies from the polder to Mistwood Hollow and back", async () => {
   const { game } = await flyToMist();
   const mist = game.places.get("mist"),
-    lavender = game.places.get("lavender"),
+    polder = game.places.get("polder"),
     hero = game.characters.hero;
   expect(mist.group.visible).toBe(true);
-  expect(lavender.group.visible).toBe(false);
+  expect(polder.group.visible).toBe(false);
   expect(game.readProgress().discoveredPlaces).toContain("mist");
   expect(game.characters.rig.appearance.state.outfit).toBe("mist");
-  // Lavender's balloon is back on its hilltop.
-  expect(lavender.world.balloonTrip.flying).toBe(false);
-  expect(lavender.world.balloonTrip.balloon.position.y).toBeCloseTo(4, 3);
+  // The polder's balloon is back on the canal bank.
+  expect(polder.world.trip.flying).toBe(false);
+  expect(polder.world.trip.balloon.position.y).toBe(0);
 
   hero.position.copy(mist.world.balloonSpot);
   frames(game);
-  expect(mist.getHud().actions[0].label).toMatch(/Lavender Hills/);
+  expect(mist.getHud().actions[0].label).toMatch(/polder/);
   expect(mist.interact()).toBe(true);
   frames(game, 80);
-  expect(game.state.area).toBe("lavender");
-  expect(game.characters.rig.appearance.state.outfit).toBe("lavender");
-  expect(hero.position.distanceTo(lavender.world.balloonSpot)).toBeLessThan(
-    2.4,
-  );
+  expect(game.state.area).toBe("polder");
+  expect(game.characters.rig.appearance.state.outfit).toBe("polder");
+  expect(hero.position.distanceTo(polder.world.balloonSpot)).toBeLessThan(2);
   expect(mist.world.trip.flying).toBe(false);
 });
 

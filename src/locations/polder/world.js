@@ -4,7 +4,7 @@ import { createDioramaBase } from "../../rendering/diorama-base.js";
 import { createMeshFactory } from "../../rendering/mesh-factory.js";
 import { createTreeVisibility } from "../../rendering/tree-visibility.js";
 import { createRandom } from "../../systems/random.js";
-import { createBargeTrip } from "../lavender/barge.js";
+import { createBalloonTrip } from "../mist/balloon-trip.js";
 import { createPolderSign } from "./gate.js";
 
 // Tulip Polder: flat Dutch farmland on a square board. Strips of tulips run
@@ -464,7 +464,7 @@ export function createPolderWorld(context) {
 
   // Ducks paddle along the canal, each on its own side of the bridge; fed,
   // the ducks on her side swim over to the bank.
-  // East of x 19 belongs to the barge landing.
+  // East of x 19 belongs to the balloon.
   const DUCK_REACH = [3.4, 18.5];
   const duckSide = (x, side) =>
     side * THREE.MathUtils.clamp(Math.abs(x), ...DUCK_REACH);
@@ -492,32 +492,39 @@ export function createPolderWorld(context) {
   let feedX = null,
     feedLeft = 0;
 
-  // The barge landing on the canal's south bank: a short wooden jetty and
-  // the flower barge to Lavender Hills, ready to sail east.
-  const landing = new THREE.Vector3(25, 0, CANAL.south + 1.2);
-  box(3.2, 0.12, 1.8, "#8a6a4c", landing.x, 0.06, CANAL.south - 0.2);
-  for (const dx of [-1.4, 1.4])
+  // The striped balloon on the canal's south bank, ready to fly the friends
+  // away to the misty forest.
+  const balloon = instantiateModel(context.models.balloon);
+  balloon.position.set(25.5, 0, CANAL.south + 3.2);
+  group.add(balloon);
+  const envelope = balloon.getObjectByName("envelope");
+  for (const dx of [-2.2, 2.2])
     cyl(
+      0.1,
       0.12,
-      0.14,
-      0.8,
-      "#6b4a2a",
-      landing.x + dx,
+      0.4,
+      "#7a5a3e",
+      balloon.position.x + dx,
       0.2,
-      CANAL.south - 0.95,
+      balloon.position.z,
       group,
       6,
     );
-  const trip = createBargeTrip(context, {
-    parent: group,
-    mooring: new THREE.Vector3(landing.x, 0.01, CANAL.south - 1.5),
-    turn: Math.PI / 2,
-    destination: "lavender",
-  });
-  visibility.add(trip.barge, {
-    meshes: trip.barge.children.filter((node) => node.isMesh),
+  blockers.push({ x: balloon.position.x, z: balloon.position.z, r: 1.3 });
+  visibility.add(balloon, {
+    meshes: (() => {
+      const list = [];
+      balloon.traverse((node) => node.isMesh && list.push(node));
+      return list;
+    })(),
     dynamic: true,
   });
+  const trip = createBalloonTrip(context, { balloon, destination: "mist" });
+  const balloonSpot = new THREE.Vector3(
+    balloon.position.x - 2.3,
+    0,
+    balloon.position.z,
+  );
 
   const entranceGate = createPolderSign({
     parent: context.garden,
@@ -559,7 +566,7 @@ export function createPolderWorld(context) {
     bikes,
     rideStart,
     trip,
-    landing,
+    balloonSpot,
     ducks,
     canal: CANAL,
     visibility,
@@ -579,8 +586,7 @@ export function createPolderWorld(context) {
         Math.abs(position.x) < 19.5
       )
         return "ducks";
-      if (Math.hypot(position.x - landing.x, position.z - landing.z) < 2.4)
-        return "barge";
+      if (position.distanceTo(balloonSpot) < 2) return "balloon";
       return null;
     },
     get gusting() {
@@ -618,7 +624,8 @@ export function createPolderWorld(context) {
     },
     animate(dt) {
       elapsed += dt;
-      trip.animate(dt);
+      envelope.rotation.z = Math.sin(elapsed * 0.5) * 0.03;
+      envelope.position.y = Math.sin(elapsed * 0.7) * 0.08;
       gustLeft = Math.max(0, gustLeft - dt);
       feedLeft = Math.max(0, feedLeft - dt);
       windSpeed +=

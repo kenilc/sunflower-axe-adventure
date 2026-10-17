@@ -98,27 +98,6 @@ export const MUSIC_SCORES = {
       [77, null, null, 72, null, null],
     ),
   },
-  // A sunny guitar tune over plucked strings, for Provence.
-  lavender: {
-    bpm: 84,
-    volume: 0.24,
-    lead: "guitar",
-    backing: "pluck",
-    sustain: 2.2,
-    arpEvery: 1,
-    chords: [
-      [50, 54, 57],
-      [45, 49, 52],
-      [47, 50, 54],
-      [43, 47, 50],
-    ],
-    melody: bars(
-      [78, null, 76, 74, 76, null, 81, null],
-      [76, null, 73, 71, 69, null, null, null],
-      [71, 74, 78, null, 76, 74, 71, null],
-      [74, null, 71, 67, 69, null, null, null],
-    ),
-  },
   // A slow, hushed flute over soft pads, for the misty forest at dusk.
   mist: {
     bpm: 64,

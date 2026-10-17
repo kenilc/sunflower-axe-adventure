@@ -1,5 +1,5 @@
-"""Build the striped hot-air balloon waiting on the Lavender Hills hilltop,
-and export it for the game.
+"""Build the striped hot-air balloon that flies between the polder and the
+misty forest, and export it for the game.
 
 From the repository root (see kit.py for the conventions):
 

@@ -13,7 +13,6 @@ export async function readModels() {
         "windmill",
         "cow",
         "bicycle",
-        "barge",
         "balloon",
         "mist_houses",
         "mill_interior",

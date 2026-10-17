@@ -104,7 +104,7 @@ export function createMistPlaces(context) {
     outfit: "mist",
     name: "Mistwood Hollow",
     progressLabel: "Mistwood Hollow",
-    parent: "lavender",
+    parent: "polder",
     group: world.group,
     terrain: world,
     world,
@@ -128,8 +128,8 @@ export function createMistPlaces(context) {
         fov: 48,
       };
     },
-    // Arrive in the meadow by balloon; it flies back to the lavender hilltop.
-    returnSpawn: [-16.4, 4, -22],
+    // Arrive in the meadow by balloon; it flies back to the polder's canal.
+    returnSpawn: [22.6, 0, -11.2],
     settings: {
       spawn: [1.6, 0, 28.6],
       heading: Math.PI,
@@ -223,7 +223,7 @@ export function createMistPlaces(context) {
         hint =
           "Lanterns on the water, mist in the trees · X to get up · M for a photo";
       } else if (spot?.kind === "balloon") {
-        label = "Fly the balloon back to Lavender Hills · X";
+        label = "Fly the balloon back to the polder · X";
         icon = "gate";
         hint = "Climb into the basket and rise out of the mist · X";
       } else if (spot?.kind === "wisps") {

@@ -34,20 +34,12 @@ export const JOURNEY_DESTINATIONS = [
     hint: "Northwest windmill path from the garden",
   },
   {
-    id: "lavender",
-    name: "Lavender Hills",
-    icon: "❦",
-    x: 8,
-    y: 12,
-    hint: "Take the barge from the polder",
-  },
-  {
     id: "mist",
     name: "Mistwood Hollow",
     icon: "☾",
-    x: 36,
-    y: 47,
-    hint: "Fly the balloon from Lavender Hills",
+    x: 8,
+    y: 12,
+    hint: "Fly the balloon from the polder",
   },
   {
     id: "village",

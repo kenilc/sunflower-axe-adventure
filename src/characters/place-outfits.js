@@ -44,7 +44,9 @@ export const PLACE_OUTFITS = {
       hat: { style: "flat-cap", color: "#6b5a44" },
     },
   ],
-  lavender: [
+  // Linen and a straw hat, kept for a sunny stop to wear (no place does
+  // yet).
+  linen: [
     {
       torso: "#f6f0e4",
       skirt: "#9b77c9",
