@@ -1,12 +1,14 @@
-// A clear, breezy spring morning with a soft white sun.
+// A breezy spring morning with a soft white sun and a light haze over the
+// flat land, which keeps the colours gentle.
 export const POLDER_ENVIRONMENT = {
-  background: "#cfe6f5",
-  skyTop: "#8fc3ea",
-  fogDensity: 0.004,
-  sunIntensity: 2.7,
-  sunColor: "#fff6e6",
+  background: "#dfe7ea",
+  skyTop: "#a7c3d8",
+  fogDensity: 0.009,
+  sunIntensity: 2.5,
+  sunColor: "#fff3e2",
   sunOffset: [-20, 26, 14],
   fillIntensity: 1.9,
-  fillColor: "#dcecff",
-  groundColor: "#7a9a5c",
+  fillColor: "#e4ecf2",
+  groundColor: "#80946a",
+  exposure: 1.12,
 };

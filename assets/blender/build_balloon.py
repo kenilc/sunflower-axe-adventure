@@ -21,10 +21,10 @@ sys.path.insert(
 from kit import Parts, at, clear_scene, cuboid, empty, finish, frustum  # noqa: E402
 
 PALETTE = {
-    "red": "#d9534f",
-    "yellow": "#f5c842",
+    "red": "#d98a80",
+    "yellow": "#ecd58a",
     "cream": "#f4efe2",
-    "blue": "#5b8fc7",
+    "blue": "#8aa9c6",
     "wicker": "#b08a5a",
     "rim": "#7a5a3e",
     "rope": "#d8c69a",

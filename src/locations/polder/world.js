@@ -36,15 +36,17 @@ export const WINDMILL = {
 };
 // The farmhouse, whose door leads into the kitchen.
 export const FARM = { x: 15, z: -30, width: 10, depth: 7 };
+// Soft, slightly dusty tulip colours, so the strips read as a gentle
+// morning rather than a poster.
 const TULIP_COLORS = [
-  "#e2453c",
-  "#f5c842",
-  "#f08fb0",
-  "#8e5bb5",
-  "#f6f0e4",
-  "#f08a3c",
-  "#d9366f",
-  "#f5c842",
+  "#d8695f",
+  "#ecd078",
+  "#eaa9bb",
+  "#9a7fb6",
+  "#f3eee4",
+  "#e69c6a",
+  "#c96f8c",
+  "#ecd078",
 ];
 
 function stripAt(x, z, margin = 0) {
@@ -76,7 +78,7 @@ export function createPolderWorld(context) {
     size: POLDER_SIZE,
     shape: "square",
     top: -0.03,
-    grass: "#86b05c",
+    grass: "#93ab6e",
     soil: "#5e4634",
     stone: "#a88f75",
     rock: "#7b6a58",
@@ -91,7 +93,7 @@ export function createPolderWorld(context) {
     POLDER_SIZE * 2,
     0.5,
     canalDepth,
-    "#5f9db3",
+    "#7ba2ae",
     0,
     -0.24,
     (CANAL.north + CANAL.south) / 2,
@@ -129,7 +131,7 @@ export function createPolderWorld(context) {
       const x = side * (STRIP.first + index * STRIP.pitch + STRIP.width / 2);
       const color = new THREE.Color(TULIP_COLORS[index]);
       for (const [from, to] of FIELDS) {
-        box(STRIP.width, 0.32, to - from, "#4f7f3a", x, 0.16, (from + to) / 2);
+        box(STRIP.width, 0.32, to - from, "#5b7d48", x, 0.16, (from + to) / 2);
         for (let z = from + 0.25; z < to - 0.1; z += 0.42)
           for (const across of [-0.66, -0.22, 0.22, 0.66])
             spots.push({
@@ -147,7 +149,7 @@ export function createPolderWorld(context) {
   );
   const stems = new THREE.InstancedMesh(
     new THREE.CylinderGeometry(0.022, 0.026, 1, 4),
-    helpers.mat("#5d8a40"),
+    helpers.mat("#668a50"),
     spots.length,
   );
   const placed = new THREE.Object3D();
