@@ -117,6 +117,30 @@ def ellipsoid(sx, sy, sz, subdivisions=2):
     return build
 
 
+def torus(major, minor, segments=20, sides=6):
+    """A ring lying flat in the XY plane, around the Z axis."""
+
+    def build(bm):
+        rings = []
+        for i in range(segments):
+            u = i / segments * math.tau
+            ring = []
+            for j in range(sides):
+                v = j / sides * math.tau
+                r = major + minor * math.cos(v)
+                ring.append(
+                    bm.verts.new((r * math.cos(u), r * math.sin(u), minor * math.sin(v)))
+                )
+            rings.append(ring)
+        for i in range(segments):
+            a, b = rings[i], rings[(i + 1) % segments]
+            for j in range(sides):
+                k = (j + 1) % sides
+                bm.faces.new((a[j], b[j], b[k], a[k]))
+
+    return build
+
+
 def at(x=0, y=0, z=0, rx=0, ry=0, rz=0):
     return (
         Matrix.Translation((x, y, z))

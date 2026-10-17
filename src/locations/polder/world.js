@@ -326,36 +326,8 @@ export function createPolderWorld(context) {
   for (const x of [-26, -22, 0, 3])
     poplar(x, -EDGE + 0.4 + rand() * 0.6, 0.9 + rand() * 0.25);
 
-  // A bicycle, or a tandem, with the front wheel towards local +Z.
-  function bicycle(parent, x, z, turn, color, tandem = false) {
-    const bike = new THREE.Group();
-    bike.position.set(x, 0, z);
-    bike.rotation.y = turn;
-    parent.add(bike);
-    const length = tandem ? 1.9 : 1.1;
-    for (const end of [-1, 1]) {
-      const wheel = mesh(
-        new THREE.TorusGeometry(0.34, 0.035, 5, 14),
-        "#2f2f2f",
-        0,
-        0.36,
-        (end * length) / 2,
-        bike,
-      );
-      wheel.rotation.y = Math.PI / 2;
-    }
-    box(0.06, 0.06, length, color, 0, 0.62, 0, bike);
-    for (const seat of tandem ? [-0.55, 0.3] : [-0.15]) {
-      box(0.06, 0.4, 0.06, color, 0, 0.8, seat, bike);
-      box(0.18, 0.06, 0.28, "#3b2e26", 0, 1.02, seat, bike);
-    }
-    box(0.06, 0.55, 0.06, color, 0, 0.8, length / 2 - 0.12, bike);
-    box(0.55, 0.05, 0.05, "#2f2f2f", 0, 1.08, length / 2 - 0.12, bike);
-    box(0.32, 0.18, 0.26, "#a77b4f", 0, 0.98, length / 2 + 0.08, bike);
-    return bike;
-  }
-
-  // The bike shed by the entrance, with a tandem waiting outside.
+  // The bike shed by the entrance, with two Blender city bikes parked
+  // inside: hers mint with a basket of tulips, his blue.
   const shed = new THREE.Group();
   shed.name = "polder-bike-shed";
   shed.position.set(-9, 0, 26.5);
@@ -367,34 +339,44 @@ export function createPolderWorld(context) {
   }
   const shedRoof = box(5.6, 0.18, 3.2, "#c8573f", 0, 2.55, 0.05, shed);
   shedRoof.rotation.x = -0.12;
-  bicycle(shed, -1, -0.2, Math.PI / 2, "#2f5f8a");
-  bicycle(shed, 1, 0.1, Math.PI / 2 + 0.2, "#c8573f");
-  bicycle(group, -5.2, 24.6, -0.25, "#e5b13d", true);
   visibility.add(shed);
-  blockers.push(
-    { x: -10.4, z: 26.3, r: 1.4 },
-    { x: -7.6, z: 26.3, r: 1.4 },
-    { x: -5.2, z: 24.6, r: 0.9 },
-  );
-
-  // Giant yellow clogs: sit in them for a photo, or ride them around.
-  function clog(x, z, turn) {
-    const shoe = new THREE.Group();
-    shoe.name = "polder-clog";
-    shoe.position.set(x, 0, z);
-    shoe.rotation.y = turn;
-    group.add(shoe);
-    const toe = ball(1, "#f2c14e", 0, 0.55, 0.5, shoe);
-    toe.scale.set(0.8, 0.55, 1.35);
-    box(1.4, 1, 1.5, "#f2c14e", 0, 0.5, -0.65, shoe);
-    box(1.05, 0.06, 1.15, "#6b4a2a", 0, 1.01, -0.6, shoe);
-    ball(0.17, "#d9366f", 0.42, 0.85, 0.9, shoe);
-    ball(0.17, "#d9366f", -0.42, 0.85, 0.9, shoe);
-    const blocker = { x, z, r: 1.3 };
+  blockers.push({ x: -9, z: 25.6, r: 1.0 });
+  function bike(x, z, turn, color) {
+    const ride = instantiateModel(context.models.bicycle);
+    ride.name = "polder-bicycle";
+    ride.position.set(x, 0, z);
+    ride.rotation.y = turn;
+    group.add(ride);
+    if (color)
+      ride.traverse((node) => {
+        if (node.isMesh && node.name.startsWith("bicycle-frame")) {
+          node.material = node.material.clone();
+          node.material.color.set(color);
+        }
+      });
+    if (color) ride.getObjectByName("basket").visible = false;
+    const blocker = { x, z, r: 0.95 };
     blockers.push(blocker);
-    return { group: shoe, blocker, home: { x, z, turn } };
+    return {
+      group: ride,
+      blocker,
+      home: { x, z, turn },
+      wheels: ["front_wheel", "rear_wheel"].map((name) =>
+        ride.getObjectByName(name),
+      ),
+      crank: ride.getObjectByName("crank"),
+    };
   }
-  const clogs = [clog(7.4, 27, -0.35), clog(10.2, 26.4, -0.15)];
+  const bikes = [
+    bike(-10.1, 26.1, Math.PI / 2),
+    bike(-7.9, 26.8, Math.PI / 2, "#2f5f8a"),
+  ];
+  // Where the bikes are wheeled out to when the friends set off: on the
+  // garden path in front of the shed, pointing east.
+  const rideStart = [
+    { x: -7, z: 29.4, turn: Math.PI / 2 },
+    { x: -10.2, z: 29.4, turn: Math.PI / 2 },
+  ];
 
   // A cheese cart beside the bridge, under a striped awning.
   const cart = new THREE.Group();
@@ -545,7 +527,8 @@ export function createPolderWorld(context) {
     windmillSpot,
     millDoor,
     farmDoor,
-    clogs,
+    bikes,
+    rideStart,
     ducks,
     canal: CANAL,
     visibility,
@@ -576,16 +559,16 @@ export function createPolderWorld(context) {
     get windSpeed() {
       return windSpeed;
     },
-    resetClogs() {
-      for (const clog of clogs) {
-        const { x, z, turn } = clog.home;
-        clog.group.position.set(x, 0, z);
-        clog.group.rotation.set(0, turn, 0);
-        clog.blocker.x = x;
-        clog.blocker.z = z;
+    resetBikes() {
+      for (const bike of bikes) {
+        const { x, z, turn } = bike.home;
+        bike.group.position.set(x, 0, z);
+        bike.group.rotation.set(0, turn, 0);
+        bike.blocker.x = x;
+        bike.blocker.z = z;
       }
-      // The first clog leads when they ride.
-      clogs.sort((a, b) => a.home.x - b.home.x);
+      // Hers (the first) leads when they ride.
+      bikes.sort((a, b) => a.home.x - b.home.x);
     },
     gust(seconds = 5) {
       gustLeft = seconds;

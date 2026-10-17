@@ -229,54 +229,172 @@ test("inside the windmill the stones grind, and the ladder leads out onto the st
   expect(game.state.activeLocation).toBe("polder");
 });
 
-test("the friends ride the clogs around the polder, his following hers", async () => {
+test("the friends ride bikes from the shed around the polder, his following hers", async () => {
   const { game } = await enterPolder();
   const polder = game.places.get("polder"),
     hero = game.characters.hero,
     companion = game.characters.companion.character,
-    { clogs } = polder.world;
-  hero.position.set(8.8, 0, 24.6);
+    { bikes } = polder.world;
+  hero.position.set(-9, 0, 28.6);
   frames(game);
-  expect(polder.getHud().actions[0].label).toMatch(/clogs/);
+  expect(polder.getHud().actions[0].label).toMatch(/bikes/);
   expect(polder.interact()).toBe(true);
-  expect(polder.clogs.riding).toBe(true);
+  expect(polder.bikes.riding).toBe(true);
   expect(polder.canLeave()).toBe(false);
-  const start = clogs[0].group.position.clone();
-  // Round his clog to the south, west to the main path, then north up it.
+  // The bikes are wheeled out of the shed onto the path.
+  const start = bikes[0].group.position.clone();
+  expect(start.z).toBeGreaterThan(29);
+  const wheel = bikes[0].wheels[0].rotation.x;
+  // East along the path, then north up the main path.
   for (const [code, count] of [
-    ["KeyS", 25],
-    ["KeyA", 45],
+    ["KeyD", 40],
     ["KeyW", 120],
   ])
     walk(game, code, count);
-  const lead = clogs[0].group.position,
-    follower = clogs[1].group.position;
+  const lead = bikes[0].group.position,
+    follower = bikes[1].group.position;
   expect(lead.distanceTo(start)).toBeGreaterThan(8);
-  // She sits in her clog and he in his, on open ground, close behind.
+  expect(bikes[0].wheels[0].rotation.x).toBeGreaterThan(wheel);
+  // She sits on her saddle and he on his, close behind her on open ground.
   expect(
     Math.hypot(hero.position.x - lead.x, hero.position.z - lead.z),
-  ).toBeLessThan(0.6);
+  ).toBeLessThan(0.4);
+  expect(hero.position.y).toBeGreaterThan(0.3);
   expect(
     Math.hypot(
       companion.position.x - follower.x,
       companion.position.z - follower.z,
     ),
-  ).toBeLessThan(0.6);
-  expect(lead.distanceTo(follower)).toBeLessThan(5);
-  for (const clog of clogs)
+  ).toBeLessThan(0.4);
+  expect(lead.distanceTo(follower)).toBeLessThan(4.5);
+  for (const bike of bikes)
     expect(
-      polder.terrain.contains(clog.group.position.x, clog.group.position.z),
+      polder.terrain.contains(bike.group.position.x, bike.group.position.z),
     ).toBe(true);
-  expect(clogs[0].blocker.x).toBe(lead.x);
+  expect(bikes[0].blocker.x).toBe(lead.x);
 
   expect(polder.interact()).toBe(true);
-  expect(polder.clogs.riding).toBe(false);
+  expect(polder.bikes.riding).toBe(false);
   expect(hero.position.y).toBe(0);
   expect(polder.terrain.contains(hero.position.x, hero.position.z)).toBe(true);
-  // The clogs stay parked where they stopped until the polder resets.
+  // The bikes stay where they were left until the polder resets.
   expect(lead.distanceTo(start)).toBeGreaterThan(8);
   polder.reset();
-  expect(
-    clogs.some((clog) => clog.group.position.distanceTo(start) < 1e-6),
-  ).toBe(true);
+  for (const bike of bikes)
+    expect([bike.group.position.x, bike.group.position.z]).toEqual([
+      bike.home.x,
+      bike.home.z,
+    ]);
+});
+
+test("turning round on the bikes, she is never stuck behind his bike and they never overlap", async () => {
+  const { game } = await enterPolder();
+  const polder = game.places.get("polder"),
+    hero = game.characters.hero,
+    { bikes } = polder.world;
+  hero.position.set(-9, 0, 28.6);
+  frames(game);
+  polder.interact();
+  walk(game, "KeyD", 40);
+  walk(game, "KeyW", 50);
+  const turnedAt = bikes[0].group.position.clone();
+  // Straight back the way she came, through where his bike is.
+  game.input.keys.KeyS = true;
+  let closest = Infinity;
+  for (let i = 0; i < 90; i++) {
+    frames(game);
+    closest = Math.min(
+      closest,
+      bikes[0].group.position.distanceTo(bikes[1].group.position),
+    );
+  }
+  game.input.keys.KeyS = false;
+  expect(bikes[0].group.position.z - turnedAt.z).toBeGreaterThan(5);
+  expect(closest).toBeGreaterThan(1.3);
+});
+
+test("his bike in front of hers by the edge trees moves aside instead of trapping her", async () => {
+  const { game } = await enterPolder();
+  const polder = game.places.get("polder"),
+    hero = game.characters.hero,
+    { bikes } = polder.world;
+  hero.position.set(-9, 0, 28.6);
+  frames(game);
+  polder.interact();
+  // Hers by a poplar on the west edge, facing south; his just ahead of her.
+  const tree = polder.terrain.blockers
+    .filter((b) => b.x < -35 && b.z > 0 && b.z < 20)
+    .sort((a, b) => a.z - b.z)[0];
+  bikes[0].group.position.set(tree.x + 1.3, 0, tree.z - 0.4);
+  bikes[0].group.rotation.set(0, 0, 0);
+  bikes[1].group.position.set(tree.x + 1.3, 0, tree.z + 1.2);
+  bikes[1].group.rotation.set(0, Math.PI, 0);
+  const start = bikes[0].group.position.clone();
+  let closest = Infinity;
+  game.input.keys.KeyS = true;
+  for (let i = 0; i < 60; i++) {
+    frames(game);
+    closest = Math.min(
+      closest,
+      bikes[0].group.position.distanceTo(bikes[1].group.position),
+    );
+  }
+  game.input.keys.KeyS = false;
+  expect(bikes[0].group.position.distanceTo(start)).toBeGreaterThan(4);
+  expect(closest).toBeGreaterThan(1.2);
+});
+
+test("riding all over the polder, she can always ride away from whatever stopped her", async () => {
+  const { game } = await enterPolder();
+  const polder = game.places.get("polder"),
+    hero = game.characters.hero,
+    { bikes } = polder.world;
+  hero.position.set(-9, 0, 28.6);
+  frames(game);
+  polder.interact();
+  const combos = [
+    ["KeyW"],
+    ["KeyA"],
+    ["KeyS"],
+    ["KeyD"],
+    ["KeyW", "KeyA"],
+    ["KeyW", "KeyD"],
+    ["KeyS", "KeyA"],
+    ["KeyS", "KeyD"],
+  ];
+  const opposite = { KeyW: "KeyS", KeyS: "KeyW", KeyA: "KeyD", KeyD: "KeyA" };
+  let seed = 7;
+  const random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  const press = (keys, down) =>
+    keys.forEach((key) => (game.input.keys[key] = down));
+  let escapes = 0;
+  for (let leg = 0; leg < 160; leg++) {
+    const keys = combos[Math.floor(random() * combos.length)];
+    press(keys, true);
+    game.input.keys.ShiftLeft = random() < 0.4;
+    const path = [];
+    for (let i = 0; i < 30 + Math.floor(random() * 50); i++) {
+      frames(game);
+      path.push(bikes[0].group.position.clone());
+      expect(
+        bikes[0].group.position.distanceTo(bikes[1].group.position),
+      ).toBeGreaterThan(1.4);
+    }
+    press(keys, false);
+    // Pinned: hardly anywhere in the last 20 frames of holding the keys.
+    if (path.at(-1).distanceTo(path.at(-20)) < 0.3) {
+      // Stopped by a wall, a tree or the canal: the other way gets her out.
+      const back = keys.map((key) => opposite[key]);
+      const from = bikes[0].group.position.clone();
+      // Three seconds: time to turn right round and pull away.
+      press(back, true);
+      frames(game, 75);
+      press(back, false);
+      expect(bikes[0].group.position.distanceTo(from)).toBeGreaterThan(1.5);
+      escapes++;
+    }
+  }
+  game.input.keys.ShiftLeft = false;
+  // The route must actually have run into things to prove anything.
+  expect(escapes).toBeGreaterThan(5);
 });

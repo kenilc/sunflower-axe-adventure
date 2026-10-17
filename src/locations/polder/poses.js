@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-// Holds both friends in a pose for a polder moment (riding the clogs,
+// Holds both friends in a pose for a polder moment (riding bikes,
 // sitting at the kitchen table) and puts their walking pose back after.
 export function createPoseHold(context, key) {
   const actors = [context.hero, context.companion.character];

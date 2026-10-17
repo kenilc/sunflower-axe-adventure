@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { createClogRide } from "./clogs.js";
+import { createBikeRide } from "./bikes.js";
 import { POLDER_ENVIRONMENT } from "./environment.js";
 import { createFarmPlace } from "./farm.js";
 import { createMillPlaces } from "./mill.js";
@@ -9,7 +9,7 @@ import { createPolderWorld } from "./world.js";
 const MOMENTS = [
   "windmill",
   "ducks",
-  "clogs",
+  "bikes",
   "table",
   "cheese",
   "flour",
@@ -41,7 +41,7 @@ function createMemories(context) {
     get objective() {
       return made.size === MOMENTS.length
         ? "Every polder memory made. Find a photo spot among the tulips, or wander home."
-        : "Ride the clogs, turn the sails, feed the ducks, and look inside the farmhouse and the windmill.";
+        : "Ride bikes, turn the sails, feed the ducks, and look inside the farmhouse and the windmill.";
     },
     clear: () => made.clear(),
   };
@@ -52,19 +52,19 @@ function createMemories(context) {
 export function createPolderPlaces(context) {
   const world = createPolderWorld(context);
   const memories = createMemories(context);
-  const clogs = createClogRide(context, world);
+  const bikes = createBikeRide(context, world);
   const rooms = [
     createFarmPlace(context, { world, memories }),
     ...createMillPlaces(context, { world, memories }),
   ];
   let pendingRooms = null;
   function interact() {
-    if (clogs.riding) return clogs.stop();
+    if (bikes.riding) return bikes.stop();
     if (world.returnGate.nearby(context.hero.position))
       return context.transitions.go("garden");
-    if (clogs.nearby(context.hero.position)) {
-      clogs.start();
-      memories.add("clogs", "Into the clogs! Off we trundle ♥", {
+    if (bikes.nearby(context.hero.position)) {
+      bikes.start();
+      memories.add("bikes", "Off on our bikes! Fietsen door de polder ♥", {
         repeat: true,
       });
       return true;
@@ -97,24 +97,25 @@ export function createPolderPlaces(context) {
   }
   const polder = {
     id: "polder",
+    outfit: "polder",
     name: "Tulip Polder",
     progressLabel: "Tulip Polder",
     parent: "garden",
     group: world.group,
     terrain: world,
     world,
-    clogs,
+    bikes,
     memories,
     canThrow: false,
     maxZoom: 48,
     cameraTarget: () => 1.4,
     canPhotograph: () => true,
-    canLeave: () => !clogs.riding,
-    canSaveLocation: () => !clogs.riding,
+    canLeave: () => !bikes.riding,
+    canSaveLocation: () => !bikes.riding,
     photoLocation: () =>
-      clogs.riding ? "Tulip Polder · Riding the clogs" : "Tulip Polder",
+      bikes.riding ? "Tulip Polder · Cycling together" : "Tulip Polder",
     getPhotoPreset() {
-      if (!clogs.riding) return;
+      if (!bikes.riding) return;
       return {
         lockActors: true,
         target: context.hero.position.clone().setY(1),
@@ -132,10 +133,10 @@ export function createPolderPlaces(context) {
       camera: { yaw: 0, pitch: 0.36, zoom: 26, fov: 50 },
       environment: POLDER_ENVIRONMENT,
       instructions:
-        "<kbd>W A S D</kbd> walk <kbd>X</kbd> clogs / windmill / ducks <kbd>M</kbd> photo",
+        "<kbd>W A S D</kbd> walk <kbd>X</kbd> bikes / windmill / ducks <kbd>M</kbd> photo",
     },
     enter({ returning, options = {} } = {}) {
-      // Direct links: ?area=polder&activity=clogs, farm, mill or stage.
+      // Direct links: ?area=polder&activity=bikes, farm, mill or stage.
       // The rooms open on the first frame, once the polder has settled.
       const rooms = {
         farm: ["polder:farm"],
@@ -144,25 +145,25 @@ export function createPolderPlaces(context) {
       };
       if (Object.hasOwn(rooms, options.activity))
         pendingRooms = rooms[options.activity];
-      else if (options.activity === "clogs") {
-        context.hero.position.set(8.8, 0, 24.6);
+      else if (options.activity === "bikes") {
+        context.hero.position.set(-9, 0, 28.6);
         context.companion.reset(context.hero.position, world.blockers, world);
-        clogs.start();
+        bikes.start();
       } else if (!returning)
         context.toast(
-          "Welkom! ♥ Clogs to ride by the gate · Farmhouse and windmill across the canal",
+          "Welkom! ♥ Bikes in the shed by the gate · Farmhouse and windmill across the canal",
         );
     },
     exit({ to } = {}) {
       // Stepping into the farmhouse or the windmill keeps the wind blowing.
       if (to?.startsWith("polder:")) return;
-      clogs.reset();
+      bikes.reset();
       world.reset();
     },
     interact,
-    moveInstead: (dt) => clogs.move(dt),
+    moveInstead: (dt) => bikes.move(dt),
     getGate: () =>
-      !clogs.riding && world.returnGate.contains(context.hero.position)
+      !bikes.riding && world.returnGate.contains(context.hero.position)
         ? { id: "garden" }
         : null,
     update() {
@@ -187,26 +188,26 @@ export function createPolderPlaces(context) {
     },
     getHud() {
       const position = context.hero.position;
-      const nearby = clogs.riding ? null : world.nearby(position);
-      const nearGate = !clogs.riding && world.returnGate.nearby(position);
-      const nearClogs = !clogs.riding && clogs.nearby(position);
+      const nearby = bikes.riding ? null : world.nearby(position);
+      const nearGate = !bikes.riding && world.returnGate.nearby(position);
+      const nearBikes = !bikes.riding && bikes.nearby(position);
       let label = "Explore the polder · X",
         icon = "interact",
         hint =
-          "Clogs: by the gate · Windmill and farmhouse: across the bridge · Ducks: canal bank · Garden: south-west";
-      if (clogs.riding) {
-        label = "Hop out of the clogs · X";
+          "Bikes: shed by the gate · Windmill and farmhouse: across the bridge · Ducks: canal bank · Garden: south-west";
+      if (bikes.riding) {
+        label = "Get off the bikes · X";
         icon = "return";
         hint =
-          "W A S D to steer · Shift for speed · His clog follows yours · X to hop out · M for a photo";
+          "W A S D to steer · Shift to pedal faster · His bike follows yours · X to get off · M for a photo";
       } else if (nearGate) {
         label = "Return to garden · X";
         icon = "return";
         hint = "Walk through the signposts to the garden, or press X";
-      } else if (nearClogs) {
-        label = "Ride the clogs together · X";
+      } else if (nearBikes) {
+        label = "Ride bikes together · X";
         hint =
-          "Klompen · Hop in a giant clog each and trundle round the polder · X";
+          "Fietsen · Take a bike each from the shed and ride round the polder · X";
       } else if (nearby === "windmill") {
         label = world.gusting
           ? "The sails are flying · X"
@@ -218,7 +219,7 @@ export function createPolderPlaces(context) {
         hint = "Eendjes · Scatter a few crumbs from the bank · X";
       }
       return {
-        region: clogs.riding ? "Riding the clogs" : "Tulip Polder",
+        region: bikes.riding ? "Cycling together" : "Tulip Polder",
         quest: {
           eyebrow: "A SPRING MORNING IN HOLLAND",
           title: "Tulips in rows.<br />Sails in the wind.",
@@ -226,16 +227,16 @@ export function createPolderPlaces(context) {
         },
         progress: memories.progress,
         hint,
-        instructions: clogs.riding
-          ? "<kbd>W A S D</kbd> steer <kbd>SHIFT</kbd> faster <kbd>X</kbd> hop out <kbd>M</kbd> photo"
-          : "<kbd>W A S D</kbd> walk <kbd>X</kbd> clogs / windmill / ducks <kbd>M</kbd> photo <kbd>V</kbd> map",
+        instructions: bikes.riding
+          ? "<kbd>W A S D</kbd> steer <kbd>SHIFT</kbd> faster <kbd>X</kbd> get off <kbd>M</kbd> photo"
+          : "<kbd>W A S D</kbd> walk <kbd>X</kbd> bikes / windmill / ducks <kbd>M</kbd> photo <kbd>V</kbd> map",
         actions: [
           {
-            id: clogs.riding ? "polderClogsStop" : "placeAction",
+            id: bikes.riding ? "polderBikesStop" : "placeAction",
             key: "KeyX",
             icon,
             label,
-            visible: clogs.riding || nearGate || nearClogs || Boolean(nearby),
+            visible: bikes.riding || nearGate || nearBikes || Boolean(nearby),
             run: interact,
           },
         ],
@@ -244,11 +245,11 @@ export function createPolderPlaces(context) {
     getProgress: () => ({
       memories: memories.list,
       totalMemories: MOMENTS.length,
-      riding: clogs.riding,
+      riding: bikes.riding,
     }),
     reset() {
       memories.clear();
-      clogs.reset();
+      bikes.reset();
       world.reset();
       for (const room of rooms) room.reset?.();
     },

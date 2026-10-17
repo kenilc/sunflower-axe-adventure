@@ -4,6 +4,7 @@ import axe from "./models/axe.glb?url";
 import bench from "./models/bench.glb?url";
 import windmill from "./models/windmill.glb?url";
 import cow from "./models/cow.glb?url";
+import bicycle from "./models/bicycle.glb?url";
 import millInterior from "./models/mill_interior.glb?url";
 
 export const modelUrls = {
@@ -13,5 +14,6 @@ export const modelUrls = {
   bench,
   windmill,
   cow,
+  bicycle,
   mill_interior: millInterior,
 };

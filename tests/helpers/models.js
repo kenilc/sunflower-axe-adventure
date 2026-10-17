@@ -12,6 +12,7 @@ export async function readModels() {
         "bench",
         "windmill",
         "cow",
+        "bicycle",
         "mill_interior",
       ].map(async (name) => {
         const bytes = await readFile(
