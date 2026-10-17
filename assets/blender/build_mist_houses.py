@@ -6,8 +6,8 @@ From the repository root (see kit.py for the conventions):
     SUNFLOWER_EXPORT=1 SUNFLOWER_REPO=$PWD blender --background \\
       --factory-startup --python assets/blender/build_mist_houses.py
 
-Four houses under one `mist_houses` root: `cat-house`, `rabbit-house`,
-`frog-house` and `owl-house`, each standing on the ground at its own origin
+Five houses under one `mist_houses` root: `cat-house`, `rabbit-house`,
+`frog-house`, `owl-house` and `turtle-house`, each standing on the ground at its own origin
 and facing the model's front. They are meant to look mysterious but cute:
 smooth chubby heads, eyes with pupils and catchlights (or happy closed arcs),
 blush, a small smile, and a little closed door under it. Each house has a
@@ -34,6 +34,7 @@ from kit import (  # noqa: E402
     empty,
     finish,
     frustum,
+    torus,
 )
 
 PALETTE = {
@@ -52,19 +53,35 @@ PALETTE = {
     "post": "#6b4d38",
     "moss": "#8fb27a",
     "beak": "#f0b864",
+    "turtle": "#b9ddc4",
+    "shell": "#c9a46a",
+    "plate": "#d6b47a",
+    "rim": "#b38a55",
 }
 # Heads and ears are smooth; small details keep the game's faceted look.
-SMOOTH = {"cat", "rabbit", "frog", "owl", "owl-belly", "pink", "blush"}
+SMOOTH = {
+    "cat",
+    "rabbit",
+    "frog",
+    "owl",
+    "owl-belly",
+    "pink",
+    "blush",
+    "turtle",
+    "shell",
+    "plate",
+    "rim",
+}
 
 
 class Head:
     """A chubby ellipsoid head; features are placed on its surface."""
 
-    def __init__(self, parts, key, a, b, c, cz):
+    def __init__(self, parts, key, a, b, c, cz, y=0.0):
         self.parts, self.a, self.b, self.c, self.cz = parts, a, b, c, cz
-        self.key = key
+        self.key, self.y = key, y
         if key:
-            parts.add(key, ellipsoid(a, b, c, 3), at(0, 0, cz))
+            parts.add(key, ellipsoid(a, b, c, 3), at(0, y, cz))
 
     def surface(self, x, z, lift=0.0):
         """The front surface point at (x, z) and the matrix facing out of it."""
@@ -72,7 +89,7 @@ class Head:
         y = -self.b * math.sqrt(max(0.02, 1 - u * u - w * w))
         normal = Vector((x / self.a**2, y / self.b**2, (z - self.cz) / self.c**2))
         normal.normalize()
-        point = Vector((x, y, z)) + normal * lift
+        point = Vector((x, y + self.y, z)) + normal * lift
         turn = normal.to_track_quat("-Y", "Z").to_matrix().to_4x4()
         return Matrix.Translation(point) @ turn
 
@@ -252,6 +269,37 @@ def owl(parts, glow):
     lantern(parts, glow, -2.0, -1.8)
 
 
+def turtle(parts, glow):
+    # The house is a big domed shell with rounded plates and a rim along its
+    # edge; the round head pokes out of the front, over the door.
+    sx, sz, sc = 2.75, 2.9, 0.5
+    shell = Head(parts, "shell", sx, sx, sz, sc)
+    parts.add("rim", torus(sx - 0.03, 0.11, 36, 8), at(0, 0, sc + 0.05))
+    plates = [(0, 0, 0.95)]
+    plates += [(i * math.tau / 6 + 0.5, 0.68, 0.8) for i in range(6)]
+    plates += [(i * math.tau / 9, 1.18, 0.66) for i in range(9)]
+    for theta, phi, size in plates:
+        if phi > 1 and math.cos(theta) > 0.7:
+            continue  # leave the front clear for the head and the door
+        n = Vector((math.sin(phi) * math.sin(theta), -math.sin(phi) * math.cos(theta), math.cos(phi)))
+        point = Vector((n.x * sx, n.y * sx, n.z * sz + sc))
+        normal = Vector((n.x / sx, n.y / sx, n.z / sz)).normalized()
+        turn = normal.to_track_quat("Z", "Y").to_matrix().to_4x4()
+        point -= normal * 0.06
+        parts.add("plate", ellipsoid(size, size * 0.9, 0.14, 2), Matrix.Translation(point) @ turn)
+    # A sprig of clover growing on top.
+    parts.add("moss", ellipsoid(0.34, 0.34, 0.12, 1), at(0.4, 0.3, sc + sz + 0.05))
+    head = Head(parts, "turtle", 1.4, 1.25, 1.25, 2.65, y=-2.35)
+    face(head, 2.95, 0.5, 2.3, eyes="open", eye_size=0.27)
+    # Stubby flippers peeking out under the rim, and a tiny tail behind.
+    for side in (-1, 1):
+        parts.add("turtle", ellipsoid(1.0, 0.6, 0.26, 3), at(side * 2.35, -1.8, 0.25, rz=side * 0.6))
+        parts.add("turtle", ellipsoid(0.75, 0.5, 0.24, 3), at(side * 2.25, 1.9, 0.22, rz=-side * 0.6))
+    parts.add("turtle", ellipsoid(0.3, 0.55, 0.22, 2), at(0, 2.95, 0.3))
+    door(parts, glow, shell, 1.35)
+    lantern(parts, glow, 2.8, -2.6)
+
+
 def build():
     clear_scene()
     root = empty("mist_houses")
@@ -259,6 +307,7 @@ def build():
     house("rabbit-house", root, (6.5, 0, 0), rabbit)
     house("frog-house", root, (-6.5, 0, 0), frog)
     house("owl-house", root, (13, 0, 0), owl)
+    house("turtle-house", root, (19.5, 0, 0), turtle)
     return root
 
 

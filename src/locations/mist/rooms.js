@@ -2,7 +2,8 @@ import * as THREE from "three";
 import { markGlow } from "../../rendering/glow.js";
 import { createMeshFactory } from "../../rendering/mesh-factory.js";
 
-// Inside each animal house: a round room under the dome of its head, open
+// Inside each animal house: a round room under the dome of its head (or
+// the turtle's shell), open
 // at the front like a dollhouse, with two round windows high on the back
 // wall where the eyes are and furniture that suits the animal.
 const ROOM_RADIUS = 6.5;
@@ -40,6 +41,15 @@ const ROOMS = {
     background: "#b9aa9a",
     hello: "Hoo-hoo ♥ Shelves of books, a moon lamp and stars to read by",
     hint: "Bookshelves · Moon lamp · Star garland · Telescope · Reading rug",
+  },
+  turtle: {
+    name: "Turtle house",
+    wall: "#d8ecdf",
+    floor: "#e3cfa1",
+    sand: true,
+    background: "#b8cbbf",
+    hello: "Slow and cosy ♥ A sandy floor, a seashell lamp and a pot of tea",
+    hint: "Rock garden · Seashell lamp · Half-shell bed · Tea table · Shell shelf",
   },
 };
 
@@ -100,8 +110,8 @@ function createRoom(context, kind) {
       40,
     ),
   );
-  // Floorboards: thin dark seams across the round floor.
-  for (let x = -ROOM_RADIUS + 0.9; x < ROOM_RADIUS; x += 1.3) {
+  // Floorboards: thin dark seams across the round floor (or soft sand).
+  for (let x = -ROOM_RADIUS + 0.9; !look.sand && x < ROOM_RADIUS; x += 1.3) {
     const length = 2 * Math.sqrt(ROOM_RADIUS ** 2 - x * x);
     flat(box(0.04, 0.02, length, "#5c4433", x, 0.005, 0));
   }
@@ -627,6 +637,194 @@ function createRoom(context, kind) {
       ball(0.38, "#9cc0d8", perch.x + 0.4, 0.22, perch.z + 0.2).scale.y = 0.5;
       block(perch.x, perch.z, 1);
     },
+    turtle() {
+      // A round rug rippled like a pond.
+      for (const [r, color] of [
+        [1.9, "#8fc3c0"],
+        [1.4, "#a9d4cf"],
+        [0.9, "#8fc3c0"],
+        [0.45, "#c3e2dc"],
+      ])
+        flat(cyl(r, r, 0.04, color, 0, 0.03 + (2 - r) * 0.004, 0.6, group, 24));
+      // A raked rock garden in the back-left: sand rings round three stones.
+      const garden = new THREE.Vector3(-3.4, 0, -2.6);
+      flat(cyl(1.4, 1.4, 0.05, "#f1e4c4", garden.x, 0.03, garden.z, group, 22));
+      for (const [dx, dz, s] of [
+        [-0.35, -0.2, 0.42],
+        [0.5, 0.3, 0.3],
+        [0.1, 0.65, 0.2],
+      ]) {
+        const stone = ball(s, "#8a9290", garden.x + dx, s * 0.4, garden.z + dz);
+        stone.scale.y = 0.65;
+        for (const ring of [s + 0.15, s + 0.3]) {
+          const groove = mesh(
+            new THREE.TorusGeometry(ring, 0.025, 4, 18),
+            "#d9c79e",
+            garden.x + dx,
+            0.06,
+            garden.z + dz,
+          );
+          groove.rotation.x = Math.PI / 2;
+          groove.castShadow = false;
+        }
+      }
+      block(garden.x, garden.z, 1.5);
+      // A bed in half a shell, with a cushion and a pillow, in the back-right.
+      const bed = new THREE.Vector3(3.4, 0, -2.8);
+      const half = mesh(
+        new THREE.SphereGeometry(
+          1.3,
+          16,
+          8,
+          0,
+          Math.PI * 2,
+          Math.PI / 2,
+          Math.PI / 2,
+        ),
+        new THREE.MeshStandardMaterial({
+          color: "#c9a46a",
+          roughness: 0.88,
+          side: THREE.DoubleSide,
+        }),
+        bed.x,
+        0.62,
+        bed.z,
+      );
+      half.scale.set(1.15, 0.5, 0.9);
+      ball(1.2, "#f4efe2", bed.x, 0.55, bed.z).scale.set(1.1, 0.12, 0.85);
+      const pillow = ball(0.38, "#9fd0c4", bed.x + 0.6, 0.72, bed.z - 0.3);
+      pillow.scale.set(1.2, 0.45, 0.8);
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2;
+        const plate = ball(
+          0.28,
+          "#d6b47a",
+          bed.x + Math.cos(a) * 1.35,
+          0.4,
+          bed.z + Math.sin(a) * 1.05,
+        );
+        plate.scale.set(1, 0.5, 1);
+      }
+      block(bed.x, bed.z, 1.55);
+      // A glowing scallop-shell lamp on a little stand.
+      const shellLamp = new THREE.Vector3(-4, 0, 1.4);
+      cyl(
+        0.32,
+        0.4,
+        0.12,
+        "#b38a55",
+        shellLamp.x,
+        0.06,
+        shellLamp.z,
+        group,
+        10,
+      );
+      cyl(0.05, 0.05, 1.3, "#b38a55", shellLamp.x, 0.7, shellLamp.z, group, 6);
+      const scallop = lit(
+        mesh(
+          new THREE.CylinderGeometry(
+            0.62,
+            0.62,
+            0.12,
+            12,
+            1,
+            false,
+            -Math.PI / 2,
+            Math.PI,
+          ),
+          glow("#ffd2b8", 1.1),
+          shellLamp.x,
+          1.4,
+          shellLamp.z,
+        ),
+      );
+      scallop.rotation.set(Math.PI / 2, 0, 0.4);
+      block(shellLamp.x, shellLamp.z, 0.5);
+      // A low tea table with a teapot, two cups and floor cushions.
+      const table = new THREE.Vector3(3.1, 0, 1.7);
+      cyl(0.95, 0.95, 0.1, "#a8814f", table.x, 0.5, table.z, group, 16);
+      cyl(0.15, 0.2, 0.45, "#8a6a4c", table.x, 0.23, table.z, group, 8);
+      const pot = ball(0.3, "#9fd0c4", table.x, 0.78, table.z);
+      pot.scale.y = 0.85;
+      cyl(0.12, 0.14, 0.08, "#9fd0c4", table.x, 1.04, table.z, group, 10);
+      ball(0.05, "#f4efe2", table.x, 1.1, table.z);
+      const spout = cyl(
+        0.04,
+        0.06,
+        0.3,
+        "#9fd0c4",
+        table.x + 0.32,
+        0.82,
+        table.z,
+        group,
+        6,
+      );
+      spout.rotation.z = -0.9;
+      for (const dx of [-0.55, 0.55]) {
+        cyl(
+          0.1,
+          0.08,
+          0.14,
+          "#f4efe2",
+          table.x + dx,
+          0.62,
+          table.z + 0.35,
+          group,
+          8,
+        );
+        const cushion = ball(0.5, "#f2b6b8", table.x + dx * 2.3, 0.15, table.z);
+        cushion.scale.y = 0.3;
+      }
+      block(table.x, table.z, 1.3);
+      // A shelf of seashells and a jar of sea glass on the back wall.
+      const { p } = shelf(0, 2.1, 3.6, "#b38a55");
+      const pastels = ["#f2b6b8", "#f6e3c8", "#c9b5e0", "#ffd2b8"];
+      for (let i = 0; i < 4; i++) {
+        const x = p.x - 1.35 + i * 0.6;
+        const shell = mesh(
+          new THREE.ConeGeometry(0.16, 0.36, 7),
+          pastels[i],
+          x,
+          2.33,
+          p.z,
+        );
+        shell.rotation.z = i % 2 ? 0.5 : -0.3;
+      }
+      mesh(
+        new THREE.CylinderGeometry(0.22, 0.22, 0.5, 10),
+        new THREE.MeshStandardMaterial({
+          color: "#cfe9e4",
+          transparent: true,
+          opacity: 0.5,
+          roughness: 0.2,
+        }),
+        p.x + 1.3,
+        2.4,
+        p.z,
+      ).castShadow = false;
+      for (let k = 0; k < 5; k++)
+        ball(
+          0.06,
+          ["#7fc3b8", "#5b8fc7", "#9fd0c4"][k % 3],
+          p.x + 1.22 + (k % 3) * 0.08,
+          2.22 + Math.floor(k / 3) * 0.1,
+          p.z,
+        );
+      // A potted fern by the door.
+      cyl(0.32, 0.26, 0.5, "#c47a52", -2.6, 0.25, 4.4, group, 8);
+      for (let k = 0; k < 6; k++) {
+        const frond = ball(
+          0.35,
+          "#6aa84f",
+          -2.6 + Math.cos(k) * 0.25,
+          0.75,
+          4.4 + Math.sin(k) * 0.25,
+        );
+        frond.scale.set(0.4, 0.9, 0.4);
+        frond.rotation.set(Math.sin(k) * 0.5, 0, Math.cos(k) * 0.5);
+      }
+      block(-2.6, 4.4, 0.45);
+    },
   };
   decorate[kind]();
   // A warm lamp hanging from the ceiling in every house.
@@ -656,7 +854,7 @@ function createRoom(context, kind) {
   };
 }
 
-// The four houses as rooms of the hollow. `visit(kind, hello)` is called
+// The houses as rooms of the hollow. `visit(kind, hello)` is called
 // each time the friends walk into one.
 export function createHouseRooms(context, { world, visit }) {
   return world.houses.map((house) => {

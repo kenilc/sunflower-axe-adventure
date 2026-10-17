@@ -9,7 +9,7 @@ import { createBalloonTrip } from "./balloon-trip.js";
 
 // Mistwood Hollow: a misty forest at dusk on a round board. The balloon lands
 // in a meadow to the south; a lantern path winds north through the trees to
-// a clearing where four sleepy animal-head houses sit round a little pond.
+// a clearing where five sleepy animal houses sit round a little pond.
 // Little mist puffs drift in a glade beside the path.
 export const MIST_SIZE = 38;
 const EDGE = MIST_SIZE - 1.4;
@@ -30,6 +30,9 @@ const HOUSES = [
   { kind: "cat", angle: -0.55, front: 1.96, width: 2.5 },
   { kind: "rabbit", angle: 0.55, front: 1.87, width: 2.3 },
   { kind: "owl", angle: 1.6, front: 1.75, width: 2.2 },
+  // The turtle sits a little closer in, to the southeast, so its shell
+  // stays clear of the trees and the path.
+  { kind: "turtle", angle: 2.45, front: 2.98, width: 2.75, ring: 14 },
 ];
 const HOUSE_RING = 15;
 const LOG = new THREE.Vector3(-5, 0, -8);
@@ -308,54 +311,57 @@ export function createMistWorld(context) {
   // The sleepy animal houses round the pond, facing it. Each door leads
   // inside. The head blocks the way except at its door: a circle set back
   // so its front stops just short of the doorway.
-  const houses = HOUSES.map(({ kind, angle, front, width }) => {
-    const out = new THREE.Vector3(Math.sin(angle), 0, -Math.cos(angle));
-    const facing = out.clone().negate();
-    const home = instantiateModel(
-      context.models.mist_houses.getObjectByName(`${kind}-house`),
-    );
-    home.position.set(
-      POND.x + out.x * HOUSE_RING,
-      0,
-      POND.z + out.z * HOUSE_RING,
-    );
-    home.rotation.y = Math.atan2(-out.x, -out.z);
-    home.scale.setScalar(HOUSE_SCALE);
-    group.add(home);
-    markGlow(home.getObjectByName(`${kind}-house-glow`));
-    const meshes = [];
-    home.traverse((node) => node.isMesh && meshes.push(node));
-    visibility.add(home, { meshes });
-    const doorway = front * HOUSE_SCALE;
-    const reach = width * HOUSE_SCALE * 0.9;
-    const head = home.position
-      .clone()
-      .addScaledVector(facing, doorway - 0.3 - reach);
-    blockers.push({ x: head.x, z: head.z, r: reach });
-    const post = new THREE.Vector3(
-      kind === "rabbit" || kind === "owl" ? -2.1 : 2.1,
-      0,
-      2,
-    )
-      .multiplyScalar(HOUSE_SCALE)
-      .applyAxisAngle(new THREE.Vector3(0, 1, 0), home.rotation.y);
-    blockers.push({
-      x: home.position.x + post.x,
-      z: home.position.z + post.z,
-      r: 0.35,
-    });
-    return {
-      kind,
-      home,
-      facing,
-      // Step onto this spot, at the door, to walk in.
-      door: home.position.clone().addScaledVector(facing, doorway + 0.4),
-      // Where they come back out, on the stepping stones.
-      outside: home.position.clone().addScaledVector(facing, doorway + 2.6),
-      visited: false,
-      wiggle: 0,
-    };
-  });
+  const houses = HOUSES.map(
+    ({ kind, angle, front, width, ring = HOUSE_RING }) => {
+      const out = new THREE.Vector3(Math.sin(angle), 0, -Math.cos(angle));
+      const facing = out.clone().negate();
+      const home = instantiateModel(
+        context.models.mist_houses.getObjectByName(`${kind}-house`),
+      );
+      home.position.set(POND.x + out.x * ring, 0, POND.z + out.z * ring);
+      home.rotation.y = Math.atan2(-out.x, -out.z);
+      home.scale.setScalar(HOUSE_SCALE);
+      group.add(home);
+      markGlow(home.getObjectByName(`${kind}-house-glow`));
+      const meshes = [];
+      home.traverse((node) => node.isMesh && meshes.push(node));
+      visibility.add(home, { meshes });
+      const doorway = front * HOUSE_SCALE;
+      const reach = width * HOUSE_SCALE * 0.9;
+      const head = home.position
+        .clone()
+        .addScaledVector(facing, doorway - 0.3 - reach);
+      blockers.push({ x: head.x, z: head.z, r: reach });
+      // And a second circle for the back of the head (or the shell).
+      const back = home.position
+        .clone()
+        .addScaledVector(facing, -width * HOUSE_SCALE * 0.5);
+      blockers.push({ x: back.x, z: back.z, r: width * HOUSE_SCALE * 0.6 });
+      const post = new THREE.Vector3(
+        ...(kind === "turtle"
+          ? [2.8, 0, 2.6]
+          : [kind === "rabbit" || kind === "owl" ? -2.1 : 2.1, 0, 2]),
+      )
+        .multiplyScalar(HOUSE_SCALE)
+        .applyAxisAngle(new THREE.Vector3(0, 1, 0), home.rotation.y);
+      blockers.push({
+        x: home.position.x + post.x,
+        z: home.position.z + post.z,
+        r: 0.35,
+      });
+      return {
+        kind,
+        home,
+        facing,
+        // Step onto this spot, at the door, to walk in.
+        door: home.position.clone().addScaledVector(facing, doorway + 0.4),
+        // Where they come back out, on the stepping stones.
+        outside: home.position.clone().addScaledVector(facing, doorway + 2.6),
+        visited: false,
+        wiggle: 0,
+      };
+    },
+  );
 
   // A mossy log by the pond, for sitting and watching the lanterns float.
   const log = new THREE.Group();
@@ -424,7 +430,7 @@ export function createMistWorld(context) {
     [pathX(20) - 2.8, 1.6, 20],
     [pathX(8) + 2.6, 1.9, 8],
     [-11, 2.4, -4],
-    [11.5, 2, -3],
+    [15, 2.4, 1],
     [5, 2.6, 27],
   ].map(([x, y, z]) => wisp(x, y, z));
 

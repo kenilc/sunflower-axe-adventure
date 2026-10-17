@@ -126,7 +126,7 @@ test("greeting the mist puffs, visiting every house, a lantern and a rest make f
     expect(house.home.scale.y).not.toBe(house.home.scale.x);
     if (i === 0) expect(mist.getProgress().memories).not.toContain("houses");
   }
-  expect(mist.getProgress().housesVisited).toBe(4);
+  expect(mist.getProgress().housesVisited).toBe(5);
 
   goTo(new THREE.Vector3(world.pond.x + 4, 0, world.pond.z + 1));
   expect(mist.getHud().actions[0].label).toMatch(/lantern/);
@@ -169,7 +169,7 @@ test("each house is too big to walk through except at its door, and roomy inside
   expect(game.state.activeLocation).toBe("mist");
   expect(hero.position.distanceTo(frog.home.position)).toBeGreaterThan(4);
 
-  for (const kind of ["frog", "cat", "rabbit", "owl"]) {
+  for (const kind of ["frog", "cat", "rabbit", "owl", "turtle"]) {
     const room = game.places.get(`mist:${kind}`);
     // Furniture to walk round, a curved back wall, and space in the middle.
     expect(room.terrain.blockers.length).toBeGreaterThanOrEqual(2);

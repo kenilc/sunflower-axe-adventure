@@ -37,7 +37,7 @@ export function createMistPlaces(context) {
     );
   }
   const visited = () => world.houses.filter((house) => house.visited).length;
-  // Walking into a house; visiting all four makes a memory.
+  // Walking into a house; visiting them all makes a memory.
   function visit(kind, hello) {
     world.houses.find((house) => house.kind === kind).visited = true;
     const count = visited();
@@ -140,7 +140,7 @@ export function createMistPlaces(context) {
     },
     enter({ from, returning, options = {} } = {}) {
       // Direct links: ?area=mist&activity=village, rest, or a house:
-      // frog, cat, rabbit or owl, which opens on the first frame.
+      // frog, cat, rabbit, owl or turtle, which opens on the first frame.
       if (world.houses.some((house) => house.kind === options.activity))
         pendingRoom = `mist:${options.activity}`;
       else if (options.activity === "village" || options.activity === "rest") {
@@ -248,7 +248,7 @@ export function createMistPlaces(context) {
           objective:
             made.size === MOMENTS.length
               ? "Every misty memory made. Find a photo spot, or fly home by balloon."
-              : "Greet the mist puffs, walk into all four houses, float a lantern and rest on the log.",
+              : "Greet the mist puffs, walk into every house, float a lantern and rest on the log.",
         },
         progress: `${made.size} / ${MOMENTS.length} misty memories`,
         hint,
