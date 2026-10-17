@@ -5,7 +5,7 @@ export async function readModels() {
   const loader = new GLTFLoader();
   return Object.fromEntries(
     await Promise.all(
-      ["hero", "companion", "axe", "bench"].map(async (name) => {
+      ["hero", "companion", "axe", "bench", "windmill"].map(async (name) => {
         const bytes = await readFile(
           new URL(`../../src/assets/models/${name}.glb`, import.meta.url),
         );

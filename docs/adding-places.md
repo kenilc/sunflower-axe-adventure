@@ -86,6 +86,19 @@ Every new place stands on a diorama board unless its design says otherwise. Buil
 
 Leave a place without a board only when it should feel endless, like the Sunset Beach horizon, or is an indoor room. Note the reason in the place's `world.js`.
 
+## Models made in Blender
+
+Code is still the right tool for scenery built from simple shapes. Use Blender for a landmark that is hard to make from primitives, such as the Tulip Polder windmill. Each model gets a build script, `assets/blender/build_<name>.py`, which saves `<name>.blend` beside it and exports `src/assets/models/<name>.glb`. Run it inside Blender with `SUNFLOWER_REPO` set to the repository path and `SUNFLOWER_EXPORT=1`. Then add the GLB to `src/assets/urls.js` and place copies with `instantiateModel(context.models.<name>)`.
+
+Keep these conventions so the model sits with the rest of the game:
+
+- 1 Blender unit is 1 game unit; the heroine is about 2.3 tall. Stand the model on Z = 0.
+- Blender −Y is the model's front, which becomes +Z in the game.
+- Name the root empty after the model, because `loadModels` finds it by that name.
+- Give parts the game moves their own named empty, upright in its own frame, such as the windmill's `sails`, which spins about its local Z.
+- Use Principled materials with roughness 0.88 and colours from the game's palette, and merge parts into one mesh per material to keep draw calls low.
+- Set the custom properties `flatShading`, `castShadow` and `receiveShadow` on meshes; they arrive as `userData`, which `instantiateModel` reads.
+
 ## Registering the place
 
 Import the factory in `src/locations/register-places.js`, then add `places.register(createGrovePlace(context))` before `places.validate()`. No input, HUD, movement, or restart branch is required. Decorate the entrance separately if you want a visible gate in its parent world; the example defines the gate's detection area only. Check that its approach and return spawn avoid the parent's obstacles.
