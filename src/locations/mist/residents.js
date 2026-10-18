@@ -524,6 +524,7 @@ export function createResident(kind, parent) {
   const spot = SPOTS[kind];
   const root = new THREE.Group();
   root.name = `mist-${kind}-resident`;
+  root.userData.keepSolid = true;
   root.position.set(...spot.position);
   root.rotation.y = spot.heading;
   root.scale.setScalar(SCALE);

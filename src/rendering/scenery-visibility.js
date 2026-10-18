@@ -6,14 +6,16 @@ import {
 
 // Fill the gaps around the specialized forest/landscape controllers. Index
 // scenery before characters or temporary props are added to a destination;
-// exclude both actors wherever they already live in its hierarchy.
+// exclude both actors wherever they already live in its hierarchy. Other
+// characters built into a place (animals strolling or at home) set
+// `userData.keepSolid` and are skipped too, so they never turn see-through.
 export function createSceneryVisibility({ group, actors }) {
   const visibility = createTreeVisibility();
   const bounds = new THREE.Box3();
   let count = 0;
   group.updateWorldMatrix(true, true);
   function collect(node, meshes) {
-    if (actors.includes(node)) return;
+    if (actors.includes(node) || node.userData.keepSolid) return;
     if (node.isMesh && !node.isInstancedMesh && !isVisibilityManaged(node)) {
       const materials = Array.isArray(node.material)
         ? node.material

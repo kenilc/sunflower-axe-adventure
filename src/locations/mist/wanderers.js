@@ -516,6 +516,7 @@ const turn = (from, to, rate) => {
 export function createWanderer(kind, parent) {
   const root = new THREE.Group();
   root.name = `mist-${kind}-wanderer`;
+  root.userData.keepSolid = true;
   root.scale.setScalar(SCALE);
   parent.add(root);
   const made = build[kind](makeParts(root));

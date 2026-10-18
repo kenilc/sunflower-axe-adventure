@@ -4,6 +4,7 @@ import {
   createTreeVisibility,
   FADED_OPACITY,
 } from "../src/rendering/tree-visibility.js";
+import { createSceneryVisibility } from "../src/rendering/scenery-visibility.js";
 
 function setup() {
   const house = new THREE.Group();
@@ -113,4 +114,31 @@ test("fading changes only after a short moment, so passing glimpses neither flic
   expect(wall.material.opacity).toBeLessThan(1);
   visibility.update(camera, [heroine], 1);
   expect(wall.material.opacity).toBe(1);
+});
+
+test("characters built into a place stay solid even when they stand in her way", () => {
+  const place = new THREE.Group();
+  const block = () =>
+    new THREE.Mesh(
+      new THREE.BoxGeometry(2, 4, 2),
+      new THREE.MeshStandardMaterial(),
+    );
+  const wall = block();
+  wall.position.set(0, 2, 0);
+  const animal = new THREE.Group();
+  animal.userData.keepSolid = true;
+  const body = block();
+  body.position.set(0, 2, 2);
+  animal.add(body);
+  place.add(wall, animal);
+  const heroine = new THREE.Group();
+  heroine.position.set(0, 0, -4);
+  const scenery = createSceneryVisibility({ group: place, actors: [heroine] });
+  const camera = new THREE.PerspectiveCamera();
+  camera.position.set(0, 2, 6);
+  camera.lookAt(0, 1.6, -4);
+  scenery.update(camera, heroine, 1);
+  scenery.update(camera, heroine, 1);
+  expect(wall.material.opacity).toBeLessThan(FADED_OPACITY + 0.01);
+  expect(body.material.opacity).toBe(1);
 });
