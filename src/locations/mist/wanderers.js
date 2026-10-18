@@ -11,6 +11,20 @@ import { SCALE, biped, makeParts } from "./residents.js";
 
 const up = new THREE.Vector3(0, 1, 0);
 
+// A soft brown nose with a little shine, smaller than the eyes, so the
+// face never reads as three black dots.
+function nose(p, head, y, z, r = 0.036) {
+  p.ball(r, "#5a3d34", 0, y, z, head).scale.set(1.25, 0.9, 0.9);
+  p.ball(
+    r * 0.35,
+    "#fffbe8",
+    -r * 0.35,
+    y + r * 0.45,
+    z + r * 0.7,
+    head,
+  ).castShadow = false;
+}
+
 // Short soft spikes pointing out of a ball's surface, for the hedgehog.
 function spines(p, to, { x, y, z, r, color, from, to: end, rows }) {
   for (const [row, lift] of rows.entries())
@@ -91,7 +105,7 @@ const build = {
     p.ball(0.28, "#e9cfae", 0, 0, 0.05, head);
     const snout = p.ball(0.11, "#e9cfae", 0, -0.07, 0.3, head);
     snout.scale.set(1, 0.85, 1.25);
-    p.ball(0.045, "#3a2f2c", 0, -0.04, 0.44, head);
+    nose(p, head, -0.04, 0.43);
     for (const side of [-1, 1])
       p.ball(0.06, "#e3bd98", side * 0.26, 0.06, 0.06, head);
     p.eyes(head, { gap: 0.11, y: 0.06, z: 0.29 });
@@ -178,7 +192,7 @@ const build = {
     }
     const muzzle = p.ball(0.12, cream, 0, -0.08, 0.27, head);
     muzzle.scale.set(1.1, 0.8, 1.25);
-    p.ball(0.045, "#3a2f2c", 0, -0.04, 0.42, head);
+    nose(p, head, -0.04, 0.41);
     for (const side of [-1, 1]) {
       const ear = p.group(side * 0.19, 0.24, -0.02, head);
       ear.rotation.z = -side * 0.3;
@@ -195,7 +209,7 @@ const build = {
     }
     p.eyes(head, { gap: 0.13, y: 0.06, z: 0.27, r: 0.062 });
     p.cheeks(head, { gap: 0.2, y: -0.07, z: 0.3 });
-    p.smile(head, { y: -0.15, z: 0.32, r: 0.04 });
+    p.smile(head, { y: -0.14, z: 0.39, r: 0.04 });
     // A big bushy tail with a white tip, swishing behind.
     const tail = p.group(0, 0.1, -0.24, hips);
     for (const [y, z, r, color] of [
@@ -279,7 +293,7 @@ const build = {
     face.scale.set(1.05, 1, 1);
     const muzzle = p.ball(0.13, cream, 0, -0.09, 0.23, head);
     muzzle.scale.set(1.1, 0.8, 1);
-    p.ball(0.045, "#3a2f2c", 0, -0.05, 0.35, head);
+    nose(p, head, -0.05, 0.345);
     const ears = [-1, 1].map((side) => {
       const ear = p.group(side * 0.27, 0.12, -0.02, head);
       ear.rotation.z = side * 0.45;
@@ -300,7 +314,7 @@ const build = {
       p.ball(0.04, cream, x, y, z, head).scale.z = 0.5;
     p.eyes(head, { gap: 0.12, y: 0.05, z: 0.26, r: 0.066 });
     p.cheeks(head, { gap: 0.2, y: -0.07, z: 0.23 });
-    p.smile(head, { y: -0.16, z: 0.26, r: 0.04 });
+    p.smile(head, { y: -0.145, z: 0.335, r: 0.04 });
     // A crown of little daisies and pink clover.
     const crown = p.group(0, 0.19, -0.02, head);
     crown.rotation.x = -0.12;
@@ -388,7 +402,7 @@ const build = {
     }
     p.eyes(head, { gap: 0.12, y: 0.05, z: 0.25, r: 0.062 });
     p.cheeks(head, { gap: 0.2, y: -0.07, z: 0.21 });
-    p.smile(head, { y: -0.11, z: 0.27, r: 0.035 });
+    p.smile(head, { y: -0.105, z: 0.295, r: 0.03 });
     // The great curl of a tail, up the back and over.
     const tail = p.group(0, 0, -0.2, hips);
     for (const [y, z, r] of [

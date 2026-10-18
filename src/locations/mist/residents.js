@@ -40,20 +40,32 @@ export function makeParts(parent) {
     to.add(g);
     return g;
   };
-  // Two eyes on a face whose front is +z: dark pupils with a catchlight.
-  const eyes = (to, { gap, y, z, r = 0.06 }) => {
+  // Two eyes on a face whose front is +z: warm dark pupils, each turned to
+  // follow the curve of the face, with a big catchlight and a small one so
+  // they always look bright and wet rather than like black beads. Eyes on
+  // bumps of their own (the frog's) pass a smaller `turn`.
+  const eyes = (
+    to,
+    { gap, y, z, r = 0.06, turn = Math.asin(Math.min(gap / 0.3, 0.9)) },
+  ) => {
     for (const side of [-1, 1]) {
-      const pupil = ball(r, "#2e2a26", side * gap, y, z, to);
+      const eye = group(side * gap, y, z, to);
+      eye.rotation.y = side * turn;
+      const pupil = ball(r, "#33241f", 0, 0, 0, eye);
       pupil.scale.z = 0.6;
       pupil.castShadow = false;
-      ball(
-        r * 0.32,
-        "#fffbe8",
-        side * gap - r * 0.3,
-        y + r * 0.35,
-        z + r * 0.5,
-        to,
-      ).castShadow = false;
+      for (const [x, lift, size] of [
+        [-0.32, 0.36, 0.42],
+        [0.34, -0.3, 0.18],
+      ])
+        ball(
+          r * size,
+          "#fffbe8",
+          side * r * x,
+          r * lift,
+          r * 0.5,
+          eye,
+        ).castShadow = false;
     }
   };
   const cheeks = (to, { gap, y, z, r = 0.055 }) => {
@@ -141,7 +153,7 @@ const build = {
       p.ball(0.14, "#8cc96f", side * 0.22, 0.2, 0.04, head);
       p.ball(0.1, "#ffffff", side * 0.22, 0.22, 0.12, head);
     }
-    p.eyes(head, { gap: 0.22, y: 0.23, z: 0.2, r: 0.06 });
+    p.eyes(head, { gap: 0.22, y: 0.23, z: 0.2, r: 0.06, turn: 0.15 });
     p.cheeks(head, { gap: 0.3, y: -0.03, z: 0.25 });
     p.smile(head, { y: 0, z: 0.33, r: 0.09 });
     // A little rain hat, tipped back between the eyes.
