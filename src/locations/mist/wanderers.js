@@ -537,6 +537,8 @@ export function createWanderer(kind, parent) {
   const { body, prop, carry, hug = 0.1, lift = 0.45, extra } = made;
   const hip = body.hips.position.y;
   const local = new THREE.Vector3();
+  // Each animal glances about on its own rhythm.
+  const phase = WANDERER_KINDS.indexOf(kind) * 1.7;
   let stride = 0,
     swing = 0,
     look = 0,
@@ -545,17 +547,16 @@ export function createWanderer(kind, parent) {
     kind,
     group: root,
     speed: made.speed,
-    // Head straight, for a photo.
-    lookAhead() {
-      look = 0;
-      body.head.rotation.y = 0;
-    },
-    // How it holds itself this frame: `moving` blends in the walk cycle,
-    // `waving` the photo pose, and `friend` turns its head to look.
-    animate(dt, time, { moving = false, waving = false, friend } = {}) {
+    // How it holds itself this frame: `moving` blends in the walk cycle at
+    // `pace`, `waving` the photo pose, and `friend` draws its glances.
+    animate(
+      dt,
+      time,
+      { moving = false, waving = false, friend, pace = 1 } = {},
+    ) {
       swing += ((moving ? 1 : 0) - swing) * Math.min(1, dt * 8);
       wave += ((waving ? 1 : 0) - wave) * Math.min(1, dt * 6);
-      stride += dt * made.speed * 6 * swing;
+      stride += dt * made.speed * pace * 6 * swing;
       const s = Math.sin(stride);
       body.legs[0].rotation.x = s * 0.6 * swing;
       body.legs[1].rotation.x = -s * 0.6 * swing;
@@ -577,15 +578,20 @@ export function createWanderer(kind, parent) {
       body.pose(holding, reach, hug);
       prop.rotation.x = reach;
       extra?.(time, swing);
-      let want = 0;
-      if (friend) {
+      // It never holds a fixed stare: the head drifts about, now and then
+      // turning towards a friend nearby, then away again.
+      let want = Math.sin(time * 0.45 + phase) * 0.35;
+      if (friend && Math.sin(time * 0.3 + phase) > 0) {
         local.copy(friend);
         root.worldToLocal(local);
         if (Math.hypot(local.x, local.z) < 6 && local.z > -0.5)
-          want = THREE.MathUtils.clamp(Math.atan2(local.x, local.z), -0.8, 0.8);
+          want =
+            THREE.MathUtils.clamp(Math.atan2(local.x, local.z), -0.7, 0.7) *
+            0.8;
       }
-      look += (want - look) * Math.min(1, dt * 5);
+      look += (want - look) * Math.min(1, dt * 1.5);
       body.head.rotation.y = look;
+      body.head.rotation.z = Math.sin(time * 0.6 + phase) * 0.05;
       body.head.rotation.x = wave * -0.08;
     },
   };
@@ -593,7 +599,10 @@ export function createWanderer(kind, parent) {
 
 // Waypoint walkers. `routes` maps each kind to its loop of [x, z] stops;
 // each animal gets a blocker that moves with it so the friends walk round.
-export const NOTICE = 3.6;
+// With the friends close by they keep strolling, only slower, and step
+// round them.
+const NOTICE = 3.6;
+const NEAR_PACE = 0.5;
 export function createWanderers({ parent, routes, blockers, contains }) {
   const animals = Object.entries(routes).map(([kind, route], i) => {
     const animal = createWanderer(kind, parent);
@@ -615,14 +624,14 @@ export function createWanderers({ parent, routes, blockers, contains }) {
   let others = null;
   // Step towards a point, round the blockers (and `around`, the friends,
   // when it comes up to them); true once there.
-  function walk(animal, to, dt, around = []) {
+  function walk(animal, to, dt, around = [], pace = 1) {
     const { position } = animal.group;
     const dx = to.x - position.x,
       dz = to.z - position.z;
     const gap = Math.hypot(dx, dz);
     if (gap < 0.25) return true;
     previous.copy(position);
-    const step = Math.min(gap, animal.speed * dt);
+    const step = Math.min(gap, animal.speed * pace * dt);
     position.x += (dx / gap) * step;
     position.z += (dz / gap) * step;
     resolveObstacleCollisions(
@@ -670,6 +679,8 @@ export function createWanderers({ parent, routes, blockers, contains }) {
           a.distanceTo(position) <= b.distanceTo(position) ? a : b,
         );
         const near = friend.distanceTo(position) < NOTICE;
+        const pace = near ? NEAR_PACE : 1;
+        const around = friends.map(({ x, z }) => ({ x, z, r: 0.7 }));
         let moving = false,
           waving = false;
         if (animal.posing) {
@@ -685,17 +696,14 @@ export function createWanderers({ parent, routes, blockers, contains }) {
             rotation.y = turn(rotation.y, animal.posing.facing, dt * 6);
             waving = true;
           }
-        } else if (near) {
-          rotation.y = turn(
-            rotation.y,
-            Math.atan2(friend.x - position.x, friend.z - position.z),
-            dt * 4,
-          );
         } else if (animal.pause > 0) {
           animal.pause -= dt;
         } else {
           const stop = animal.stops[animal.next];
-          if (walk(animal, stop, dt) || animal.stuck > 2.5) {
+          if (
+            walk(animal, stop, dt, near ? around : [], pace) ||
+            animal.stuck > 2.5
+          ) {
             animal.next = (animal.next + 1) % animal.stops.length;
             animal.pause = 1.5 + ((animal.next * 1.7) % 2.5);
             animal.stuck = 0;
@@ -706,6 +714,7 @@ export function createWanderers({ parent, routes, blockers, contains }) {
         animal.animate(dt, time, {
           moving,
           waving,
+          pace: animal.posing ? 1 : pace,
           friend: animal.posing ? null : friend,
         });
       }

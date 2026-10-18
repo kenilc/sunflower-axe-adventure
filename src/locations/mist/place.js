@@ -247,10 +247,10 @@ export function createMistPlaces(context) {
       context.camera.lookAt(target);
       return true;
     },
-    // In Camera mode every animal turns to the lens.
+    // In Camera mode the posing animal keeps its pose to the lens.
     photoVisibility(camera, actors, dt, enabled) {
       if (context.locations.current !== "mist") return;
-      world.faceCamera(camera, true);
+      world.faceCamera(camera);
       world.visibility.update(camera, actors, dt, enabled);
     },
     afterCamera(dt) {

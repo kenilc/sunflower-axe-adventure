@@ -228,13 +228,16 @@ test("the forest animals stroll their routes, and stop to look at the friends", 
   const start = fox.group.position.clone();
   frames(game, 150);
   expect(fox.group.position.distanceTo(start)).toBeGreaterThan(1);
-  // With her close by, it stands still and turns to her.
-  hero.position.copy(fox.group.position).add(new THREE.Vector3(2, 0, 0));
-  frames(game, 40);
-  const held = fox.group.position.clone();
-  frames(game, 40);
-  expect(fox.group.position.distanceTo(held)).toBeLessThan(0.01);
-  expect(Math.sin(fox.group.rotation.y)).toBeGreaterThan(0.9);
+  // With her close by it keeps strolling, slower, and steps round her.
+  hero.position.copy(fox.group.position).add(new THREE.Vector3(1.6, 0, 0));
+  const near = fox.group.position.clone();
+  let closest = Infinity;
+  for (let i = 0; i < 200; i++) {
+    frames(game);
+    closest = Math.min(closest, fox.group.position.distanceTo(hero.position));
+  }
+  expect(fox.group.position.distanceTo(near)).toBeGreaterThan(0.5);
+  expect(closest).toBeGreaterThan(1);
 });
 
 test("an animal comes to stand beside the friends for a photo of all three", async () => {
@@ -264,25 +267,14 @@ test("an animal comes to stand beside the friends for a photo of all three", asy
     preset.target.clone().setY(0).distanceTo(hero.position.clone().setY(0)),
   ).toBeLessThan(2.5);
   expect(mist.photoLocation()).toMatch(/squirrel/);
-  // In Camera mode it turns to face the camera, wherever the view goes.
+  // In Camera mode it stands three-quarters to the lens, whichever way
+  // the view is turned: never its back, and never a straight stare.
   game.rendering.camera.position
     .copy(squirrel.group.position)
     .add(new THREE.Vector3(-6, 3, -6));
   mist.photoVisibility(game.rendering.camera, [hero], 0.04, true);
-  expect(
-    Math.cos(squirrel.group.rotation.y - Math.atan2(-6, -6)),
-  ).toBeGreaterThan(0.99);
-  // Any other animal in the shot turns to the lens too.
-  const fox = world.animals.find((a) => a.kind === "fox");
-  expect(
-    Math.cos(
-      fox.group.rotation.y -
-        Math.atan2(
-          game.rendering.camera.position.x - fox.group.position.x,
-          game.rendering.camera.position.z - fox.group.position.z,
-        ),
-    ),
-  ).toBeGreaterThan(0.99);
+  const lens = Math.atan2(-6, -6);
+  expect(Math.cos(squirrel.group.rotation.y - lens)).toBeGreaterThan(0.85);
   // Walking on says goodbye.
   hero.position.x -= 4;
   frames(game);
