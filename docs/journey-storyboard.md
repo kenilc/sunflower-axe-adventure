@@ -104,7 +104,7 @@ _Dusk in a misty forest. Paper lanterns, soft fog, and five sleepy animal houses
 
 1. Follow the paper lanterns north up a winding stone path through the fog.
 2. **Mist puffs:** in a glade beside the path, soft round wisps with tiny faces come to say hello and float round the friends.
-3. **The houses:** a frog, a cat, a rabbit, an owl and a turtle in its shell sit round a little pond. Each is big enough to walk into, with a round room inside that suits its animal. Each house gives a happy wiggle as you step back out.
+3. **The houses:** a frog, a cat, a rabbit, an owl and a turtle in its shell sit round a little pond. Each is big enough to walk into, with a round room inside that suits its animal. The animal is at home, a little storybook figure in its own clothes: the frog in a raincoat fishes from its lily pad, the cat in a cardigan knits a scarf, the rabbit in an apron nibbles a carrot, the owl in a vest reads in its armchair and the turtle in a scarf sips tea. Each looks up when the friends come near. Each house gives a happy wiggle as you step back out.
 4. **Paper lanterns:** set lanterns floating on the pond. The seed is resting in one of them.
 5. **Rest** on the mossy log by the pond and watch the mist, then take the balloon on from the meadow.
 

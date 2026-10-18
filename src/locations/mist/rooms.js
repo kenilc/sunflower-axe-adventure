@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { markGlow } from "../../rendering/glow.js";
 import { createMeshFactory } from "../../rendering/mesh-factory.js";
+import { createResident } from "./residents.js";
 
 // Inside each animal house: a round room under the dome of its head (or
 // the turtle's shell), open
@@ -15,32 +16,33 @@ const ROOMS = {
     wall: "#cfe8c8",
     floor: "#8a6a4c",
     background: "#a9c9b0",
-    hello: "Ribbit! ♥ Lily pads, firefly jars and a little indoor pool",
-    hint: "Lily-pad rug · Indoor pool · Leaf bed · Firefly jars on the shelf",
+    hello:
+      "Ribbit! ♥ The frog is fishing from its lily pad in the little indoor pool",
+    hint: "Frog fishing · Indoor pool · Leaf bed · Firefly jars on the shelf",
   },
   cat: {
     name: "Cat house",
     wall: "#f6e3e0",
     floor: "#9a7656",
     background: "#d9c0c4",
-    hello: "Purr… ♥ Balls of yarn, a cat tree and a cushion for napping",
-    hint: "Fish rug · Yarn balls · Cat tree · Napping cushion · Milk bowl",
+    hello: "Purr… ♥ The cat is knitting a blue scarf on its napping cushion",
+    hint: "Cat knitting · Fish rug · Yarn balls · Cat tree · Milk bowl",
   },
   rabbit: {
     name: "Rabbit house",
     wall: "#fbf1f3",
     floor: "#b08a5a",
     background: "#e2cfd3",
-    hello: "Hop in! ♥ Carrots in a basket and carrot cake on the table",
-    hint: "Carrot basket · Carrot cake · Hay bed · Tulips on the shelf",
+    hello: "Hop in! ♥ The rabbit is nibbling a carrot by the cake table",
+    hint: "Rabbit with a carrot · Carrot basket · Carrot cake · Hay bed · Tulips on the shelf",
   },
   owl: {
     name: "Owl house",
     wall: "#e9dcc7",
     floor: "#6b5244",
     background: "#b9aa9a",
-    hello: "Hoo-hoo ♥ Shelves of books, a moon lamp and stars to read by",
-    hint: "Bookshelves · Moon lamp · Star garland · Telescope · Reading rug",
+    hello: "Hoo-hoo ♥ The owl is reading in its armchair by the moon lamp",
+    hint: "Owl with a book · Bookshelves · Moon lamp · Star garland · Telescope · Reading rug",
   },
   turtle: {
     name: "Turtle house",
@@ -48,8 +50,8 @@ const ROOMS = {
     floor: "#e3cfa1",
     sand: true,
     background: "#b8cbbf",
-    hello: "Slow and cosy ♥ A sandy floor, a seashell lamp and a pot of tea",
-    hint: "Rock garden · Seashell lamp · Half-shell bed · Tea table · Shell shelf",
+    hello: "Slow and cosy ♥ The turtle is sipping tea at its low table",
+    hint: "Turtle sipping tea · Rock garden · Seashell lamp · Half-shell bed · Tea table · Shell shelf",
   },
 };
 
@@ -219,7 +221,8 @@ function createRoom(context, kind) {
         petal.rotation.y = -a;
       }
       ball(0.14, "#f5d36b", 0, 0.2, 0.4);
-      // A little indoor pool with a lily pad and a stone rim.
+      // A little indoor pool with a lily pad (the frog's fishing spot) and a
+      // stone rim.
       const pool = new THREE.Vector3(-3.4, 0, -2.8);
       flat(cyl(1.25, 1.25, 0.06, "#6f9ac2", pool.x, 0.06, pool.z, group, 18));
       for (let i = 0; i < 12; i++) {
@@ -235,13 +238,13 @@ function createRoom(context, kind) {
       }
       flat(
         cyl(
-          0.38,
-          0.38,
+          0.9,
+          0.9,
           0.03,
           "#6f9a6a",
-          pool.x + 0.3,
+          pool.x + 0.1,
           0.1,
-          pool.z - 0.2,
+          pool.z - 0.05,
           group,
           10,
         ),
@@ -559,7 +562,7 @@ function createRoom(context, kind) {
         block(p.x, p.z, 0.95);
       }
       // A moon lamp on a stand, glowing softly.
-      const moon = new THREE.Vector3(-3.9, 0, 0.4);
+      const moon = new THREE.Vector3(-4.8, 0, -0.9);
       cyl(0.35, 0.45, 0.12, "#4a3628", moon.x, 0.06, moon.z, group, 10);
       cyl(0.05, 0.05, 1.5, "#4a3628", moon.x, 0.8, moon.z, group, 6);
       lit(
@@ -582,17 +585,18 @@ function createRoom(context, kind) {
           mesh(new THREE.OctahedronGeometry(0.1, 0), starLight, q.x, q.y, q.z),
         );
       }
-      // A comfy armchair beside the lamp.
+      // A big comfy armchair beside the lamp, roomy enough for the owl.
       const chair = new THREE.Group();
       chair.position.set(-3.2, 0, 2.3);
       chair.rotation.y = 0.9;
+      chair.scale.setScalar(1.45);
       group.add(chair);
       box(1.3, 0.5, 1.1, "#c8573f", 0, 0.35, 0, chair);
       box(1.3, 1.1, 0.3, "#c8573f", 0, 0.9, -0.45, chair);
       for (const side of [-1, 1])
         box(0.25, 0.75, 1.1, "#b04a35", side * 0.62, 0.5, 0, chair);
       box(0.6, 0.3, 0.25, "#f5d36b", 0, 0.75, -0.2, chair);
-      block(-3.2, 2.3, 0.85);
+      block(-3.2, 2.3, 1.25);
       // A telescope on a tripod, pointing up at the left window.
       const scope = new THREE.Group();
       scope.position.set(3.4, 0, -1.6);
@@ -839,10 +843,13 @@ function createRoom(context, kind) {
     ),
   );
   markGlow(...glowing);
+  const resident = createResident(kind, group);
+  blockers.push(resident.blocker);
 
   return {
     look,
     group,
+    resident,
     blockers,
     arrival: new THREE.Vector3(0, 0, ROOM_RADIUS - 1.6),
     contains: (x, z) =>
@@ -889,6 +896,9 @@ export function createHouseRooms(context, { world, visit }) {
       },
       enter() {
         visit(house.kind, look.hello);
+      },
+      animate(dt, time, paused) {
+        if (!paused) room.resident.animate(time, context.hero.position);
       },
       getGate: () =>
         room.isExit(context.hero.position) ? { id: "mist" } : null,
