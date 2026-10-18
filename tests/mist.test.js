@@ -1,6 +1,11 @@
 import { afterEach, expect, test, vi } from "vitest";
 import * as THREE from "three";
 import { createTestGame } from "./helpers/game.js";
+import {
+  WANDER_ROUTES,
+  streamX,
+  walkable,
+} from "../src/locations/mist/world.js";
 
 afterEach(() => vi.unstubAllGlobals());
 function frames(game, count = 1) {
@@ -173,4 +178,88 @@ test("each house is too big to walk through except at its door, and roomy inside
     expect(room.terrain.contains(0, -6.4)).toBe(false);
     expect(room.terrain.isExit(room.terrain.arrival)).toBe(false);
   }
+});
+
+test("the bigger hollow has a toadstool grove and a berry patch over the stream", async () => {
+  const { game } = await flyToMist();
+  const { terrain, world } = game.places.get("mist");
+  for (const corner of [world.grove, world.berries, world.bridge])
+    expect(terrain.contains(corner.x, corner.z)).toBe(true);
+  // The stream is crossed only by the bridge.
+  expect(terrain.contains(streamX(-20), -20)).toBe(false);
+  expect(terrain.contains(streamX(10), 10)).toBe(false);
+  expect(terrain.contains(0, 50)).toBe(false);
+});
+
+test("the forest animals stroll their routes, and stop to look at the friends", async () => {
+  const { game } = await flyToMist();
+  const { world } = game.places.get("mist"),
+    hero = game.characters.hero;
+  const moving = world.animals.filter((a) => a.obstacle);
+  const scenery = world.blockers.filter(
+    (b) => !moving.some((a) => a.obstacle === b),
+  );
+  // Every leg of every route keeps to open ground, clear of the scenery.
+  for (const [kind, route] of Object.entries(WANDER_ROUTES))
+    route.forEach(([x, z], i) => {
+      const [nx, nz] = route[(i + 1) % route.length];
+      for (let t = 0; t <= 1; t += 0.05) {
+        const px = x + (nx - x) * t,
+          pz = z + (nz - z) * t;
+        expect(walkable(px, pz), `${kind} at ${px}, ${pz}`).toBe(true);
+        for (const b of scenery)
+          expect(
+            Math.hypot(px - b.x, pz - b.z),
+            `${kind} at ${px}, ${pz}`,
+          ).toBeGreaterThan(b.r + 0.45);
+      }
+    });
+  // Away from the friends, they walk on.
+  hero.position.set(0, 0, 20);
+  game.characters.companion.reset(hero.position, world.blockers, world);
+  const fox = world.animals.find((a) => a.kind === "fox");
+  const start = fox.group.position.clone();
+  frames(game, 150);
+  expect(fox.group.position.distanceTo(start)).toBeGreaterThan(1);
+  // With her close by, it stands still and turns to her.
+  hero.position.copy(fox.group.position).add(new THREE.Vector3(2, 0, 0));
+  frames(game, 40);
+  const held = fox.group.position.clone();
+  frames(game, 40);
+  expect(fox.group.position.distanceTo(held)).toBeLessThan(0.01);
+  expect(Math.sin(fox.group.rotation.y)).toBeGreaterThan(0.9);
+});
+
+test("an animal comes to stand beside the friends for a photo of all three", async () => {
+  const { game } = await flyToMist();
+  const mist = game.places.get("mist"),
+    { world } = mist,
+    hero = game.characters.hero;
+  const squirrel = world.animals.find((a) => a.kind === "squirrel");
+  hero.position.set(world.berries.x - 1, 0, world.berries.z + 1);
+  game.characters.companion.reset(hero.position, world.blockers, world);
+  squirrel.group.position.set(world.berries.x + 1, 0, world.berries.z + 1);
+  frames(game);
+  expect(mist.getHud().actions[0].label).toMatch(/photo with the squirrel/);
+  expect(mist.interact()).toBe(true);
+  frames(game, 60);
+  expect(world.posing).toBe(squirrel);
+  const gap = squirrel.group.position.distanceTo(hero.position);
+  expect(gap).toBeGreaterThan(1.4);
+  expect(gap).toBeLessThan(2.4);
+  // All three face the same way, and the photo frames them together.
+  expect(Math.cos(squirrel.group.rotation.y - hero.rotation.y)).toBeGreaterThan(
+    0.95,
+  );
+  const preset = mist.getPhotoPreset();
+  expect(Math.abs(preset.yaw - squirrel.posing.facing)).toBeLessThan(1);
+  expect(
+    preset.target.clone().setY(0).distanceTo(hero.position.clone().setY(0)),
+  ).toBeLessThan(2.5);
+  expect(mist.photoLocation()).toMatch(/squirrel/);
+  // Walking on says goodbye.
+  hero.position.x -= 4;
+  frames(game);
+  expect(world.posing).toBe(null);
+  expect(mist.getPhotoPreset()).toBeUndefined();
 });

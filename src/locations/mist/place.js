@@ -48,6 +48,7 @@ export function createMistPlaces(context) {
       );
   }
   let pendingRoom = null;
+  const lastSpot = new THREE.Vector3();
   function sitDown() {
     resting = true;
     restTime = 0;
@@ -73,6 +74,13 @@ export function createMistPlaces(context) {
     const spot = world.nearby(context.hero.position);
     if (!spot) return false;
     if (spot.kind === "balloon") return world.trip.board();
+    if (spot.kind === "animal") {
+      world.pose(spot.animal);
+      context.toast(
+        `The ${spot.animal.kind} comes to stand beside you ♥ Camera / M for a photo together`,
+      );
+      return true;
+    }
     if (spot.kind === "wisps") {
       world.gather();
       context.burst(
@@ -116,8 +124,37 @@ export function createMistPlaces(context) {
     canSaveLocation: () => !resting && !world.trip.flying,
     cameraLocked: () => resting,
     photoLocation: () =>
-      resting ? "Mistwood Hollow · Resting by the pond" : "Mistwood Hollow",
+      resting
+        ? "Mistwood Hollow · Resting by the pond"
+        : world.posing
+          ? `Mistwood Hollow · With the ${world.posing.kind}`
+          : "Mistwood Hollow",
     getPhotoPreset() {
+      const animal = world.posing;
+      if (animal && !resting) {
+        // Frame all three from the front.
+        const subjects = [
+          context.hero.position,
+          context.companion.character.position,
+          animal.group.position,
+        ];
+        const target = subjects
+          .reduce((sum, p) => sum.add(p), new THREE.Vector3())
+          .multiplyScalar(1 / 3);
+        const spread = Math.max(...subjects.map((p) => p.distanceTo(target)));
+        const view = world.photoView(
+          target,
+          animal.posing.facing,
+          6.5 + spread * 1.6,
+        );
+        return {
+          target: target.setY(1.3),
+          yaw: view.yaw,
+          pitch: 10,
+          distance: view.distance,
+          fov: 48,
+        };
+      }
       if (!resting) return;
       return {
         lockActors: true,
@@ -136,7 +173,7 @@ export function createMistPlaces(context) {
       camera: { yaw: 0, pitch: 0.42, zoom: 24, fov: 50 },
       environment: MIST_ENVIRONMENT,
       instructions:
-        "<kbd>W A S D</kbd> walk <kbd>X</kbd> mist puffs / houses / pond / log <kbd>M</kbd> photo",
+        "<kbd>W A S D</kbd> walk <kbd>X</kbd> mist puffs / animals / pond / log <kbd>M</kbd> photo",
     },
     enter({ from, returning, options = {} } = {}) {
       // Direct links: ?area=mist&activity=village, rest, or a house:
@@ -168,6 +205,14 @@ export function createMistPlaces(context) {
     },
     interact,
     moveInstead: (dt) => world.trip.move(dt),
+    // While an animal poses, he turns to the camera whenever he stands still.
+    afterMovement() {
+      const animal = world.posing,
+        friend = context.companion.character;
+      if (animal && friend.position.distanceTo(lastSpot) < 1e-4)
+        friend.rotation.set(0, animal.posing.facing, 0);
+      lastSpot.copy(friend.position);
+    },
     update(dt) {
       if (pendingRoom) {
         const id = pendingRoom;
@@ -216,12 +261,17 @@ export function createMistPlaces(context) {
       let label = "Explore the hollow · X",
         icon = "interact",
         hint =
-          "Lantern path: north to the houses, whose doors open · Mist puffs: the glade off the path · Balloon: meadow";
+          "Lantern path: north to the houses · Toadstool grove: west trail · Berry patch: east, over the stream · Forest animals: X for a photo together";
       if (resting) {
         label = "Get up from the log · X";
         icon = "return";
         hint =
           "Lanterns on the water, mist in the trees · X to get up · M for a photo";
+      } else if (spot?.kind === "animal") {
+        const name = spot.animal.kind;
+        label = `Take a photo with the ${name} · X`;
+        icon = "interact";
+        hint = `A ${name} out for an evening stroll. Ask it to join your photo · X`;
       } else if (spot?.kind === "balloon") {
         label = "Fly the balloon back to the polder · X";
         icon = "gate";
@@ -239,6 +289,8 @@ export function createMistPlaces(context) {
         icon = "bench";
         hint = "A quiet seat by the pond · X";
       }
+      if (world.posing && !resting)
+        hint = `Smile! Camera / M for a photo with the ${world.posing.kind} · walk on to say goodbye`;
       return {
         region: resting ? "By the pond" : "Mistwood Hollow",
         hideStick: resting,
@@ -254,7 +306,7 @@ export function createMistPlaces(context) {
         hint,
         instructions: resting
           ? "<kbd>X</kbd> get up <kbd>M</kbd> photo"
-          : "<kbd>W A S D</kbd> walk <kbd>X</kbd> mist puffs / houses / pond / log <kbd>M</kbd> photo <kbd>V</kbd> map",
+          : "<kbd>W A S D</kbd> walk <kbd>X</kbd> mist puffs / animals / pond / log <kbd>M</kbd> photo <kbd>V</kbd> map",
         actions: [
           {
             id: resting ? "mistRestStop" : "placeAction",

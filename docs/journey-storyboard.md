@@ -80,24 +80,26 @@ Stamp: a red tulip on a windmill.
 
 ## 2 · Mistwood Hollow
 
-_Dusk in a misty forest. Paper lanterns, soft fog, and five sleepy animal houses you can walk into._
+_Dusk in a misty forest. Paper lanterns, soft fog, five sleepy animal houses you can walk into, and forest animals out for a stroll._
 
-|             |                                                                                                                             |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Inspired by | Misty mountain forests and lantern walks, with storybook animal cottages (mysterious but cute, never scary, and not Ghibli) |
-| Light       | Violet dusk. `background #8d93b8`, `skyTop #4d5688`, a dim lilac sun, **thick fog**, warm lantern glow                      |
-| Board       | Round, about 38, thick with teal pines and round trees. Moss `#4f6a62`, dark soil `#3b2f2c`, grey stone `#6e7a78`           |
-| Music       | A slow, hushed flute over soft pads                                                                                         |
-| Outfit      | Cosy knits: her plum pinafore, his mustard jumper and bucket hat                                                            |
-| Arrive      | The balloon from the polder comes down in a meadow at the forest's south edge                                               |
+|             |                                                                                                                                  |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Inspired by | Misty mountain forests and lantern walks, with storybook animal cottages (mysterious but cute, never scary, and not Ghibli)      |
+| Light       | Violet dusk. `background #8d93b8`, `skyTop #4d5688`, a dim lilac sun, **thick fog**, warm lantern glow                           |
+| Board       | Round, about 54, thick with teal pines and round trees, opening onto fern lawns. Moss `#4f6a62`, soil `#3b2f2c`, stone `#6e7a78` |
+| Music       | A slow, hushed flute over soft pads                                                                                              |
+| Outfit      | Cosy knits: her plum pinafore, his mustard jumper and bucket hat                                                                 |
+| Arrive      | The balloon from the polder comes down in a meadow at the forest's south edge                                                    |
 
 ```
-            ⌂ cat 2★      ⌂ rabbit
-     ⌂ frog 6     ◎ pond S 4     ⌂ owl 7
-        log 5             ⌂ turtle 8
-   glade of mist puffs 3 ~ lantern path ~
-   1 meadow                    → balloon (9)
-   @ balloon lands
+                 ⌂ cat 2★      ⌂ rabbit
+          ⌂ frog 6     ◎ pond S 4     ⌂ owl 7
+toadstool    log 5   (duck)    ⌂ turtle 8        ≈
+ grove 10 ← trail                  trail → bridge ≈ → berry patch 11
+ (hedgehog)                          (fox)      ≈    (squirrel)
+        glade of mist puffs 3 ~ lantern path ~  ≈
+        1 meadow (fawn)            → balloon (9) ≈
+        @ balloon lands, fern lawn to the edge
 ```
 
 **Beats**
@@ -106,7 +108,9 @@ _Dusk in a misty forest. Paper lanterns, soft fog, and five sleepy animal houses
 2. **Mist puffs:** in a glade beside the path, soft round wisps with tiny faces come to say hello and float round the friends.
 3. **The houses:** a frog, a cat, a rabbit, an owl and a turtle in its shell sit round a little pond. Each is big enough to walk into, with a round room inside that suits its animal. The animal is at home, a little storybook figure in its own clothes: the frog in a raincoat fishes from its lily pad, the cat in a cardigan knits a scarf, the rabbit in an apron nibbles a carrot, the owl in a vest reads in its armchair and the turtle in a scarf sips tea. Each looks up when the friends come near. Each house gives a happy wiggle as you step back out.
 4. **Paper lanterns:** set lanterns floating on the pond. The seed is resting in one of them.
-5. **Rest** on the mossy log by the pond and watch the mist, then take the balloon on from the meadow.
+5. **Forest corners:** a trail west from the clearing leads to a grove of tall soft-capped toadstools round a fairy ring of glowing mushrooms; a trail east crosses a stream on a little humped bridge to a berry patch with a basket left on a stump.
+6. **Forest animals:** five storybook animals stroll the hollow, upright in their own clothes like the house residents: a hedgehog in lavender dungarees and a beanie with a basket of toadstools (the grove), a squirrel in a moss hoodie with an acorn (the berry patch), a fox in a cream turtleneck with a paper lantern (over the bridge), a fawn in a rose poncho and daisy crown (the meadow and lantern path) and a duck in a coral-striped top under a lilac umbrella (round the pond). They stop and turn to look when the friends come near. Press X by one and it comes to stand beside them and waves, and he steps to her other side; Camera / M frames all three.
+7. **Rest** on the mossy log by the pond and watch the mist, then take the balloon on from the meadow.
 
 **Photo spots**
 
@@ -119,6 +123,8 @@ _Dusk in a misty forest. Paper lanterns, soft fog, and five sleepy animal houses
 7. On the owl's reading rug, under the star garland.
 8. At the turtle's low tea table.
 9. In the balloon basket, rising out of the mist.
+10. Under the toadstools in the grove, with the hedgehog waving.
+11. Among the berry bushes, with the squirrel and its acorn.
 
 Stamp: a sleepy cat-house face with a lantern.
 

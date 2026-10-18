@@ -16,7 +16,7 @@ function smooth(color) {
   }));
 }
 
-function makeParts(parent) {
+export function makeParts(parent) {
   const add = (geometry, color, x, y, z, to = parent) => {
     const node = new THREE.Mesh(
       geometry,
@@ -83,14 +83,18 @@ function makeParts(parent) {
 // head pivot. Seated animals stick their legs straight out like a plush
 // toy on a shelf. Arms hang from the shoulders; `reach` points them
 // forward (radians) and `hug` brings the paws in towards each other.
-function biped(p, { fur, cloth, trousers = fur, hip, seated = false }) {
+// `feet` and `paws` default to the fur, for hooves or webbed feet.
+export function biped(
+  p,
+  { fur, cloth, trousers = fur, feet = fur, paws = fur, hip, seated = false },
+) {
   const hips = p.group(0, hip, 0);
   const tummy = p.ball(0.3, cloth, 0, 0.26, 0, hips);
   tummy.scale.set(1, 1.12, 0.88);
   const legs = [-1, 1].map((side) => {
     const leg = p.group(side * 0.13, 0.04, 0, hips);
     p.capsule(0.09, 0.18, trousers, 0, -0.16, 0, leg);
-    const foot = p.ball(0.1, fur, 0, -0.33, 0.05, leg);
+    const foot = p.ball(0.1, feet, 0, -0.33, 0.05, leg);
     foot.scale.set(1, 0.65, 1.45);
     if (seated) leg.rotation.x = -1.45;
     return leg;
@@ -98,7 +102,7 @@ function biped(p, { fur, cloth, trousers = fur, hip, seated = false }) {
   const arms = [-1, 1].map((side) => {
     const arm = p.group(side * 0.27, 0.46, 0, hips);
     p.capsule(0.07, 0.15, cloth, 0, -0.13, 0, arm);
-    p.ball(0.08, fur, 0, -0.29, 0, arm);
+    p.ball(0.08, paws, 0, -0.29, 0, arm);
     arm.rotation.z = side * 0.18;
     return arm;
   });
@@ -507,7 +511,7 @@ const build = {
 // Where each resident is in its room (see rooms.js for the furniture), and
 // how far round it the friends are kept. They are built about 1.6 tall
 // standing, and grown to the heroine's size.
-const SCALE = 1.75;
+export const SCALE = 1.75;
 const SPOTS = {
   frog: { position: [-3.3, 0.13, -2.85], heading: 0.5, radius: 0.8 },
   cat: { position: [3.4, 0.42, -2.8], heading: -0.5, radius: 0.8 },
