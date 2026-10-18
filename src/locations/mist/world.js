@@ -26,7 +26,8 @@ const PATH = { from: 4, to: 26, half: 1.5 };
 export const pathX = (z) => 3.2 * Math.sin(z * 0.22);
 const GLADE = { x: pathX(14) - 5, z: 14, r: 4 };
 // The camera looks north, so south of the meadow and of each corner the
-// trees give way to low ferns, and the friends stay in sight there.
+// trees give way to fern lawns the friends can wander, and they stay in
+// sight there.
 const LAWNS = [
   { x: 0, z: FIELD.z + 14, r: 12 },
   { x: -30, z: 8, r: 8 },
@@ -138,20 +139,26 @@ function trailGap(x, z, trail) {
 }
 const onTrail = (x, z, margin = 0) =>
   TRAILS.some((trail) => trailGap(x, z, trail) < TRAIL_HALF + margin);
+const ROOMS = [CLEARING, FIELD, GLADE, GROVE, BERRIES];
+// The clearing, meadow, glade, corners, path and trails: everywhere with
+// a moss floor or paving.
+const paved = (x, z, margin = 0) =>
+  ROOMS.some((c) => inCircle(x, z, c, margin)) ||
+  onPath(x, z, margin) ||
+  onTrail(x, z, margin);
 export function walkable(x, z, margin = 0) {
   if (Math.hypot(x, z) > EDGE) return false;
+  // The stream is crossed only on the bridge, where the trail runs.
+  if (onTrail(x, z, margin)) return true;
+  if (Math.abs(x - streamX(z)) < STREAM.half + 0.2) return false;
   return (
-    [CLEARING, FIELD, GLADE, GROVE, BERRIES].some((c) =>
-      inCircle(x, z, c, margin),
-    ) ||
-    onPath(x, z, margin) ||
-    onTrail(x, z, margin)
+    paved(x, z, margin) || LAWNS.some((lawn) => inCircle(x, z, lawn, margin))
   );
 }
 // How far a tree stands from anywhere the friends can walk.
 function clearance(x, z) {
   let gap = Infinity;
-  for (const c of [CLEARING, FIELD, GLADE, GROVE, BERRIES])
+  for (const c of [...ROOMS, ...LAWNS])
     gap = Math.min(gap, Math.hypot(x - c.x, z - c.z) - c.r);
   for (let t = PATH.from; t <= PATH.to; t += 0.5)
     gap = Math.min(gap, Math.hypot(x - pathX(t), z - t) - PATH.half);
@@ -439,7 +446,7 @@ export function createMistWorld(context) {
       z = lawn.z + Math.cos(a) * d;
     if (
       Math.hypot(x, z) > EDGE - 0.6 ||
-      walkable(x, z, 0.5) ||
+      paved(x, z, 0.5) ||
       Math.abs(x - streamX(z)) < STREAM.half + 0.4
     )
       continue;
@@ -575,7 +582,6 @@ export function createMistWorld(context) {
       if (
         Math.hypot(px, pz) > EDGE - 0.8 ||
         clearance(px, pz) < 1.1 ||
-        LAWNS.some((lawn) => inCircle(px, pz, lawn)) ||
         Math.abs(px - streamX(pz)) < STREAM.half + 0.9
       )
         continue;
@@ -973,6 +979,18 @@ export function createMistWorld(context) {
         if (clear > best.distance) best = { yaw, distance: clear };
       }
       return { yaw: best.yaw, distance: Math.max(4, best.distance) };
+    },
+    // The posing animal keeps its face to the camera, in Camera mode too,
+    // however the view is turned.
+    faceCamera(camera) {
+      const animal = animals.find((a) => a.posing);
+      if (!animal) return;
+      const { position, rotation } = animal.group;
+      animal.posing.facing = Math.atan2(
+        camera.position.x - position.x,
+        camera.position.z - position.z,
+      );
+      if (animal.posing.arrived) rotation.y = animal.posing.facing;
     },
     get gathering() {
       return gathering > 0;

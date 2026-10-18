@@ -248,13 +248,14 @@ export function createMistPlaces(context) {
       return true;
     },
     afterCamera(dt) {
-      if (context.locations.current === "mist")
-        world.visibility.update(
-          context.camera,
-          [context.hero],
-          dt,
-          context.shouldFadeScenery(),
-        );
+      if (context.locations.current !== "mist") return;
+      world.faceCamera(context.camera);
+      world.visibility.update(
+        context.camera,
+        [context.hero],
+        dt,
+        context.shouldFadeScenery(),
+      );
     },
     getHud() {
       const spot = resting ? null : world.nearby(context.hero.position);

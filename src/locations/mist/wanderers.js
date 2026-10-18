@@ -660,6 +660,7 @@ export function createWanderers({ parent, routes, blockers, contains }) {
             friends.map(({ x, z }) => ({ x, z, r: 0.55 })),
           );
           moving = !there && animal.stuck < 0.6;
+          animal.posing.arrived = !moving;
           if (!moving) {
             rotation.y = turn(rotation.y, animal.posing.facing, dt * 6);
             waving = true;

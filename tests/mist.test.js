@@ -81,8 +81,8 @@ test("the lantern path leads from the meadow to the clearing, and the forest sta
   expect(hero.position.z).toBeLessThan(3.5);
   expect(terrain.contains(0, -6)).toBe(true);
   // Deep among the trees, and off the board, are out of bounds.
-  expect(terrain.contains(-14, 8)).toBe(false);
-  expect(terrain.contains(0, 37)).toBe(false);
+  expect(terrain.contains(-13, 18)).toBe(false);
+  expect(terrain.contains(-14, 30)).toBe(false);
   // Nobody walks into the pond.
   hero.position.set(0, 0, -8);
   walk(game, "KeyW", 40);
@@ -188,7 +188,14 @@ test("the bigger hollow has a toadstool grove and a berry patch over the stream"
   // The stream is crossed only by the bridge.
   expect(terrain.contains(streamX(-20), -20)).toBe(false);
   expect(terrain.contains(streamX(10), 10)).toBe(false);
-  expect(terrain.contains(0, 50)).toBe(false);
+  expect(terrain.contains(0, 53.5)).toBe(false);
+  // The fern lawns south of the meadow and the corners can be walked.
+  for (const [x, z] of [
+    [0, 44],
+    [world.berries.x, world.berries.z + 12],
+    [world.grove.x, world.grove.z + 12],
+  ])
+    expect(terrain.contains(x, z)).toBe(true);
 });
 
 test("the forest animals stroll their routes, and stop to look at the friends", async () => {
@@ -249,7 +256,7 @@ test("an animal comes to stand beside the friends for a photo of all three", asy
   expect(gap).toBeLessThan(2.4);
   // All three face the same way, and the photo frames them together.
   expect(Math.cos(squirrel.group.rotation.y - hero.rotation.y)).toBeGreaterThan(
-    0.95,
+    0.85,
   );
   const preset = mist.getPhotoPreset();
   expect(Math.abs(preset.yaw - squirrel.posing.facing)).toBeLessThan(1);
@@ -257,6 +264,14 @@ test("an animal comes to stand beside the friends for a photo of all three", asy
     preset.target.clone().setY(0).distanceTo(hero.position.clone().setY(0)),
   ).toBeLessThan(2.5);
   expect(mist.photoLocation()).toMatch(/squirrel/);
+  // In Camera mode it turns to face the camera, wherever the view goes.
+  game.rendering.camera.position
+    .copy(squirrel.group.position)
+    .add(new THREE.Vector3(-6, 3, -6));
+  mist.afterCamera(0.04);
+  expect(
+    Math.cos(squirrel.group.rotation.y - Math.atan2(-6, -6)),
+  ).toBeGreaterThan(0.99);
   // Walking on says goodbye.
   hero.position.x -= 4;
   frames(game);
