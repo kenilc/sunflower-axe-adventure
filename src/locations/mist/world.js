@@ -980,17 +980,20 @@ export function createMistWorld(context) {
       }
       return { yaw: best.yaw, distance: Math.max(4, best.distance) };
     },
-    // The posing animal keeps its face to the camera, in Camera mode too,
-    // however the view is turned.
-    faceCamera(camera) {
-      const animal = animals.find((a) => a.posing);
-      if (!animal) return;
-      const { position, rotation } = animal.group;
-      animal.posing.facing = Math.atan2(
-        camera.position.x - position.x,
-        camera.position.z - position.z,
-      );
-      if (animal.posing.arrived) rotation.y = animal.posing.facing;
+    // The posing animal keeps its face to the camera however the view is
+    // turned; in Camera mode (`everyone`) all the animals do.
+    faceCamera(camera, everyone = false) {
+      for (const animal of animals) {
+        if (!animal.posing && !everyone) continue;
+        const { position, rotation } = animal.group;
+        const facing = Math.atan2(
+          camera.position.x - position.x,
+          camera.position.z - position.z,
+        );
+        if (animal.posing) animal.posing.facing = facing;
+        if (everyone || animal.posing.arrived) rotation.y = facing;
+        if (everyone) animal.lookAhead();
+      }
     },
     get gathering() {
       return gathering > 0;

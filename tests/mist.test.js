@@ -268,9 +268,20 @@ test("an animal comes to stand beside the friends for a photo of all three", asy
   game.rendering.camera.position
     .copy(squirrel.group.position)
     .add(new THREE.Vector3(-6, 3, -6));
-  mist.afterCamera(0.04);
+  mist.photoVisibility(game.rendering.camera, [hero], 0.04, true);
   expect(
     Math.cos(squirrel.group.rotation.y - Math.atan2(-6, -6)),
+  ).toBeGreaterThan(0.99);
+  // Any other animal in the shot turns to the lens too.
+  const fox = world.animals.find((a) => a.kind === "fox");
+  expect(
+    Math.cos(
+      fox.group.rotation.y -
+        Math.atan2(
+          game.rendering.camera.position.x - fox.group.position.x,
+          game.rendering.camera.position.z - fox.group.position.z,
+        ),
+    ),
   ).toBeGreaterThan(0.99);
   // Walking on says goodbye.
   hero.position.x -= 4;

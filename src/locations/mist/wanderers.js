@@ -530,6 +530,11 @@ export function createWanderer(kind, parent) {
     kind,
     group: root,
     speed: made.speed,
+    // Head straight, for a photo.
+    lookAhead() {
+      look = 0;
+      body.head.rotation.y = 0;
+    },
     // How it holds itself this frame: `moving` blends in the walk cycle,
     // `waving` the photo pose, and `friend` turns its head to look.
     animate(dt, time, { moving = false, waving = false, friend } = {}) {
