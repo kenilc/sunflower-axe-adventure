@@ -88,8 +88,8 @@ export function createToyTrain(context, { parent, radius, angle, helpers }) {
       [-0.62, 1.08],
       [0.62, 1.08],
     ])
-      cyl(0.04, 0.04, 1.75, cream, x, 1.95, z, coach, 6);
-    box(1.6, 0.08, 2.5, red, 0, 2.86, 0, coach);
+      cyl(0.04, 0.04, 2.5, cream, x, 2.33, z, coach, 6);
+    box(1.6, 0.08, 2.5, red, 0, 3.6, 0, coach);
     box(1.2, 0.1, 0.45, "#9a7558", 0, 1.0, -0.2, coach);
     box(1.2, 0.4, 0.08, "#9a7558", 0, 1.25, -0.45, coach);
     return coach;

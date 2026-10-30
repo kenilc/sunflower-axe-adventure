@@ -85,18 +85,18 @@ export const PLACE_OUTFITS = {
       hat: { style: "bucket", color: "#7f8a9e" },
     },
   ],
-  // Rain gear for the tea hills: her yellow raincoat and red wellies, his
-  // blue rain jacket, yellow wellies and a matching sou'wester.
+  // Rain gear for the tea hills: her coral raincoat, his blue rain jacket
+  // and sou'wester, and yellow wellies for both.
   tea: [
     {
-      torso: "#f2c94c",
-      skirt: "#f2c94c",
+      torso: "#e8746a",
+      skirt: "#e8746a",
       dress: true,
       trim: "#f4efe2",
-      buttons: "#c98f2a",
+      buttons: "#f4efe2",
       sleeves: "long",
       legs: { style: "tights", color: "#5b7fa8" },
-      shoes: { style: "boots", color: "#c8573f" },
+      shoes: { style: "boots", color: "#f2c94c" },
     },
     {
       torso: "#2f5f8a",
