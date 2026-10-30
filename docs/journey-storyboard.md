@@ -128,7 +128,7 @@ toadstool    log 5   (duck)    ⌂ turtle 8        ≈
 
 Stamp: a sleepy cat-house face with a lantern.
 
-Built note: today the hollow's balloon flies back to the polder. Once the tea terraces exist, it carries on there.
+Built note: the hollow's balloon flies on to the tea terraces.
 
 ---
 
@@ -174,6 +174,8 @@ _A soft rainy afternoon in the hills. This is the first rain in the game: mist, 
 8. Leaning out of the toy-train window.
 
 Stamp: a teacup with three leaves.
+
+Built note: the terraces are built as a round hill on a board of 34, with four rings of terrace, a south and a north stair, and the waterfall on the east side. The balloon from the hollow lands in a field to the southwest and flies back there. He carries one big yellow umbrella over them both while it rains. Tea can be picked at any tea hedge, the big puddle is in a lane to the south, and the toy train runs once round the foot of the hill from a halt to the east (it will go on to the night train once that exists). The tea house at the top is open-fronted rather than a room, and a red panda keeps it; tea there stops the rain and brings out the rainbow. Not built yet: the seed, the prayer flags (bunting hangs at the tea house instead) and the photo-spot poses.
 
 ---
 

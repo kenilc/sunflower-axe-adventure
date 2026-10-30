@@ -500,7 +500,7 @@ export function createMistWorld(context) {
     })(),
     dynamic: true,
   });
-  const trip = createBalloonTrip(context, { balloon, destination: "polder" });
+  const trip = createBalloonTrip(context, { balloon, destination: "tea" });
   const balloonSpot = new THREE.Vector3(0, 0, FIELD.z + 0.6);
 
   // The forest: pines and round trees in misty teal, thick right up to the

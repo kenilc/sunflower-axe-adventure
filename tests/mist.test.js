@@ -39,7 +39,7 @@ async function flyToMist() {
   return created;
 }
 
-test("the balloon flies from the polder to Mistwood Hollow and back", async () => {
+test("the balloon flies from the polder to Mistwood Hollow, then on to the tea terraces", async () => {
   const { game } = await flyToMist();
   const mist = game.places.get("mist"),
     polder = game.places.get("polder"),
@@ -54,13 +54,16 @@ test("the balloon flies from the polder to Mistwood Hollow and back", async () =
 
   hero.position.copy(mist.world.balloonSpot);
   frames(game);
-  expect(mist.getHud().actions[0].label).toMatch(/polder/);
+  expect(mist.getHud().actions[0].label).toMatch(/tea hills/);
   expect(mist.interact()).toBe(true);
   frames(game, 80);
-  expect(game.state.area).toBe("polder");
-  expect(game.characters.rig.appearance.state.outfit).toBe("polder");
-  expect(hero.position.distanceTo(polder.world.balloonSpot)).toBeLessThan(2);
+  expect(game.state.area).toBe("tea");
+  expect(game.characters.rig.appearance.state.outfit).toBe("tea");
   expect(mist.world.trip.flying).toBe(false);
+  // The map leads back to the polder.
+  expect(game.journey.travel("polder")).toBe(true);
+  frames(game, 80);
+  expect(game.state.area).toBe("polder");
 });
 
 test("the lantern path leads from the meadow to the clearing, and the forest stays unwalked", async () => {

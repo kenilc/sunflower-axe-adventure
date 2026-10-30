@@ -165,7 +165,8 @@ export function createMistPlaces(context) {
         fov: 48,
       };
     },
-    // Arrive in the meadow by balloon; it flies back to the polder's canal.
+    // Arrive in the meadow by balloon from the polder; it flies on to the
+    // tea terraces.
     returnSpawn: [22.6, 0, -11.2],
     settings: {
       spawn: [1.6, 0, 28.6],
@@ -280,7 +281,7 @@ export function createMistPlaces(context) {
         icon = "interact";
         hint = `A ${name} out for an evening stroll. Ask it to join your photo · X`;
       } else if (spot?.kind === "balloon") {
-        label = "Fly the balloon back to the polder · X";
+        label = "Fly the balloon on to the tea hills · X";
         icon = "gate";
         hint = "Climb into the basket and rise out of the mist · X";
       } else if (spot?.kind === "wisps") {
@@ -306,7 +307,7 @@ export function createMistPlaces(context) {
           title: "Lanterns in the fog.<br />Sleepy little houses.",
           objective:
             made.size === MOMENTS.length
-              ? "Every misty memory made. Find a photo spot, or fly home by balloon."
+              ? "Every misty memory made. Find a photo spot, or fly on by balloon."
               : "Greet the mist puffs, walk into every house, float a lantern and rest on the log.",
         },
         progress: `${made.size} / ${MOMENTS.length} misty memories`,

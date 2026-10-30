@@ -118,6 +118,26 @@ export const MUSIC_SCORES = {
       [72, null, 76, 79, 76, null, null, null],
     ),
   },
+  // Raindrop plucks over a soft drone in D, for the rainy tea hills.
+  tea: {
+    bpm: 78,
+    volume: 0.23,
+    lead: "pluck",
+    backing: "pad",
+    sustain: 2.4,
+    chords: [
+      [50, 57, 62],
+      [48, 55, 60],
+      [50, 57, 62],
+      [45, 52, 57],
+    ],
+    melody: bars(
+      [74, null, 76, 78, 81, null, 78, 76],
+      [74, null, 72, null, 69, 72, 74, null],
+      [81, 83, 81, 78, 76, null, 78, null],
+      [74, 76, 72, null, 74, null, null, null],
+    ),
+  },
   funfair: {
     bpm: 112,
     volume: 0.25,

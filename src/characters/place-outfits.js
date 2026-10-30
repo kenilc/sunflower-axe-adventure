@@ -85,6 +85,30 @@ export const PLACE_OUTFITS = {
       hat: { style: "bucket", color: "#7f8a9e" },
     },
   ],
+  // Rain gear for the tea hills: her yellow raincoat and red wellies, his
+  // blue rain jacket, yellow wellies and a matching sou'wester.
+  tea: [
+    {
+      torso: "#f2c94c",
+      skirt: "#f2c94c",
+      dress: true,
+      trim: "#f4efe2",
+      buttons: "#c98f2a",
+      sleeves: "long",
+      legs: { style: "tights", color: "#5b7fa8" },
+      shoes: { style: "boots", color: "#c8573f" },
+    },
+    {
+      torso: "#2f5f8a",
+      collar: "#f2c94c",
+      buttons: "#f2c94c",
+      pockets: "#28527a",
+      sleeves: "long",
+      legs: { style: "trousers", color: "#c9b48a" },
+      shoes: { style: "boots", color: "#f2c94c" },
+      hat: { style: "souwester", color: "#f2c94c" },
+    },
+  ],
   funfair: [
     {
       torso: "#f2a7b8",
@@ -298,6 +322,13 @@ function buildOutfit(rig, index, look, { box, cyl, ball, mesh }) {
       cyl(0.52, 0.56, 0.32, color, 0, 0.9, 0, hat, 12);
       cyl(0.57, 0.57, 0.09, "#4f6b8f", 0, 0.8, 0, hat, 12);
       cyl(0.95, 0.95, 0.05, color, 0, 0.73, 0, hat, 16);
+    } else if (style === "souwester") {
+      // A rain hat: a round crown and a brim that slopes down, longest at
+      // the back to keep the rain off his neck.
+      const crown = ball(0.6, color, 0, 0.8, -0.02, hat);
+      crown.scale.set(1, 0.6, 1);
+      const brim = cyl(0.62, 0.98, 0.16, color, 0, 0.66, -0.12, hat, 16);
+      brim.scale.z = 1.12;
     } else if (style === "alpine") {
       cyl(0.45, 0.58, 0.44, color, 0, 0.95, 0, hat, 10);
       cyl(0.82, 0.82, 0.06, color, 0, 0.74, 0, hat, 14);

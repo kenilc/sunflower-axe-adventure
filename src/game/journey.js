@@ -42,6 +42,14 @@ export const JOURNEY_DESTINATIONS = [
     hint: "Fly the balloon from the polder",
   },
   {
+    id: "tea",
+    name: "Misty Tea Terraces",
+    icon: "☂",
+    x: 32,
+    y: 46,
+    hint: "Fly the balloon on from the hollow",
+  },
+  {
     id: "village",
     name: "Edelweiss Village",
     icon: "⌂",
