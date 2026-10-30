@@ -50,6 +50,17 @@ test("the hollow's balloon flies on to the tea terraces, in the rain, and back",
     game.characters.companion.character.getObjectByName("tea-umbrella");
   expect(umbrella.visible).toBe(true);
   expect(mist.world.trip.flying).toBe(false);
+  // In the rain they walk side by side under it, rather than him trailing.
+  const friend = game.characters.companion.character;
+  game.input.keys.KeyD = true;
+  let widest = 0;
+  for (let i = 0; i < 40; i++) {
+    frames(game);
+    if (i > 10)
+      widest = Math.max(widest, friend.position.distanceTo(hero.position));
+  }
+  game.input.keys.KeyD = false;
+  expect(widest).toBeLessThan(1.4);
 
   hero.position.copy(tea.world.balloonSpot);
   frames(game);
@@ -72,8 +83,14 @@ test("the stone stair climbs the terraces to the tea house; banks and hedges sta
   game.input.keys.KeyQ = false;
   expect(Math.abs(game.state.yaw)).toBeLessThan(0.06);
   hero.position.set(0, 0, 23);
+  game.characters.companion.reset(hero.position, tea.world.blockers, tea.world);
   walk(game, "KeyW", 140);
   expect(hero.position.y).toBeCloseTo(TERRACES[0].height);
+  // He keeps up beside her all the way to the top.
+  frames(game, 20);
+  const friend = game.characters.companion.character;
+  expect(friend.position.distanceTo(hero.position)).toBeLessThan(2.5);
+  expect(friend.position.y).toBeCloseTo(TERRACES[0].height);
   expect(hero.position.z).toBeLessThan(5);
   // She walks in under the tea house roof, and the camera stays above it.
   expect(Math.abs(hero.position.x)).toBeLessThan(3);

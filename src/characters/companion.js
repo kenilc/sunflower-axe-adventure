@@ -31,6 +31,11 @@ export function createCompanion({ model, random = Math.random }) {
   const trailSpacing = 0.6;
   const trailLength = 60;
   const trailClearance = 0.4;
+  // Walking together (under one umbrella in the rain) he keeps this far to
+  // her side, or just behind her where the way is too narrow for two.
+  const besideGap = 1;
+  const besideRange = 6;
+  const besideSpeed = 10;
   let wait = 0,
     walking = false,
     gait = 0,
@@ -39,6 +44,9 @@ export function createCompanion({ model, random = Math.random }) {
     trailTarget = null;
   const lastHero = new THREE.Vector3();
   let heroKnown = false;
+  // Which way she last walked, and which side of her he walks on.
+  const heroHeading = new THREE.Vector3(0, 0, 1);
+  let besideSide = 1;
   const horizontalDistance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
   const flatGround = {
     contains: (x, z) => Math.hypot(x, z) < 48,
@@ -188,6 +196,72 @@ export function createCompanion({ model, random = Math.random }) {
     }
     return 0;
   }
+  // A step to her side, matching her pace. Returns how far he moved, or
+  // null when the way to her side is blocked and he should follow instead.
+  function walkBeside(dt, obstacles, heroPosition, terrain) {
+    const dx = heroPosition.x - lastHero.x,
+      dz = heroPosition.z - lastHero.z;
+    const walked = Math.hypot(dx, dz);
+    if (heroKnown && walked > 1e-3 && walked < 3)
+      heroHeading.set(dx / walked, 0, dz / walked);
+    lastHero.copy(heroPosition);
+    heroKnown = true;
+    const across = new THREE.Vector3(heroHeading.z, 0, -heroHeading.x);
+    const rx = character.position.x - heroPosition.x,
+      rz = character.position.z - heroPosition.z;
+    if (Math.abs(rx * across.x + rz * across.z) > 0.3)
+      besideSide = rx * across.x + rz * across.z > 0 ? 1 : -1;
+    const spots = [
+      across.clone().multiplyScalar(besideSide * besideGap),
+      across.clone().multiplyScalar(-besideSide * besideGap),
+      heroHeading.clone().multiplyScalar(-besideGap * 1.05),
+    ].map((offset) => offset.add(heroPosition));
+    const spot = spots.find((s) =>
+      clear(s.x, s.z, obstacles, terrain, trailClearance),
+    );
+    if (!spot) return null;
+    if (spot !== spots[0] && spot !== spots[2]) besideSide = -besideSide;
+    const gap = horizontalDistance(character.position, spot);
+    const step = Math.min(gap, Math.min(besideSpeed, 2 + gap * 6) * dt);
+    let moved = 0;
+    if (step > 1e-4) {
+      const x =
+          character.position.x + ((spot.x - character.position.x) / gap) * step,
+        z =
+          character.position.z + ((spot.z - character.position.z) / gap) * step;
+      // Round her, never through her.
+      const ox = x - heroPosition.x,
+        oz = z - heroPosition.z;
+      const near = Math.hypot(ox, oz);
+      const push =
+        near < bodyDistance + 0.05 ? (bodyDistance + 0.05) / near : 1;
+      const px = heroPosition.x + ox * push,
+        pz = heroPosition.z + oz * push;
+      if (clear(px, pz, obstacles, terrain, trailClearance)) {
+        moved = horizontalDistance(character.position, { x: px, z: pz });
+        character.position.set(px, terrain.heightAt(px, pz), pz);
+      }
+    }
+    if (!moved && gap > 0.5) return null;
+    // Catching up he faces where he goes; beside her he faces her way.
+    const facing =
+      gap > 0.6 && moved > 0
+        ? Math.atan2(
+            spot.x - character.position.x,
+            spot.z - character.position.z,
+          )
+        : Math.atan2(heroHeading.x, heroHeading.z);
+    forward.set(0, 0, 1).applyQuaternion(character.quaternion);
+    const current = Math.atan2(forward.x, forward.z);
+    const turn = Math.atan2(
+      Math.sin(facing - current),
+      Math.cos(facing - current),
+    );
+    character.rotation.set(0, current + turn * Math.min(1, dt * 8), 0);
+    walking = false;
+    trailTarget = null;
+    return moved;
+  }
   function update(dt, obstacles, heroPosition, terrain = flatGround) {
     let separation = horizontalDistance(character.position, heroPosition);
     stuckTime = separation > maxDistance ? stuckTime + dt : 0;
@@ -196,6 +270,18 @@ export function createCompanion({ model, random = Math.random }) {
       separation = horizontalDistance(character.position, heroPosition);
     }
     remember(heroPosition);
+    const together =
+      separation < besideRange &&
+      (typeof terrain.walkTogether === "function"
+        ? terrain.walkTogether()
+        : terrain.walkTogether);
+    if (together) {
+      const moved = walkBeside(dt, obstacles, heroPosition, terrain);
+      if (moved !== null) {
+        animateWalk(dt, moved);
+        return false;
+      }
+    }
     const gaveWay = giveWay(dt, heroPosition, obstacles, terrain);
     const followDistance = terrain.followDistance ?? 5;
     const following = !gaveWay && separation > followDistance;
@@ -300,6 +386,10 @@ export function createCompanion({ model, random = Math.random }) {
         if (step > 0 && !moved && !bumped && !following) pause();
       }
     }
+    animateWalk(dt, moved);
+    return bumped;
+  }
+  function animateWalk(dt, moved) {
     gait += moved * 5;
     const swing = moved > 0 ? Math.sin(gait) * 0.32 : 0;
     const blend = 1 - Math.exp(-dt * 10);
@@ -316,7 +406,6 @@ export function createCompanion({ model, random = Math.random }) {
       moved > 0 ? Math.abs(Math.sin(gait)) * 0.035 : 0,
       blend,
     );
-    return bumped;
   }
   reset();
   return {

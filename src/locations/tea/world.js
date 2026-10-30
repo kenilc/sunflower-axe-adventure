@@ -745,9 +745,9 @@ export function createTeaWorld(context) {
   // Inside: the bench along the front, the low table before it, cushions,
   // and the stove and shelf at the back.
   const seat = new THREE.Vector3(0, 0, 0.35);
-  box(2.6, 0.12, 0.6, wood, seat.x, 0.62, seat.z, house);
-  box(2.6, 0.5, 0.12, wood, seat.x, 0.95, seat.z - 0.32, house);
-  for (const x of [-1.15, 1.15])
+  box(hw * 2 - 0.15, 0.12, 0.6, wood, seat.x, 0.62, seat.z, house);
+  box(hw * 2 - 0.15, 0.5, 0.12, wood, seat.x, 0.95, seat.z - 0.32, house);
+  for (const x of [-2.6, -1.15, 1.15, 2.6])
     box(0.12, 0.6, 0.5, dark, x, 0.3, seat.z, house);
   for (const [x, color] of [
     [-0.62, "#e2a24a"],
@@ -880,7 +880,9 @@ export function createTeaWorld(context) {
   blockers.push({ ...toWorld(1.85, back + 0.6), r: 0.6 });
   for (const x of [-0.8, 0, 0.8])
     blockers.push({ ...toWorld(x, table.z), r: 0.42 });
-  for (const x of [-0.9, 0, 0.9])
+  // The bench runs on to the side walls, so the back, with the stove and
+  // shelf, stays out of the way.
+  for (const x of [-2.4, -1.8, -0.9, 0, 0.9, 1.8, 2.4])
     blockers.push({ ...toWorld(x, seat.z - 0.1), r: 0.36 });
   const teaSpot = new THREE.Vector3(
     TEA_HOUSE.x,

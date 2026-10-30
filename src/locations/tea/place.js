@@ -45,6 +45,12 @@ export function createTeaPlace(context) {
   const world = createTeaWorld(context);
   const weather = createWeather(context, { group: world.group, world });
   const umbrella = createUmbrella(context);
+  // Under one umbrella they walk side by side; out of the rain he follows
+  // as usual. When the way to her side is blocked he follows close behind.
+  world.walkTogether = () => weather.raining;
+  Object.defineProperty(world, "followDistance", {
+    get: () => (weather.raining ? 1.6 : 5),
+  });
   const pose = createPoseHold(context, "tea-moment");
   const baskets = pose.rigs.map(() => makeBasket(context.helpers));
   const made = new Set();
@@ -357,9 +363,18 @@ export function createTeaPlace(context) {
       if (paused) return;
       world.animate(dt, time, weather.wet);
       weather.animate(dt, context.camera);
+      // He closes it under the tea house roof.
+      const { x, z } = context.companion.character.position;
+      const sheltered = world.roofs.some(
+        (roof) => x > roof.x0 && x < roof.x1 && z > roof.z0 && z < roof.z1,
+      );
       umbrella.update(
         dt,
-        weather.raining && !moment && !world.train.riding && !world.trip.flying,
+        weather.raining &&
+          !sheltered &&
+          !moment &&
+          !world.train.riding &&
+          !world.trip.flying,
       );
     },
     updateCamera(dt) {

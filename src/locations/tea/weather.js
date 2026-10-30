@@ -293,7 +293,7 @@ export function createUmbrella(context) {
   const umbrella = new THREE.Group();
   umbrella.name = "tea-umbrella";
   const panels = 8,
-    radius = 1.75;
+    radius = 2.3;
   const yellow = new THREE.MeshStandardMaterial({
     color: "#f2c94c",
     roughness: 0.7,
@@ -306,7 +306,7 @@ export function createUmbrella(context) {
     const panel = new THREE.Mesh(
       new THREE.ConeGeometry(
         radius,
-        0.55,
+        0.72,
         1,
         1,
         true,
@@ -316,21 +316,21 @@ export function createUmbrella(context) {
       i % 2 ? white : yellow,
     );
     panel.rotation.y = (i / panels) * Math.PI * 2;
-    panel.position.y = 2.55;
+    panel.position.y = 2.7;
     panel.castShadow = true;
     umbrella.add(panel);
   }
   const shaft = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.025, 0.025, 2.85, 6),
+    new THREE.CylinderGeometry(0.03, 0.03, 3.1, 6),
     new THREE.MeshStandardMaterial({ color: "#6b4f3a", roughness: 0.6 }),
   );
-  shaft.position.y = 1.4;
+  shaft.position.y = 1.52;
   umbrella.add(shaft);
   const tip = new THREE.Mesh(
     new THREE.SphereGeometry(0.06, 8, 6),
     new THREE.MeshStandardMaterial({ color: "#c8573f", roughness: 0.6 }),
   );
-  tip.position.y = 2.85;
+  tip.position.y = 3.07;
   umbrella.add(tip);
   const handle = new THREE.Mesh(
     new THREE.TorusGeometry(0.08, 0.025, 6, 10, Math.PI),
