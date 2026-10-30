@@ -316,21 +316,21 @@ export function createUmbrella(context) {
       i % 2 ? white : yellow,
     );
     panel.rotation.y = (i / panels) * Math.PI * 2;
-    panel.position.y = 2.0;
+    panel.position.y = 2.55;
     panel.castShadow = true;
     umbrella.add(panel);
   }
   const shaft = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.025, 0.025, 2.3, 6),
+    new THREE.CylinderGeometry(0.025, 0.025, 2.85, 6),
     new THREE.MeshStandardMaterial({ color: "#6b4f3a", roughness: 0.6 }),
   );
-  shaft.position.y = 1.1;
+  shaft.position.y = 1.4;
   umbrella.add(shaft);
   const tip = new THREE.Mesh(
     new THREE.SphereGeometry(0.06, 8, 6),
     new THREE.MeshStandardMaterial({ color: "#c8573f", roughness: 0.6 }),
   );
-  tip.position.y = 2.3;
+  tip.position.y = 2.85;
   umbrella.add(tip);
   const handle = new THREE.Mesh(
     new THREE.TorusGeometry(0.08, 0.025, 6, 10, Math.PI),
@@ -358,11 +358,11 @@ export function createUmbrella(context) {
       arm.localToWorld(hand);
       character.worldToLocal(hand);
       umbrella.position.copy(hand);
-      // Lean it over towards her, wherever she is beside him.
+      // Lean it a little towards her, high enough to clear her hood.
       her.copy(context.hero.position);
       character.worldToLocal(her).setY(0);
       if (her.lengthSq() > 1e-6) her.normalize();
-      umbrella.rotation.set(0.32 * her.z, 0, -0.32 * her.x);
+      umbrella.rotation.set(0.14 * her.z, 0, -0.14 * her.x);
       umbrella.scale.set(open, 1, open);
     },
     hide() {
